@@ -43,3 +43,7 @@ Thumbs.db
 
 # Claude Code local state (agent worktrees)
 .claude/
+
+# Visual QA captures: specs write raw PNGs; curated, palette-reduced copies are *.qa.png
+docs/qa/screens/**/*.png
+!docs/qa/screens/**/*.qa.png
