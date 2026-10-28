@@ -192,7 +192,7 @@ export class PixiRenderer implements IRenderer {
     if (this.enteringPortal) this.effects?.startTransition();
     this.enteringPortal = false;
     this.world = world;
-    this.sky.setWorld(world.meta.width, world.meta.height, world.meta.seed, this.fx?.glow ?? this.textures.getPlaceholder(), world.spawn.x, world.spawn.y);
+    this.sky.setWorld(world.meta.width, world.meta.height, world.meta.seed, this.fx?.clouds ?? [], world.spawn.x, world.spawn.y);
 
     for (const tree of planForestTrees(world)) {
       const sprite = this.tag(new Sprite(this.textures.get('tile_tree')), 'tile_tree', 'actors/forest');

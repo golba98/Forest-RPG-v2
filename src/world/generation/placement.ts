@@ -58,7 +58,9 @@ export function restoreSpawnClearing(grid: GenGrid, spawn: TilePoint): void {
 
 /** Part 4: every non-solid tile the player cannot reach from spawn becomes FOREST. */
 export function pruneUnreachable(grid: GenGrid, spawn: TilePoint): void {
-  const reached = floodFill(grid, spawn, (x, y) => isOpen(grid, x, y));
+  // FOREST is about to become walkable woodland (placeWoodland), so it does not
+  // cut regions off here; the post-woodland pass prunes what is truly unreachable.
+  const reached = floodFill(grid, spawn, (x, y) => isOpen(grid, x, y) || (grid.inBounds(x, y) && grid.get(x, y) === Tile.FOREST));
   for (let i = 0; i < grid.tiles.length; i++) {
     if (reached[i] !== 1 && !tileProperties(grid.tiles[i] ?? 0).solid) grid.tiles[i] = Tile.FOREST;
   }
@@ -137,7 +139,7 @@ export function placeProps(
     if (
       nearProtected(tile) ||
       occupied[tile.y * grid.width + tile.x] ||
-      grid.neighbors8(tile.x, tile.y).some((p) => grid.get(p.x, p.y) === Tile.RAMP)
+      grid.neighbors8(tile.x, tile.y).some((p) => grid.get(p.x, p.y) === Tile.RAMP || grid.get(p.x, p.y) === Tile.STAIRS)
     )
       continue;
     const roll = rng.nextFloat();

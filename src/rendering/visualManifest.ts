@@ -144,7 +144,7 @@ export function buildVisualManifest(): VisualAssetEntry[] {
     {
       ...fullTile('terrain:hill-cliff', HILL_ATLAS_ALIAS, HILL_ATLAS_SRC, 360, 216),
       frame: { w: 32, h: 32 },
-      solidFootprint: 'whole tile for every HILL_* and PLATEAU cell (TILE_PROPERTIES); jumping may cross',
+      solidFootprint: 'HILL_* edges solid to walking, crossable by jumping; PLATEAU tops and STAIRS walkable (TILE_PROPERTIES)',
     },
     {
       id: 'actor:forest-tree', alias: 'tile_tree', path: 'assets/images/terrain/tree.png', texture: { w: 239, h: 286 }, frame: { w: 239, h: 286 },

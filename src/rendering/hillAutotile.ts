@@ -1,5 +1,5 @@
 import { Tile, isHillTile, type TileId } from '../types/tiles';
-import atlas from '../../public/assets/images/terrain/hills/cliff_tileset.json';
+import atlas from './generated/cliff_tileset.json';
 
 /**
  * Pixi-free 8-neighbour ("blob") autotiling for raised hill terrain.
@@ -48,7 +48,7 @@ const INTERIOR_KEYS = ['mask_255', 'mask_255', 'plateau_1', 'mask_255', 'plateau
 
 /** Raised terrain drawn with the cliff tileset. */
 export function isElevatedTile(tile: number): boolean {
-  return isHillTile(tile as TileId) || tile === Tile.PLATEAU;
+  return isHillTile(tile as TileId) || tile === Tile.PLATEAU || tile === Tile.STAIRS;
 }
 
 /** Drops diagonal bits whose two adjacent cardinals are not both set. */
@@ -91,6 +91,12 @@ export function hillShadowFrame(): AtlasRect {
 /** Cast shadow on low ground directly east of a hill (sun from the north-west). */
 export function hillShadowEastFrame(): AtlasRect {
   return frameOrThrow('shadow_e');
+}
+
+/** Steps overlay for a STAIRS cell, oriented toward its open (low-ground) side. */
+export function hillStairsFrame(mask: number): AtlasRect {
+  const dir = !(mask & NB.S) ? 's' : !(mask & NB.N) ? 'n' : !(mask & NB.E) ? 'e' : 'w';
+  return frameOrThrow(`stairs_${dir}`);
 }
 
 export function hillAtlasMasks(): readonly number[] {

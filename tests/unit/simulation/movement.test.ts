@@ -34,7 +34,7 @@ it('cannot start a dash while sprint is locked out', () => {
   expect(s.player.isDashing).toBe(false);
 });
 
-it('keeps the jump arc in simulation time while hills remain solid', async () => {
+it('keeps the jump arc in simulation time and climbs a cliff edge by jumping', async () => {
   const { makeWorld } = await import('../game/fakes');
   const { Tile } = await import('../../../src/types/tiles');
   const world = makeWorld();
@@ -51,7 +51,8 @@ it('keeps the jump arc in simulation time while hills remain solid', async () =>
     0,
   );
   for (let i = 0; i < 29; i++) s.step(1 / 60, { ...IDLE_INTENT, moveX: 1 });
-  expect(s.player.x).toBeLessThanOrEqual(4.7);
+  // Walking stopped at the edge; the jump cleared it and landed on the hill top.
+  expect(s.player.x).toBeGreaterThan(6.2);
   expect(s.player.isJumping).toBe(false);
 });
 

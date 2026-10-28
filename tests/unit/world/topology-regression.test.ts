@@ -41,7 +41,8 @@ describe('final terrain topology', () => {
             throw Error(`disconnected seed ${seed}: ${x},${y}`);
           const t = describeTerrain(w, x, y);
           if (isHillTerrain(id)) {
-            expect(t.walkable).toBe(false);
+            // Edges are cliffs; hill tops and cut stairs are walkable ground.
+            expect(t.walkable).toBe(id === Tile.PLATEAU || id === Tile.STAIRS);
             const cardinal = [
               [0, -1],
               [1, 0],

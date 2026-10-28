@@ -47,3 +47,11 @@ Hill art is chosen from elevation topology: HILL_* or PLATEAU cells, with an 8-n
 On this branch the collider layer reads `TILE_PROPERTIES`, `WorldProp.solid` and entity `halfSize`. After the merge, Codex's per-object footprints (`ObjectSemantics.OBJECT_FOOTPRINTS`) become authoritative. The overlay should then draw `queryColliders` / `__GAME__.getGameplayDebug().colliders` instead. This is a one-line source swap in `src/main.ts` (`renderer.setDebugEntitySource` / collider source).
 
 See also [visual-collision-mismatches.md](visual-collision-mismatches.md).
+
+## Hill access (2026-10-28, user decision: stairs and jumping)
+
+- `PLATEAU` (hill tops) and the new `Tile.STAIRS` (23) are walkable ground. `HILL_*` cliff edges stay solid to walking, but they carry `TileProperties.jumpable`: the `jumping` traversal profile passes over them.
+- A jump that lands on a cliff edge completes the climb or drop to the first free spot ahead (`MovementSystem.finishCrossing`). Props still return the player to the take-off point.
+- `placeStairs` cuts 1–3 staircases into straight edges of every hill with a top, preferring south faces. Its foot must be landable ground or soon-to-be woodland, and trees and decor are kept off stair landings. The first reachability prune now treats FOREST as passable, because woodland converts it right after.
+- Generator version is now 5. The connectivity tests (100 seeds) prove every hill top is reachable on foot.
+- Ground enemies can use stairs and hill tops; ghosts are unchanged.

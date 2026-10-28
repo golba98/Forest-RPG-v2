@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('jump remains blocked by hills and water immersion displays without render errors', async ({
+test('walking stops at a cliff edge, a jump climbs it, and water immersion displays without render errors', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -28,15 +28,22 @@ test('jump remains blocked by hills and water immersion displays without render 
     });
   });
   expect(loaded).toBe(true);
+  // Walking into the cliff edge (HILL_W at x=5) stops at its face.
+  await page.keyboard.down('KeyD');
+  await page.waitForTimeout(400);
+  await page.keyboard.up('KeyD');
+  expect(await page.evaluate(() => window.__GAME__!.getState().player.x)).toBeLessThanOrEqual(4.71);
+  // Jumping carries the player over the edge onto the hill top (PLATEAU at x=6).
   await page.keyboard.down('KeyD');
   await page.keyboard.down('Space');
-  await page.waitForTimeout(180);
+  await page.waitForTimeout(100);
   await page.keyboard.up('Space');
-  await page.keyboard.up('KeyD');
   expect(await page.evaluate(() => window.__GAME__!.getState().player.isJumping)).toBe(true);
-  expect(await page.evaluate(() => window.__GAME__!.getState().player.x)).toBeLessThanOrEqual(4.7);
-  await page.waitForTimeout(450);
+  await page.waitForTimeout(550);
+  await page.keyboard.up('KeyD');
+  await page.waitForTimeout(100);
   expect(await page.evaluate(() => window.__GAME__!.getState().player.isJumping)).toBe(false);
+  expect(await page.evaluate(() => window.__GAME__!.getState().player.x)).toBeGreaterThan(6);
   await page.screenshot({ path: 'test-results/hill.png' });
   await page.evaluate(() => window.__GAME__!.setPlayerPosition(4.5, 5.5));
   await page.waitForTimeout(150);

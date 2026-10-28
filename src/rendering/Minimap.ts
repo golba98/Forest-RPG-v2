@@ -21,6 +21,7 @@ const C = {
   bridge: [0x9c, 0x64, 0x3c],
   forest: [0x2c, 0x55, 0x22],
   tree: [0x3b, 0x6e, 0x2a],
+  stairs: [0xe0, 0xc0, 0x6a],
 } as const;
 
 type Rgb = readonly [number, number, number];
@@ -81,7 +82,8 @@ export class Minimap extends Container {
       const i = y * width + x;
       const tile = world.tiles[i] ?? 0;
       let c: Rgb = C.grass;
-      if (isElevatedTile(tile)) {
+      if (tile === Tile.STAIRS) c = C.stairs;
+      else if (isElevatedTile(tile)) {
         const m = elevationMask(world.tiles, width, height, x, y);
         c = !(m & NB.S) ? C.face : (m & (NB.N | NB.E | NB.W)) !== (NB.N | NB.E | NB.W) ? C.rim : C.plateau;
       } else if (tile === Tile.RIVER) c = C.water;

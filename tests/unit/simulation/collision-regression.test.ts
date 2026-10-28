@@ -22,19 +22,46 @@ const directions = [
 describe('authoritative collision', () => {
   for (const [dx, dy] of directions)
     for (const fps of [30, 60, 144])
-      it(`blocks hills ${dx},${dy} at ${fps}Hz, with sprint and jump`, () => {
+      it(`blocks walking into a cliff edge ${dx},${dy} at ${fps}Hz, with sprint`, () => {
         const world = { ...makeWorld(), spawn: { x: 1, y: 1 } };
-        world.tiles[4 * 8 + 4] = Tile.PLATEAU;
+        world.tiles[4 * 8 + 4] = Tile.HILL_S;
         const s = new Simulation();
         s.loadWorld(world);
         s.setPlayerPosition(4.5 - dx * 1.2, 4.5 - dy * 1.2);
         for (let i = 0; i < fps; i++) {
-          s.step(1 / fps, { ...IDLE_INTENT, moveX: dx, moveY: dy, sprint: true, jump: i === 0 });
+          s.step(1 / fps, { ...IDLE_INTENT, moveX: dx, moveY: dy, sprint: true });
           expect(canOccupy(world, s.player.x, s.player.y, 0.3)).toBe(true);
         }
         expect(dx === 0 || Math.sign(s.player.x - 4.5) !== Math.sign(dx)).toBe(true);
         expect(dy === 0 || Math.sign(s.player.y - 4.5) !== Math.sign(dy)).toBe(true);
       });
+  it('lets a jump carry the player over a cliff edge onto the hill top', () => {
+    const w = makeWorld();
+    for (let y = 0; y < 8; y++) {
+      w.tiles[y * 8 + 4] = Tile.HILL_W;
+      for (let x = 5; x < 8; x++) w.tiles[y * 8 + x] = Tile.PLATEAU;
+    }
+    const s = new Simulation();
+    s.loadWorld(w);
+    s.setPlayerPosition(3.5, 4.5);
+    s.step(1 / 60, { ...IDLE_INTENT, jump: true, moveX: 1 });
+    for (let i = 0; i < 40; i++) s.step(1 / 60, { ...IDLE_INTENT, moveX: 1 });
+    expect(s.player.isJumping).toBe(false);
+    expect(s.player.x).toBeGreaterThan(5.3);
+    expect(canOccupy(w, s.player.x, s.player.y, 0.3)).toBe(true);
+  });
+  it('treats hill tops and stairs as walkable ground', () => {
+    const w = makeWorld();
+    for (let y = 0; y < 8; y++) w.tiles[y * 8 + 4] = Tile.HILL_W;
+    w.tiles[4 * 8 + 4] = Tile.STAIRS;
+    for (let y = 0; y < 8; y++) for (let x = 5; x < 8; x++) w.tiles[y * 8 + x] = Tile.PLATEAU;
+    const s = new Simulation();
+    s.loadWorld(w);
+    s.setPlayerPosition(3.5, 4.5);
+    for (let i = 0; i < 40; i++) s.step(1 / 60, { ...IDLE_INTENT, moveX: 1 });
+    expect(s.player.x).toBeGreaterThan(6);
+    expect(canOccupy(w, 6.5, 2.5, 0.3, 'groundEnemy')).toBe(true);
+  });
   it('allows exact contact without granting a hill exemption', () => {
     const w = makeWorld();
     for (let y = 0; y < 8; y++) w.tiles[y * 8 + 5] = Tile.HILL_W;

@@ -10,7 +10,7 @@ import type { TilePoint, WorldData, WorldGenOptions } from '../types/world';
 import { applyBorderRing, computeClearArea, fillBaseTerrain } from './generation/baseTerrain';
 import { placeBridges } from './generation/bridges';
 import { GenGrid } from './generation/GenGrid';
-import { generateHills, refreshHillEdges } from './generation/hills';
+import { generateHills, placeStairs, refreshHillEdges } from './generation/hills';
 import {
   findPortalTile,
   placeProps,
@@ -100,6 +100,7 @@ function tryGenerate(
   generateHills(grid, stream('hills'), noise);
   restoreSpawnClearing(grid, spawn);
   refreshHillEdges(grid);
+  placeStairs(grid, stream('stairs'));
 
   // Part 4 — anything the player cannot reach becomes forest.
   pruneUnreachable(grid, spawn);
