@@ -11,6 +11,7 @@ export class InputManager implements IInputManager {
   private _target: Window | HTMLElement | null = null;
   private _canvas: HTMLElement | null = null;
   private _attached = false;
+  private _enabled = true;
 
   // Keybindings: action -> Set of InputCodes
   private _bindings: Map<InputAction, Set<InputCode>> = new Map();
@@ -125,6 +126,21 @@ export class InputManager implements IInputManager {
 
   public isAttached(): boolean {
     return this._attached;
+  }
+
+  /**
+   * Enables/disables gameplay input capture. While disabled (menus, terminal),
+   * key-downs are ignored and not prevented so the DOM handles them; held state
+   * is cleared so nothing stays pressed when gameplay resumes.
+   */
+  public setEnabled(enabled: boolean): void {
+    if (this._enabled === enabled) return;
+    this._enabled = enabled;
+    if (!enabled) this.reset();
+  }
+
+  public get enabled(): boolean {
+    return this._enabled;
   }
 
   // =========================================================================
@@ -352,9 +368,22 @@ export class InputManager implements IInputManager {
     }
   }
 
+  /**
+   * Keys typed into form fields (terminal input, settings) belong to the DOM,
+   * not to the game.
+   */
+  private _isEditableTarget(ev: Event): boolean {
+    const target = ev.target as { tagName?: unknown; isContentEditable?: unknown } | null;
+    if (!target || typeof target.tagName !== 'string') return false;
+    const tag = target.tagName.toUpperCase();
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable === true;
+  }
+
   private _handleKeyDown(ev: KeyboardEvent): void {
-    // Intercept default behavior for game keys (prevent page scrolling, etc.)
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(ev.code)) {
+    if (!this._enabled || this._isEditableTarget(ev)) return;
+
+    // Gameplay owns these keys: stop page scrolling. Tab is left alone for accessibility.
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(ev.code)) {
       if (typeof ev.preventDefault === 'function') {
         ev.preventDefault();
       }
@@ -373,6 +402,7 @@ export class InputManager implements IInputManager {
   }
 
   private _handleKeyUp(ev: KeyboardEvent): void {
+    // Key-ups are always processed (even when disabled) so no key stays stuck.
     const domCode = ev.code;
     const keyCode = ev.keyCode || ev.which;
 
@@ -387,6 +417,7 @@ export class InputManager implements IInputManager {
   }
 
   private _handleMouseDown(ev: MouseEvent): void {
+    if (!this._enabled) return;
     const mouseCode = `Mouse${ev.button}`;
     if (!this._activeCodes.has(mouseCode)) {
       this._justPressedCodes.add(mouseCode);

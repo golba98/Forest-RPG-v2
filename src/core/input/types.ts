@@ -17,7 +17,11 @@ export type InputAction =
   | 'potionHealth'
   | 'potionSpeed'
   | 'toggleTerminal'
-  | 'pause';
+  | 'pause'
+  | 'fullscreen'
+  | 'regenerateWorld'
+  | 'characterMenu'
+  | 'toggleMinimap';
 
 /**
  * Standard mouse buttons matching DOM MouseEvent.button.
@@ -67,14 +71,20 @@ export const DEFAULT_KEYBINDS: KeybindConfig = Object.freeze({
   moveRight: ['KeyD', 'ArrowRight', 68, 39],
   sprint: ['ShiftLeft', 'ShiftRight', 16],
   jump: ['Space', 32],
-  dash: ['ShiftLeft', 'ShiftRight', 'KeyC', 16],
+  dash: ['ShiftLeft', 'ShiftRight', 16],
+  // Legacy "cut" key (E) stays the melee attack; the legacy E spell was shadowed by it,
+  // so the magic bolt moves to R in V2.
   attack: ['Mouse0', 'KeyE', 69],
   skillQ: ['KeyQ', 81],
-  skillE: ['KeyE', 'KeyR', 69, 82],
+  skillE: ['KeyR', 82],
   potionHealth: ['Digit1', 'Numpad1', 49, 97],
   potionSpeed: ['Digit2', 'Numpad2', 50, 98],
   toggleTerminal: ['Backquote', 'F2', 192, 113],
   pause: ['Escape', 27],
+  fullscreen: ['KeyF', 70],
+  regenerateWorld: ['KeyP', 80],
+  characterMenu: ['KeyC', 'KeyI', 67, 73],
+  toggleMinimap: ['KeyM', 77],
 });
 
 /**
