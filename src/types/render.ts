@@ -30,6 +30,13 @@ export interface RenderEntityView {
   readonly hurtFlash: boolean;
   /** Optional state flag (e.g. portal active). */
   readonly active?: boolean;
+  readonly portalState?: import('./gameplay').PortalState;
+  readonly roundComplete?: boolean;
+  readonly entryEligible?: boolean;
+  readonly aiState?: import('./entities').EnemyAIState;
+  readonly attackPhase?: 'none' | 'windup' | 'strike' | 'recover';
+  readonly moving?: boolean;
+  readonly dead?: boolean;
 }
 
 export interface LightSource {

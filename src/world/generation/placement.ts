@@ -1,3 +1,4 @@
+import { canOccupy } from '../../systems/CollisionSystem';
 import { Tile } from '../../types/tiles';
 import type { EnemyType } from '../../types/entities';
 import type { EnemySpawn, PickupSpawn, PropKind, TilePoint, WorldProp } from '../../types/world';
@@ -20,9 +21,14 @@ const WALKABLE_DECOR: readonly PropKind[] = [
   'flower_pink',
   'flower_yellow',
   'rock_pebble',
-  'rock_boulder',
 ];
-const OBSTACLE_DECOR: readonly PropKind[] = ['bush_obstacle', 'log_vertical', 'log_stump', 'log_horizontal'];
+const OBSTACLE_DECOR: readonly PropKind[] = [
+  'rock_boulder',
+  'bush_obstacle',
+  'log_vertical',
+  'log_stump',
+  'log_horizontal',
+];
 
 /** 3×3 ring around a tile in cyclic order; consecutive entries share an edge. */
 const RING: ReadonlyArray<readonly [number, number]> = [
@@ -59,7 +65,11 @@ export function pruneUnreachable(grid: GenGrid, spawn: TilePoint): void {
 }
 
 /** Nearest GRASS tile to the map centre (square spiral) further than the clear radius from spawn. */
-export function findPortalTile(grid: GenGrid, spawn: TilePoint, blocked: readonly WorldProp[] = []): TilePoint | null {
+export function findPortalTile(
+  grid: GenGrid,
+  spawn: TilePoint,
+  blocked: readonly WorldProp[] = [],
+): TilePoint | null {
   const midX = Math.floor(grid.width / 2);
   const midY = Math.floor(grid.height / 2);
   const maxR = Math.max(grid.width, grid.height);
@@ -70,7 +80,7 @@ export function findPortalTile(grid: GenGrid, spawn: TilePoint, blocked: readonl
         const x = midX + dx;
         const y = midY + dy;
         if (!grid.inBounds(x, y) || grid.get(x, y) !== Tile.GRASS) continue;
-        if (blocked.some(p => p.solid && p.tileX === x && p.tileY === y)) continue;
+        if (blocked.some((p) => p.solid && p.tileX === x && p.tileY === y)) continue;
         if (Math.hypot(x - spawn.x, y - spawn.y) > SPAWN_CLEAR_RADIUS) return { x, y };
       }
     }
@@ -88,7 +98,8 @@ export function placeProps(
   spawn: TilePoint,
   portal: TilePoint,
   rng: Rng,
-  allowObstacles: boolean
+  allowObstacles: boolean,
+  existing: readonly WorldProp[] = [],
 ): WorldProp[] {
   const grass: TilePoint[] = [];
   for (let y = 0; y < grid.height; y++) {
@@ -104,8 +115,13 @@ export function placeProps(
   const occupied = new Uint8Array(grid.width * grid.height);
   const props: WorldProp[] = [];
   let obstacles = 0;
+  for (const p of existing) {
+    occupied[p.tileY * grid.width + p.tileX] = 1;
+    if (p.solid) blocked[p.tileY * grid.width + p.tileX] = 1;
+  }
 
-  const passable = (x: number, y: number): boolean => isOpen(grid, x, y) && blocked[y * grid.width + x] !== 1;
+  const passable = (x: number, y: number): boolean =>
+    isOpen(grid, x, y) && blocked[y * grid.width + x] !== 1;
   const add = (tile: TilePoint, kind: PropKind, solid: boolean): void => {
     const idx = tile.y * grid.width + tile.x;
     props.push({ id: props.length, kind, tileX: tile.x, tileY: tile.y, solid });
@@ -113,11 +129,17 @@ export function placeProps(
     if (solid) blocked[idx] = 1;
   };
   const nearProtected = (t: TilePoint): boolean =>
-    Math.hypot(t.x - spawn.x, t.y - spawn.y) <= SPAWN_CLEAR_RADIUS || Math.hypot(t.x - portal.x, t.y - portal.y) <= 1;
+    Math.hypot(t.x - spawn.x, t.y - spawn.y) <= SPAWN_CLEAR_RADIUS ||
+    Math.hypot(t.x - portal.x, t.y - portal.y) <= 1;
 
   for (const tile of rng.shuffle(grass.slice())) {
     if (props.length >= maxDecor) break;
-    if (nearProtected(tile)) continue;
+    if (
+      nearProtected(tile) ||
+      occupied[tile.y * grid.width + tile.x] ||
+      grid.neighbors8(tile.x, tile.y).some((p) => grid.get(p.x, p.y) === Tile.RAMP)
+    )
+      continue;
     const roll = rng.nextFloat();
     if (allowObstacles && obstacles < maxObstacles && roll < DECOR_OBSTACLE_CHANCE) {
       const kind = rng.pick(OBSTACLE_DECOR);
@@ -135,7 +157,9 @@ export function placeProps(
   const anchorY = Math.floor(grid.height / 2);
   const byDistance = grass
     .filter((t) => occupied[t.y * grid.width + t.x] !== 1 && !nearProtected(t))
-    .sort((a, b) => Math.hypot(a.x - anchorX, a.y - anchorY) - Math.hypot(b.x - anchorX, b.y - anchorY));
+    .sort(
+      (a, b) => Math.hypot(a.x - anchorX, a.y - anchorY) - Math.hypot(b.x - anchorX, b.y - anchorY),
+    );
   const holeTile = byDistance[0];
   if (holeTile) add(holeTile, 'hole', false);
 
@@ -181,11 +205,22 @@ export function planSpawns(
   props: readonly WorldProp[],
   enemyCount: number,
   coinCount: number,
-  rng: Rng
+  rng: Rng,
 ): SpawnPlan | null {
+  const collisionWorld = {
+    meta: { width: grid.width, height: grid.height },
+    tiles: grid.tiles,
+    props,
+  };
+  const groundReached = floodFill(grid, spawn, (x, y) =>
+    canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3, 'groundEnemy'),
+  );
   const solidProp = new Uint8Array(grid.width * grid.height);
   for (const p of props) if (p.solid) solidProp[p.tileY * grid.width + p.tileX] = 1;
-  const reached = floodFill(grid, spawn, (x, y) => isOpen(grid, x, y) && solidProp[y * grid.width + x] !== 1);
+  const reached = floodFill(grid, spawn, (x, y) =>
+    canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3),
+  );
+  if (!reached[portal.y * grid.width + portal.x]) return null;
 
   const available: TilePoint[] = [];
   for (let y = 0; y < grid.height; y++) {
@@ -197,17 +232,28 @@ export function planSpawns(
       available.push({ x, y });
     }
   }
-  if (available.length < enemyCount + 1 + coinCount) return null;
+  if (
+    available.filter((t) => groundReached[t.y * grid.width + t.x]).length < enemyCount + 1 ||
+    available.length < enemyCount + 1 + coinCount
+  )
+    return null;
   rng.shuffle(available);
 
   const take = (): TilePoint => available.pop() ?? spawn;
+  const groundAvailable = available.filter((t) => groundReached[t.y * grid.width + t.x]);
+  const takeEnemy = (): TilePoint => {
+    const tile = groundAvailable.pop() ?? spawn;
+    const index = available.indexOf(tile);
+    if (index >= 0) available.splice(index, 1);
+    return tile;
+  };
   const enemySpawns: EnemySpawn[] = [];
   for (let i = 0; i < enemyCount; i++) {
     const type: EnemyType = i % 2 === 0 ? 'mantis' : 'maggot';
-    const t = take();
+    const t = takeEnemy();
     enemySpawns.push({ type, x: t.x, y: t.y });
   }
-  const boss = take();
+  const boss = takeEnemy();
   enemySpawns.push({ type: 'beetle', x: boss.x, y: boss.y });
 
   const pickupSpawns: PickupSpawn[] = [];
