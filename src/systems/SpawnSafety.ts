@@ -1,3 +1,4 @@
+import { entityFootprint } from './EntityFootprint';
 import type { EntityBase } from '../types/entities';
 import type { TraversalProfile } from '../types/gameplay';
 import type { WorldData } from '../types/world';
@@ -10,9 +11,9 @@ export function restoreSafePosition(
   e: EntityBase,
   profile: TraversalProfile = 'player',
 ): void {
-  if (canOccupy(world, e.x, e.y, e.halfSize, profile)) return;
+  if (canOccupy(world, e.x, e.y, entityFootprint(e), profile)) return;
   const passable = (x: number, y: number) =>
-    canOccupy(world, x + 0.5, y + 0.5, e.halfSize, profile);
+    canOccupy(world, x + 0.5, y + 0.5, entityFootprint(e), profile);
   let origin = world.spawn;
   if (!passable(origin.x, origin.y)) {
     let closest = Infinity;

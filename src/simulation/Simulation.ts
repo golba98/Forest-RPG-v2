@@ -1,3 +1,4 @@
+import { entityFootprint, resolveFootprint } from '../systems/EntityFootprint';
 import { PortalSystem } from '../systems/PortalSystem';
 import { restoreSafePosition } from '../systems/SpawnSafety';
 import { describeTerrain } from '../world/TerrainTopology';
@@ -245,10 +246,17 @@ export class Simulation implements ISimulation {
       y = Math.floor(this.player.y),
       radius = 3;
     const reached = floodFill(this.world.meta, this.world.spawn, (tx, ty) =>
-      canOccupy(this.world, tx + 0.5, ty + 0.5, this.player.halfSize),
+      canOccupy(this.world, tx + 0.5, ty + 0.5, entityFootprint(this.player)),
     );
     const portal = this.entities.find((e) => e.kind === 'portal');
+    const f = resolveFootprint(entityFootprint(this.player));
     return {
+      playerFootprint: {
+        minX: this.player.x + f.offsetX - f.halfWidth,
+        minY: this.player.y + f.offsetY - f.halfHeight,
+        maxX: this.player.x + f.offsetX + f.halfWidth,
+        maxY: this.player.y + f.offsetY + f.halfHeight,
+      },
       seed: this.world.meta.seed,
       tile: { x, y },
       terrain: describeTerrain(this.world, x, y),

@@ -42,7 +42,7 @@ export const LegacyTileMarker = {
 } as const;
 
 export interface TileProperties {
-  /** Blocks player movement. */
+  /** Default full-cell blocking; raised rims use authoritative surface geometry. */
   readonly solid: boolean;
   /** Blocks ground enemies (rivers block mobs but only slow the player). */
   readonly blocksMobs: boolean;
@@ -56,7 +56,7 @@ export interface TileProperties {
 
 const OPEN: TileProperties = { solid: false, blocksMobs: false, speedMultiplier: 1, cuttable: false, jumpable: false };
 const WALL: TileProperties = { solid: true, blocksMobs: true, speedMultiplier: 1, cuttable: false, jumpable: false };
-/** Hill edges: walls when walking; jump up onto a hill or drop off it. */
+/** Hill rims contain walking surface, bounded by a solid lip/face that jumps clear. */
 const CLIFF_EDGE: TileProperties = { ...WALL, jumpable: true };
 
 export const TILE_PROPERTIES: Readonly<Record<TileId, TileProperties>> = {

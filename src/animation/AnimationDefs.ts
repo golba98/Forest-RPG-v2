@@ -1,3 +1,4 @@
+import { CHARACTER_FOOT_OFFSET_PX } from '../types/physical';
 /**
  * Data-only animation metadata for every sprite set, keyed by
  * `RenderEntityView.spriteKey`. Frame specs and timings are taken from the
@@ -85,7 +86,7 @@ export const SYNTHETIC_HOLD_MS: Readonly<Partial<Record<AnimState, number>>> = {
 };
 
 /** Characters' feet sit roughly at the bottom edge of their collision box (halfSize 0.3 tile). */
-const CHARACTER_FOOT_OFFSET_PX = 10;
+
 
 const DIRECTIONS: readonly Direction[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 

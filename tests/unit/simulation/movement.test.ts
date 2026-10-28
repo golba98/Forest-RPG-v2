@@ -1,3 +1,5 @@
+import { entityFootprint } from '../../../src/systems/EntityFootprint';
+import { canOccupy } from '../../../src/systems/CollisionSystem';
 import { describe, it, expect } from 'vitest';
 import { Simulation } from '../../../src/simulation/Simulation';
 import { IDLE_INTENT } from '../../../src/types/entities';
@@ -14,7 +16,8 @@ it('prevents tunnelling through a wall and slides along it', () => {
   const s = new Simulation();
   s.setPlayerPosition(3.5, 11.5);
   moveWithCollision(s.world, s.player, 1, -5);
-  expect(s.player.y).toBeGreaterThan(11);
+  expect(canOccupy(s.world, s.player.x, s.player.y, entityFootprint(s.player))).toBe(true);
+  expect(s.player.y).toBeCloseTo(10.8875);
   expect(s.player.x).toBeCloseTo(4.5);
 });
 it('exhausts stamina and enforces the sprint lockout', () => {
@@ -38,8 +41,10 @@ it('keeps the jump arc in simulation time and climbs a cliff edge by jumping', a
   const { makeWorld } = await import('../game/fakes');
   const { Tile } = await import('../../../src/types/tiles');
   const world = makeWorld();
-  world.tiles[4 * 8 + 5] = Tile.HILL_W;
-  world.tiles[4 * 8 + 6] = Tile.PLATEAU;
+  for (let y = 3; y <= 5; y++) {
+    world.tiles[y * 8 + 5] = Tile.HILL_W;
+    world.tiles[y * 8 + 6] = Tile.PLATEAU;
+  }
   const s = new Simulation();
   s.loadWorld(world);
   s.setPlayerPosition(4.5, 4.5);
@@ -93,9 +98,16 @@ it('returns to safe ground if a jump ends on a solid prop', async () => {
 });
 
 describe('jump distance', () => {
-  async function jumpDistance(intent: Partial<import('../../../src/types/entities').PlayerIntent>, setup?: (s: Simulation) => void) {
+  async function jumpDistance(
+    intent: Partial<import('../../../src/types/entities').PlayerIntent>,
+    setup?: (s: Simulation) => void,
+  ) {
     const { makeWorld } = await import('../game/fakes');
-    const world = { ...makeWorld(), meta: { ...makeWorld().meta, width: 20, height: 8 }, tiles: new Uint8Array(160).fill(1) };
+    const world = {
+      ...makeWorld(),
+      meta: { ...makeWorld().meta, width: 20, height: 8 },
+      tiles: new Uint8Array(160).fill(1),
+    };
     const s = new Simulation();
     s.loadWorld(world);
     s.setPlayerPosition(2.5, 4.5);
@@ -117,6 +129,10 @@ describe('jump distance', () => {
   it('caps sprint, dash and speed-potion jumps', async () => {
     expect(await jumpDistance({ sprint: true })).toBeLessThanOrEqual(2.2);
     expect(await jumpDistance({ sprint: true, dash: true })).toBeLessThanOrEqual(2.2);
-    expect(await jumpDistance({}, (s) => { s.player.speedBuffMs = 5000; })).toBeLessThanOrEqual(2.2);
+    expect(
+      await jumpDistance({}, (s) => {
+        s.player.speedBuffMs = 5000;
+      }),
+    ).toBeLessThanOrEqual(2.2);
   });
 });
