@@ -55,6 +55,8 @@ export class GameLoop {
   private fpsWindowStartMs = 0;
   private lastFrameDeltaMs = 0;
   private droppedFramesCount = 0;
+  private maxFps = 0;
+  private lastPresentedMs = -Infinity;
 
   constructor(callbacks: GameLoopCallbacks, options: GameLoopOptions = {}) {
     this.callbacks = callbacks;
@@ -281,8 +283,8 @@ export class GameLoop {
     if (!this._isRunning) return;
 
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-      this.rafHandle = window.requestAnimationFrame(() => {
-        this.tick();
+      this.rafHandle = window.requestAnimationFrame((rafNow) => {
+        if (this.shouldRunFrame(rafNow)) this.tick();
         this.scheduleNextTick();
       });
     } else {
@@ -292,6 +294,25 @@ export class GameLoop {
         this.scheduleNextTick();
       }, 1000 / this.targetFps);
     }
+  }
+
+  /**
+   * Frame limiter for refresh rates above the configured cap. Skipped frames are
+   * not lost: their time is picked up by the next tick's delta, so simulation
+   * speed is unaffected. A 1 ms tolerance absorbs rAF timestamp jitter.
+   */
+  private shouldRunFrame(rafNowMs: number): boolean {
+    if (this.maxFps <= 0) return true;
+    const minIntervalMs = 1000 / this.maxFps;
+    if (rafNowMs - this.lastPresentedMs < minIntervalMs - 1) return false;
+    this.lastPresentedMs = rafNowMs;
+    return true;
+  }
+
+  /** Caps presented frames per second; 0 = uncapped (display refresh rate). */
+  public setMaxFps(fps: number): void {
+    this.maxFps = Number.isFinite(fps) && fps > 0 ? fps : 0;
+    if (this.maxFps > 0) this.targetFps = this.maxFps;
   }
 
   private cancelScheduledTick(): void {
