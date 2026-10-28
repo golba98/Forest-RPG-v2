@@ -21,7 +21,7 @@ const PRUNE_PASSES = 8;
 export function generateHills(grid: GenGrid, rng: Rng, noise: PerlinNoise): void {
   const { width: w, height: h } = grid;
   const offset = rng.nextFloat() * 99999;
-  let hill = new Uint8Array(w * h);
+  let hill: Uint8Array = new Uint8Array(w * h);
 
   for (let y = HILL_MARGIN; y < h - HILL_MARGIN; y++) {
     for (let x = HILL_MARGIN; x < w - HILL_MARGIN; x++) {

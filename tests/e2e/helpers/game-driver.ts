@@ -19,7 +19,7 @@ export class GameDriver {
   readonly page: Page;
   readonly baseUrl: string;
 
-  constructor(page: Page, baseUrl = 'http://localhost:5173') {
+  constructor(page: Page, baseUrl = '') {
     this.page = page;
     this.baseUrl = baseUrl;
   }
@@ -41,7 +41,7 @@ export class GameDriver {
       }, options.storageItems);
     }
 
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ debug: '1' });
     if (options.seed !== undefined) params.set('seed', options.seed.toString());
     if (options.tutorial !== undefined) params.set('tutorial', options.tutorial ? '1' : '0');
     if (options.difficulty) params.set('difficulty', options.difficulty);

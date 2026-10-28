@@ -25,7 +25,7 @@ const ALL_ANIMS: readonly AnimState[] = ['idle', 'walk', 'run', 'jump', 'attack'
 describe('resolveSpriteFrame — player', () => {
   it('slices idle_south into 4 × 20 px frames at 150 ms', () => {
     const f0 = resolveSpriteFrame(view({ animTimeMs: 0 }));
-    expect(f0.textureAlias).toBe('player_idle_s');
+    expect(f0.textureAlias).toBe('player_idle_south');
     expect(f0.frame).toEqual({ x: 0, y: 0, w: 20, h: 23 });
     expect(resolveSpriteFrame(view({ animTimeMs: 149.9 })).frame.x).toBe(0);
     expect(resolveSpriteFrame(view({ animTimeMs: 150 })).frame.x).toBe(20);
@@ -48,7 +48,7 @@ describe('resolveSpriteFrame — player', () => {
 
   it('run sheets have 6 frames at 112.5 ms', () => {
     const ref = resolveSpriteFrame(view({ anim: 'run', facing: 'E', animTimeMs: 112.5 * 5 }));
-    expect(ref.textureAlias).toBe('player_run_e');
+    expect(ref.textureAlias).toBe('player_run_east');
     expect(ref.frame).toEqual({ x: 100, y: 0, w: 20, h: 22 });
     expect(resolveSpriteFrame(view({ anim: 'run', animTimeMs: 112.5 * 6 })).frame.x).toBe(0);
   });
@@ -81,7 +81,7 @@ describe('resolveSpriteFrame — player', () => {
 
   it('attack uses the hi-res attack scale and finishes after 320 ms', () => {
     const ref = resolveSpriteFrame(view({ anim: 'attack', facing: 'W', animTimeMs: 0 }));
-    expect(ref.textureAlias).toBe('player_attack_w');
+    expect(ref.textureAlias).toBe('player_attack_west');
     expect(ref.scale).toBeCloseTo(0.34, 5);
     expect(getAnimationDurationMs('player', 'attack')).toBe(320);
     expect(isAnimationFinished(view({ anim: 'attack', animTimeMs: 319 }))).toBe(false);
@@ -100,7 +100,7 @@ describe('resolveSpriteFrame — player', () => {
 describe('resolveSpriteFrame — fallbacks', () => {
   it('hurt holds the first idle frame as a 250 ms one-shot', () => {
     const ref = resolveSpriteFrame(view({ anim: 'hurt', animTimeMs: 1000 }));
-    expect(ref.textureAlias).toBe('player_idle_s');
+    expect(ref.textureAlias).toBe('player_idle_south');
     expect(ref.frame.x).toBe(0);
     expect(ref.finished).toBe(true);
     expect(getAnimationDurationMs('player', 'hurt')).toBe(250);
@@ -267,12 +267,9 @@ describe('AnimationDefs integrity', () => {
         b.assets.map((a) => [a.alias, a.src ?? ''] as const),
       ),
     );
-    const dirWord: Record<string, string> = {
-      n: 'north', ne: 'northeast', e: 'east', se: 'southeast', s: 'south', sw: 'southwest', w: 'west', nw: 'northwest',
-    };
     const pathFor = (alias: string): string => {
       const m = /^player_(\w+?)_(\w+)$/.exec(alias);
-      if (m) return `assets/images/characters/player/${m[1]}/${m[1]}_${dirWord[m[2]!]}.png`;
+      if (m) return `assets/images/characters/player/${m[1]}/${m[1]}_${m[2]}.png`;
       return srcByAlias.get(alias) ?? '';
     };
     const pngSize = (rel: string) => {

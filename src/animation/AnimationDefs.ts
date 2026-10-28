@@ -90,14 +90,14 @@ const CHARACTER_FOOT_OFFSET_PX = 10;
 const DIRECTIONS: readonly Direction[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
 const DIRECTION_FILE_SUFFIX: Readonly<Record<Direction, string>> = {
-  N: 'n',
-  NE: 'ne',
-  E: 'e',
-  SE: 'se',
-  S: 's',
-  SW: 'sw',
-  W: 'w',
-  NW: 'nw',
+  N: 'north',
+  NE: 'northeast',
+  E: 'east',
+  SE: 'southeast',
+  S: 'south',
+  SW: 'southwest',
+  W: 'west',
+  NW: 'northwest',
 };
 
 /** Player sheet aliases follow the manifest's `hill_ne` style: `player_<anim>_<dir>`. */

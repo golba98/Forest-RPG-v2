@@ -76,7 +76,7 @@ export function findPath(
   passable: Passable,
   maxNodes: number
 ): TilePoint[] | null {
-  const { width, height } = size;
+  const { width } = size;
   if (!inGrid(size, from.x, from.y) || !inGrid(size, to.x, to.y)) return null;
   if (from.x === to.x && from.y === to.y) return [];
   if (!passable(to.x, to.y)) return null;
