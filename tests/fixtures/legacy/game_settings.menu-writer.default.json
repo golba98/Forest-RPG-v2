@@ -1,0 +1,55 @@
+{
+  "masterVol": 0.8,
+  "musicVol": 0.6,
+  "sfxVol": 0.7,
+  "textSizeSetting": 75,
+  "uiScale": 75,
+  "difficulty": "normal",
+  "sensitivitySetting": 5,
+  "invertYAxis": false,
+  "showTutorials": true,
+  "showHUD": true,
+  "languageSetting": "English",
+  "colorModeSetting": "None",
+  "userControls": {
+    "UP": {
+      "key": "W",
+      "code": 87
+    },
+    "DOWN": {
+      "key": "S",
+      "code": 83
+    },
+    "LEFT": {
+      "key": "A",
+      "code": 65
+    },
+    "RIGHT": {
+      "key": "D",
+      "code": 68
+    },
+    "JUMP": {
+      "key": " ",
+      "code": 32
+    },
+    "DASH": {
+      "key": "SHIFT",
+      "code": 16
+    },
+    "ATTACK": {
+      "key": "MOUSE0",
+      "code": -1
+    },
+    "MENU": {
+      "key": "ESCAPE",
+      "code": 27
+    }
+  },
+  "fpsMode": "60",
+  "performanceOverlay": false,
+  "showStars": true,
+  "screenShakeEnabled": true,
+  "showParticles": true,
+  "showFireflyLighting": true,
+  "v": 1
+}
