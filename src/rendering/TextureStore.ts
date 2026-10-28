@@ -11,7 +11,7 @@ export interface TextureStoreOptions {
   readonly bundles?: readonly string[];
 }
 
-/** Size of the generated white placeholder (tinted by callers). */
+/** Size of the generated missing-art checker. */
 const PLACEHOLDER_PX = 16;
 
 // Assets is a process-wide singleton and may only be initialised once.
@@ -20,8 +20,9 @@ let assetsInitPromise: Promise<void> | null = null;
 /**
  * Texture lookup with graceful fallbacks.
  *
- * Missing assets resolve to one shared placeholder (warned once per alias) so
- * a missing optional image never crashes the game. Sub-textures are cached
+ * Missing assets resolve to one shared magenta/black checker (warned once per
+ * alias) so a missing image never crashes the game and is never mistaken for
+ * real art (a plain white fallback looked like floating white artifacts). Sub-textures are cached
  * per (alias, frame) and share the parent's TextureSource.
  */
 export class TextureStore {
@@ -30,6 +31,7 @@ export class TextureStore {
 
   private readonly cellFrames = new Map<string, Map<number, Texture>>();
   private readonly gridFrames = new Map<string, Map<number, Texture>>();
+  private readonly rectFrames = new Map<string, Map<number, Texture>>();
   private readonly warned = new Set<string>();
   /** Sub-textures created here (they share, and must not destroy, the asset source). */
   private readonly owned = new Set<Texture>();
@@ -125,6 +127,29 @@ export class TextureStore {
     return frame;
   }
 
+  /** Explicit source rectangle in texture pixels (padded atlases). Cached. */
+  public getRect(alias: string, x: number, y: number, w: number, h: number): Texture {
+    const key = x + y * 0x1000 + w * 0x1000000 + h * 0x1000000000;
+    let byAlias = this.rectFrames.get(alias);
+    const hit = byAlias?.get(key);
+    if (hit) return hit;
+
+    const base = this.get(alias);
+    if (base === this.placeholder) return base;
+    const frame = this.clipFrame(base, x, y, w, h, alias);
+    if (!byAlias) {
+      byAlias = new Map();
+      this.rectFrames.set(alias, byAlias);
+    }
+    byAlias.set(key, frame);
+    return frame;
+  }
+
+  /** True when `texture` is the missing-art placeholder. */
+  public isPlaceholder(texture: Texture): boolean {
+    return texture === this.placeholder;
+  }
+
   public getPlaceholder(): Texture {
     if (!this.placeholder) this.placeholder = createPlaceholderTexture();
     return this.placeholder;
@@ -136,7 +161,8 @@ export class TextureStore {
     this.owned.clear();
     this.cellFrames.clear();
     this.gridFrames.clear();
-    if (this.placeholder && this.placeholder !== Texture.WHITE) this.placeholder.destroy(true);
+    this.rectFrames.clear();
+    if (this.placeholder && this.placeholder !== Texture.EMPTY) this.placeholder.destroy(true);
     this.placeholder = null;
   }
 
@@ -186,13 +212,16 @@ export class TextureStore {
 }
 
 function createPlaceholderTexture(): Texture {
-  if (typeof document === 'undefined') return Texture.WHITE;
+  if (typeof document === 'undefined') return Texture.EMPTY;
   const canvas = document.createElement('canvas');
   canvas.width = PLACEHOLDER_PX;
   canvas.height = PLACEHOLDER_PX;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return Texture.WHITE;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, PLACEHOLDER_PX, PLACEHOLDER_PX);
+  if (!ctx) return Texture.EMPTY;
+  const half = PLACEHOLDER_PX / 2;
+  for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
+    ctx.fillStyle = (x + y) % 2 === 0 ? '#ff00ff' : '#000000';
+    ctx.fillRect(x * half, y * half, half, half);
+  }
   return Texture.from(canvas);
 }

@@ -1,5 +1,6 @@
 import type { Direction } from '../types/entities';
 import type { PropKind } from '../types/world';
+import { HILL_ATLAS_ALIAS, HILL_ATLAS_SRC } from './hillAutotile';
 
 /**
  * Pixi-free asset alias catalogue for the renderer.
@@ -90,5 +91,6 @@ export function rendererExtraAssets(): CatalogAsset[] {
     assets.push({ alias: decorAlias(kind), src: `assets/images/objects/decor/${kind}.png` });
   }
   for (let i = 1; i <= 4; i++) assets.push({ alias: `cloud_${i}`, src: `assets/images/objects/clouds/cloud_${i}.png` });
+  assets.push({ alias: HILL_ATLAS_ALIAS, src: HILL_ATLAS_SRC });
   return assets;
 }
