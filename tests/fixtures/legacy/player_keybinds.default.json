@@ -1,0 +1,9 @@
+{
+  "moveUp": 87,
+  "moveDown": 83,
+  "moveLeft": 65,
+  "moveRight": 68,
+  "sprint": 16,
+  "jump": 32,
+  "cut": 69
+}

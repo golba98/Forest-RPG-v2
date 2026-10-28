@@ -1,0 +1,23 @@
+{
+  "masterVol": 0.8,
+  "musicVol": 0.6,
+  "sfxVol": 0.7,
+  "textSizeSetting": 75,
+  "uiScale": 75,
+  "difficulty": "normal",
+  "sensitivitySetting": 5,
+  "invertYAxis": false,
+  "hudEnabled": true,
+  "showHUD": true,
+  "showTutorialsSetting": true,
+  "showTutorials": true,
+  "colorModeSetting": "None",
+  "languageSetting": "English",
+  "fpsMode": "60",
+  "performanceOverlay": false,
+  "showStars": true,
+  "screenShakeEnabled": true,
+  "showParticles": true,
+  "showFireflyLighting": true,
+  "v": 1
+}
