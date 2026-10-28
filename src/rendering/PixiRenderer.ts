@@ -1,3 +1,4 @@
+import { readSafeAreaInsets } from './safeArea';
 import { Application, ColorMatrixFilter, Container, Graphics, Text, Sprite, type Texture, TextureSource } from 'pixi.js';
 import type { IRenderer, RendererInitOptions, RenderEntityView, RenderSnapshot } from '../types/render';
 import type { Entity } from '../types/entities';
@@ -133,8 +134,8 @@ export class PixiRenderer implements IRenderer {
 
   async loadAssets(progress?: (p: number) => void): Promise<void> {
     await this.textures.load(progress);
-    this.hud = new Hud(this.textures.get('ui_heart'));
-    this.hud.position.set(20, 20);
+    this.hud = new Hud(this.textures.get('ui_heart'), [this.textures.get('item_potion_health'), this.textures.get('item_potion_speed')]);
+    this.hud.layout(this.app.screen.width, this.app.screen.height, this.hudScale);
     this.app.stage.addChild(this.hud);
   }
 
@@ -288,7 +289,7 @@ export class PixiRenderer implements IRenderer {
     this.performanceText.visible = this.performanceEnabled; this.performanceText.text = `${dt > 0 ? Math.round(1000 / dt) : 0} FPS | ${this.visibleChunks}/${this.chunks.size} chunks`; this.performanceText.position.set(20, this.app.screen.height - 24);
     const screenScale = this.hudScale * Math.max(1, Math.min(2, this.app.screen.height / 1080));
     this.minimap.visible = this.hudVisible && this.minimapVisible; this.minimap.scale.set(screenScale); this.minimap.position.set(this.app.screen.width - 144 * screenScale, 20 * screenScale); this.minimap.setView(rect); this.minimap.update(snapshot);
-    if (this.hud) { this.hud.scale.set(screenScale); this.hud.visible = this.hudVisible; if (this.hudData) this.hud.update(this.hudData.stats, this.hudData.inventory, this.language); }
+    if (this.hud) { this.hud.layout(this.app.screen.width, this.app.screen.height, screenScale, readSafeAreaInsets()); this.hud.visible = this.hudVisible; if (this.hudData) this.hud.update(this.hudData.stats, this.hudData.inventory, this.language); }
     if (this.debugOverlay.getFlags().enabled) {
       this.debugOverlay.update({
         world: snapshot.world, entities: this.debugEntities?.() ?? [], colliders: this.debugColliders?.(rect) ?? null, visible: rect, actors: this.actors, spriteInfo: this.spriteInfo,
@@ -440,6 +441,7 @@ export class PixiRenderer implements IRenderer {
   /** Debug-only counters for visual regression tests. */
   getVisualDebugInfo(): VisualDebugInfo {
     return {
+      hud: this.hud?.getLayoutDebug() ?? null,
       placeholderSprites: this.placeholderSprites,
       portalStates: [...this.portals.values()].map(p => p.machine.state),
       portalViews: this.portals.size,
