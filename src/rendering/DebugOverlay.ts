@@ -25,6 +25,8 @@ export interface VisualDebugInfo {
   readonly portalStates: readonly string[];
   readonly portalViews: number;
   readonly clouds: number;
+  /** Rain is currently visible (fading counts). */
+  readonly raining: boolean;
   readonly effects: number;
   readonly transitionActive: boolean;
   readonly actorChildren: number;
@@ -38,6 +40,8 @@ export interface RenderDebugGateway {
   setFlags(flags: Partial<VisualDebugFlags>): void;
   getFlags(): VisualDebugFlags;
   getInfo(): VisualDebugInfo;
+  /** Preview weather visuals regardless of the simulation's schedule (null = follow the simulation). */
+  setWeatherPreview(weather: 'clear' | 'rain' | null): void;
 }
 
 declare global {

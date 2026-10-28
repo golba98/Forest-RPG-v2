@@ -18,6 +18,7 @@ import { EntityAnimator } from './EntityAnimator';
 import { PortalView } from './PortalView';
 import { PORTAL_ENTER_RADIUS_ASSUMED, PortalVisualMachine } from './portalVisualState';
 import { SkyLayer } from './effects/SkyLayer';
+import { WeatherLayer } from './effects/WeatherLayer';
 import { AmbientLayer } from './effects/AmbientLayer';
 import { EffectsLayer } from './effects/EffectsLayer';
 import { createEffectTextures, destroyEffectTextures, type EffectTextures } from './effects/proceduralTextures';
@@ -70,7 +71,7 @@ export class PixiRenderer implements IRenderer {
   /** Dev-only visual diagnostics (off by default). */
   readonly debugOverlay = new DebugOverlay();
 
-  private rain = new Graphics();
+  private weather = new WeatherLayer();
   private performanceText = new Text({ text: '', style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffffff, stroke: { color: 0x102018, width: 3 } } });
   private impactHoldMs = 0;
   private damageNumbers: Array<{ text: Text; remaining: number }> = [];
@@ -102,6 +103,8 @@ export class PixiRenderer implements IRenderer {
   private effects: EffectsLayer | null = null;
   private hurtFilter = new ColorMatrixFilter();
   private debugEntities: (() => readonly Entity[]) | null = null;
+  /** Debug-only weather override for previewing rain (null follows the simulation). */
+  weatherPreview: 'clear' | 'rain' | null = null;
   private debugColliders: ((rect: { x: number; y: number; width: number; height: number }) => readonly DebugCollider[]) | null = null;
   private world: WorldData | null = null;
   private visibleChunks = 0;
@@ -118,13 +121,13 @@ export class PixiRenderer implements IRenderer {
     this.ambient = new AmbientLayer(this.fx);
     this.effects = new EffectsLayer(this.actors, this.fx);
     this.hurtFilter.brightness(2.4, false);
-    this.groundFx.addChild(this.sky.shadows, this.effects.ground);
+    this.groundFx.addChild(this.sky.shadows, this.weather.ground, this.effects.ground);
     this.root.addChild(this.terrain, this.groundFx, this.actors, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
     this.actors.sortableChildren = true;
     this.actors.addChild(this.waterMask, this.waterRipple);
     this.nightGlow.addChild(this.ambient.fireflies);
     // Stars sit behind the world so they only show in the void around it.
-    this.app.stage.addChild(this.ambient.stars, this.root, this.darkness, this.nightGlow, this.rain, this.effects.transition, this.debugOverlay.screenLayer, this.minimap, this.performanceText);
+    this.app.stage.addChild(this.ambient.stars, this.root, this.darkness, this.nightGlow, this.weather.sky, this.effects.transition, this.debugOverlay.screenLayer, this.minimap, this.performanceText);
     this.resize(options.width, options.height, options.resolution);
   }
 
@@ -156,8 +159,13 @@ export class PixiRenderer implements IRenderer {
     sprite.tint = layer.tint;
     if (layer.fit === 'fill') { sprite.width = TILE; sprite.height = TILE; }
     else sprite.scale.set(Math.min(1, TILE * layer.maxWidthTiles / texture.width, TILE * layer.maxHeightTiles / texture.height));
-    sprite.x = (TILE - sprite.width) / 2 + layer.offsetX;
-    sprite.y = (layer.align === 'bottom' ? TILE - sprite.height : (TILE - sprite.height) / 2) + layer.offsetY;
+    // Keep art on whole pixels and inside its tile horizontally / below its tile's
+    // bottom edge: jittered decor that crossed a chunk edge gave the cached chunk
+    // fractional bounds, which showed up as 1 px seams between chunks.
+    const x = (TILE - sprite.width) / 2 + layer.offsetX;
+    const y = (layer.align === 'bottom' ? TILE - sprite.height : (TILE - sprite.height) / 2) + layer.offsetY;
+    sprite.x = Math.round(Math.min(Math.max(x, 0), TILE - sprite.width));
+    sprite.y = Math.round(Math.min(Math.max(y, Math.min(0, TILE - sprite.height)), TILE - sprite.height));
     return sprite;
   }
 
@@ -184,7 +192,7 @@ export class PixiRenderer implements IRenderer {
     if (this.enteringPortal) this.effects?.startTransition();
     this.enteringPortal = false;
     this.world = world;
-    this.sky.setWorld(world.meta.width, world.meta.height, world.spawn.x, world.spawn.y, (i) => this.textures.get(`cloud_${(i % 4) + 1}`));
+    this.sky.setWorld(world.meta.width, world.meta.height, world.meta.seed, this.fx?.glow ?? this.textures.getPlaceholder(), world.spawn.x, world.spawn.y);
 
     for (const tree of planForestTrees(world)) {
       const sprite = this.tag(new Sprite(this.textures.get('tile_tree')), 'tile_tree', 'actors/forest');
@@ -251,7 +259,9 @@ export class PixiRenderer implements IRenderer {
     }
     for (const sprite of this.objects) sprite.visible = sprite.x + 64 > rect.x && sprite.x - 64 < rect.x + rect.width && sprite.y > rect.y && sprite.y - 64 < rect.y + rect.height;
     const view = this.camera.getView();
-    this.sky.update(dt, view.x, view.y, this.paused, this.cloudsEnabled);
+    const weather = this.weatherPreview ?? snapshot.environment.weather;
+    const raining = weather === 'rain' || weather === 'storm';
+    this.sky.update(dt, view.x, view.y, this.paused, this.cloudsEnabled, raining);
     if (!this.paused) this.visualTime += dt;
 
     this.renderEntities(snapshot, alpha, dt, player, fx, effects);
@@ -272,17 +282,12 @@ export class PixiRenderer implements IRenderer {
     ambient.stars.visible = this.starsEnabled && snapshot.environment.darkness > 0.6;
     ambient.update(dt, rect, { paused: this.paused, leaves: this.particlesEnabled, fireflies: this.firefliesEnabled, darkness: snapshot.environment.darkness, worldWidth: snapshot.world.meta.width * TILE, worldHeight: snapshot.world.meta.height * TILE });
 
-    this.rain.clear();
-    if (this.particlesEnabled && (snapshot.environment.weather === 'rain' || snapshot.environment.weather === 'storm')) for (let i = 0; i < 140; i++) {
-      const x = (i * 197 + this.visualTime * 0.15) % this.app.screen.width;
-      const y = (i * 313 + this.visualTime * 0.55) % this.app.screen.height;
-      this.rain.moveTo(x, y).lineTo(x - 5, y + 14).stroke({ color: 0xb4d7de, alpha: 0.38, width: 1 });
-    }
+    this.weather.update(dt, raining, { paused: this.paused, enabled: this.particlesEnabled, screenWidth: this.app.screen.width, screenHeight: this.app.screen.height, view: rect });
     effects.update(dt, this.paused, this.app.screen.width, this.app.screen.height);
 
     this.performanceText.visible = this.performanceEnabled; this.performanceText.text = `${dt > 0 ? Math.round(1000 / dt) : 0} FPS | ${this.visibleChunks}/${this.chunks.size} chunks`; this.performanceText.position.set(20, this.app.screen.height - 24);
     const screenScale = this.hudScale * Math.max(1, Math.min(2, this.app.screen.height / 1080));
-    this.minimap.visible = this.hudVisible && this.minimapVisible; this.minimap.scale.set(screenScale); this.minimap.position.set(this.app.screen.width - 144 * screenScale, 20 * screenScale); this.minimap.update(snapshot);
+    this.minimap.visible = this.hudVisible && this.minimapVisible; this.minimap.scale.set(screenScale); this.minimap.position.set(this.app.screen.width - 144 * screenScale, 20 * screenScale); this.minimap.setView(rect); this.minimap.update(snapshot);
     if (this.hud) { this.hud.scale.set(screenScale); this.hud.visible = this.hudVisible; if (this.hudData) this.hud.update(this.hudData.stats, this.hudData.inventory, this.language); }
     if (this.debugOverlay.getFlags().enabled) {
       this.debugOverlay.update({
@@ -439,6 +444,7 @@ export class PixiRenderer implements IRenderer {
       portalStates: [...this.portals.values()].map(p => p.machine.state),
       portalViews: this.portals.size,
       clouds: this.sky.cloudCount,
+      raining: this.weather.raining,
       effects: this.effects?.activeCount ?? 0,
       transitionActive: this.effects?.transitionActive ?? false,
       actorChildren: this.actors.children.length,
