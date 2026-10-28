@@ -37,6 +37,11 @@ const game = new Game({ canvas, simulation, renderer, input: new InputManager(),
     onSceneChanged(scene) { shell.onSceneChanged(scene); },
     onFrame() {
       const p = simulation.player;
+      if (game.currentScene === 'playing') {
+        if (p.stats.health <= 0) game.endRun('gameover');
+        const portal = simulation.getEntities().find(e => e.kind === 'portal' && e.active);
+        if (portal && Math.hypot(portal.x - p.x, portal.y - p.y) < 0.8) game.endRun('victory');
+      }
       renderer.hudText = `HP ${p.stats.health}/${p.stats.maxHealth}   Mana ${Math.floor(p.stats.mana)}   Stamina ${Math.floor(p.stats.stamina)}\nLevel ${p.stats.level}   XP ${p.stats.xp}/${p.stats.xpToNextLevel}   Coins ${p.stats.coins}`;
     },
   },

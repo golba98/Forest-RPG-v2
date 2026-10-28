@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, Text, Sprite, Texture, TextureSource } from 'pixi.js';
 import type { IRenderer, RendererInitOptions, RenderSnapshot } from '../types/render';
 import type { WorldData } from '../types/world';
+import { Tile } from '../types/tiles';
 import { Camera } from './Camera';
 import { TextureStore } from './TextureStore';
 import { getTileArt, getPropArt, type TileArtLayer } from './terrainArt';
@@ -23,6 +24,7 @@ export class PixiRenderer implements IRenderer {
   private actors = new Container();
   private chunks = new Map<string, Container>();
   private sprites = new Map<string, Sprite>();
+  private objects: Sprite[] = [];
   private world: WorldData | null = null;
   private visibleChunks = 0;
   private renderedEntities = 0;
@@ -49,7 +51,22 @@ export class PixiRenderer implements IRenderer {
     for (const chunk of this.chunks.values()) chunk.destroy({ children: true });
     this.chunks.clear();
     for (const sprite of this.sprites.values()) sprite.destroy();
-    this.sprites.clear(); this.world = world;
+    this.sprites.clear();
+    for (const sprite of this.objects) sprite.destroy();
+    this.objects = []; this.world = world;
+    for (let y = 0; y < world.meta.height; y++) for (let x = 0; x < world.meta.width; x++) {
+      const tile = world.tiles[y * world.meta.width + x];
+      if (tile !== Tile.FOREST && tile !== Tile.BORDER) continue;
+      const tree = new Sprite(this.textures.get('tile_tree'));
+      tree.anchor.set(0.5, 1); tree.width = 64; tree.height = 64;
+      tree.position.set((x + 0.5) * 32, (y + 1) * 32); tree.zIndex = tree.y;
+      this.actors.addChild(tree); this.objects.push(tree);
+    }
+    for (const p of world.props) {
+      const sprite = this.art(getPropArt(p.kind));
+      sprite.x += p.tileX * 32; sprite.y += p.tileY * 32; sprite.zIndex = (p.tileY + 1) * 32;
+      this.actors.addChild(sprite); this.objects.push(sprite);
+    }
     this.camera.setWorldSize(world.meta.width * 32, world.meta.height * 32);
     this.camera.snapTo((world.spawn.x + 0.5) * 32, (world.spawn.y + 0.5) * 32);
     for (let y = 0; y < world.meta.height; y += 16) for (let x = 0; x < world.meta.width; x += 16) this.buildChunk(x, y);
@@ -65,10 +82,8 @@ export class PixiRenderer implements IRenderer {
         const sprite = this.art(layer); sprite.x += (tx - x) * 32; sprite.y += (ty - y) * 32; chunk.addChild(sprite);
       }
     }
-    for (const p of world.props) if (p.tileX >= x && p.tileX < x + 16 && p.tileY >= y && p.tileY < y + 16) {
-      const sprite = this.art(getPropArt(p.kind)); sprite.x += (p.tileX - x) * 32; sprite.y += (p.tileY - y) * 32; chunk.addChild(sprite);
-    }
-    chunk.cacheAsTexture(true); this.terrain.addChild(chunk); this.chunks.set(key, chunk);
+    // Ground-only chunks have exact integer bounds and nearest cache sampling.
+    chunk.cacheAsTexture({ resolution: 1, antialias: false }); this.terrain.addChild(chunk); this.chunks.set(key, chunk);
   }
   invalidateTile(x: number, y: number): void { this.buildChunk(Math.floor(x / 16) * 16, Math.floor(y / 16) * 16); }
   render(snapshot: RenderSnapshot, alpha: number, dt: number): void {
@@ -80,6 +95,7 @@ export class PixiRenderer implements IRenderer {
       chunk.visible = chunk.x < rect.x + rect.width && chunk.x + 512 > rect.x && chunk.y < rect.y + rect.height && chunk.y + 512 > rect.y;
       if (chunk.visible) this.visibleChunks++;
     }
+    for (const sprite of this.objects) sprite.visible = sprite.x + 64 > rect.x && sprite.x - 64 < rect.x + rect.width && sprite.y > rect.y && sprite.y - 64 < rect.y + rect.height;
     const alive = new Set<string>(); this.renderedEntities = snapshot.entities.length;
     for (const e of snapshot.entities) {
       alive.add(e.id);
@@ -87,9 +103,11 @@ export class PixiRenderer implements IRenderer {
       if (!sprite) { sprite = new Sprite(); this.actors.addChild(sprite); this.sprites.set(e.id, sprite); }
       const f = resolveSpriteFrame(e);
       sprite.texture = f.placeholder ? Texture.WHITE : this.textures.getFrame(f.textureAlias, f.frame.x / f.frame.w, f.frame.y / f.frame.h, f.frame.w, f.frame.h);
+      if (e.kind === 'projectile') sprite.texture = Texture.WHITE;
       sprite.anchor.set(f.anchorX, f.anchorY); sprite.scale.set(f.scale * (f.flipX ? -1 : 1), f.scale);
       sprite.position.set((e.prevX + (e.x - e.prevX) * alpha) * 32, (e.prevY + (e.y - e.prevY) * alpha - e.lift) * 32);
-      sprite.zIndex = sprite.y + e.lift * 32; sprite.alpha = e.alpha;
+      sprite.zIndex = sprite.y + e.lift * 32; sprite.alpha = e.alpha; sprite.tint = e.hurtFlash ? 0xff7777 : 0xffffff;
+      if (e.kind === 'projectile') { sprite.width = 10; sprite.height = 6; sprite.tint = 0xbfeaff; }
     }
     for (const [id, sprite] of this.sprites) if (!alive.has(id)) { sprite.destroy(); this.sprites.delete(id); }
     this.ambient.clear();

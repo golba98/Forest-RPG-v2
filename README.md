@@ -1,6 +1,6 @@
 # Forest RPG V2
 
-Strict TypeScript, PixiJS 8 and Vite successor to Forest RPG. The current checkpoint provides a playable movement slice and initial menus. Combat, enemy AI, item collection and save/load are not implemented yet.
+Strict TypeScript, PixiJS 8 and Vite successor to Forest RPG. The current checkpoint includes depth-sorted forest overlays, the original menu video/art, movement, basic melee/spin/bolt combat, chasing enemies, coin collection and portal activation. Full enemy-specific behavior, save/load and other RPG systems remain incomplete.
 
 Use Node 20+ and npm 10+:
 
@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-The main menu offers New Game, Tutorial and Settings. Move with WASD/arrows, sprint with Shift, pause with Escape, toggle fullscreen with F, and regenerate with P. `/?debug=1&autostart=1&seed=123` starts a deterministic world with diagnostics. Add `tutorial=1` for the training glade.
+The main menu offers New Game, Tutorial and Settings. Move with WASD/arrows, sprint with Shift, attack with E/left click, spin with Q, cast a bolt with R, pause with Escape, toggle fullscreen with F, and regenerate with P. `/?debug=1&autostart=1&seed=123` starts a deterministic world with diagnostics. Add `tutorial=1` for the training glade.
 
 ```sh
 npm run typecheck

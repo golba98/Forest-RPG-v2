@@ -4,6 +4,7 @@ import type { RenderSnapshot } from '../types/render';
 import type { ISimulation } from '../types/simulation';
 import type { WorldData } from '../types/world';
 import { generateTutorialWorld } from '../world/TutorialMap';
+import { EncounterSystem } from '../systems/EncounterSystem';
 import { movePlayer } from '../systems/MovementSystem';
 
 export class Simulation implements ISimulation {
@@ -14,11 +15,13 @@ export class Simulation implements ISimulation {
   private time = 0.3;
   private entities: Entity[] = [];
   private sequence = 0;
+  private encounters = new EncounterSystem();
   constructor() { this.loadWorld(generateTutorialWorld()); }
   private base(kind: EntityBase['kind'], x: number, y: number): EntityBase {
     return { id: `${kind}-${this.sequence++}`, kind, x, y, prevX: x, prevY: y, halfSize: 0.3, facing: 'S', anim: 'idle', animTimeMs: 0, alive: true };
   }
   loadWorld(world: WorldData): void {
+    this.encounters = new EncounterSystem();
     this.world = world; this.worldVersion++; this.elapsedMs = 0; this.time = 0.3; this.entities = [];
     this.player = { ...this.base('player', world.spawn.x + 0.5, world.spawn.y + 0.5), kind: 'player', vx: 0, vy: 0,
       stats: { health: 7, maxHealth: 7, mana: 100, maxMana: 100, stamina: 100, maxStamina: 100, level: 1, xp: 0, xpToNextLevel: 100, statPoints: 0, baseDamage: 1, coins: 0 },
@@ -35,6 +38,8 @@ export class Simulation implements ISimulation {
   step(dt: number, intent: PlayerIntent): void {
     this.elapsedMs += dt * 1000; this.time = (this.time + dt / C.dayNight.cycleSec) % 1;
     movePlayer(this.world, this.player, intent, dt);
+    this.encounters.step(this.world, this.player, this.entities, intent, dt);
+    this.entities = this.entities.filter(e => e.kind !== 'projectile' || e.alive);
     for (const e of this.entities) if (e !== this.player) e.animTimeMs += dt * 1000;
   }
   getEntities(): readonly Entity[] { return this.entities; }
@@ -48,7 +53,7 @@ export class Simulation implements ISimulation {
   buildRenderSnapshot(): RenderSnapshot {
     const darkness = Math.max(0, Math.cos(this.time * Math.PI * 2)) * 0.8;
     return { world: this.world, worldVersion: this.worldVersion, playerId: this.player.id,
-      entities: this.entities.filter(e => e.alive).map(e => ({ ...e, spriteKey: e.kind === 'enemy' ? e.enemyType : e.kind === 'pickup' ? e.pickupType : e.kind, lift: 0, alpha: 1, hurtFlash: false })),
+      entities: this.entities.filter(e => e.alive).map(e => ({ ...e, spriteKey: e.kind === 'enemy' ? e.enemyType : e.kind === 'pickup' ? e.pickupType : e.kind, lift: 0, alpha: 1, hurtFlash: (e.kind === 'player' || e.kind === 'enemy') && e.hurtTimerMs > 0 })),
       environment: { timeOfDay: this.time, darkness, weather: 'clear', lights: [{ x: this.player.x, y: this.player.y, radiusPx: 520 - darkness / 0.8 * 290, color: 0xffdd99, intensity: 1 }] } };
   }
 }

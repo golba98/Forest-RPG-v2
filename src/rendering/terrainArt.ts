@@ -3,14 +3,9 @@ import type { PropKind } from '../types/world';
 import { decorAlias } from './assetCatalog';
 
 /**
- * Pixi-free description of how each terrain tile is drawn (Phase 1 art).
- *
- * Placeholder notes (Phase 2 replaces these):
- * - FOREST/BORDER: the 239×286 tree is shrunk into one tile; proper tall,
- *   depth-sorted trees come later.
- * - HILL_* corners: the ~77×78 corner art is squashed into one tile.
- * - CLIFF/CAVE: tinted grass + rock/hole decal; there is no dedicated art.
- * - Props are baked flat into the terrain (no depth sorting).
+ * Ground-only terrain descriptions. Trees and standing props are rendered
+ * separately in foot-depth order. Water, bridges and hills use the original
+ * game's full-image-per-tile mapping.
  */
 
 /** Which part of the source texture a layer uses. */
@@ -49,12 +44,6 @@ export const GRASS_ALIAS = 'tile_grass';
 const WHITE = 0xffffff;
 const FULL: TileArtSource = { type: 'full' };
 
-/** Hills strips are 3 tiles long (e.g. hill_north 96×33). */
-const HILL_STRIP_SEGMENTS = 3;
-/** Water is sliced into 32 px cells repeating every 3 tiles (105×100 source). */
-const WATER_CELL_PX = 32;
-const WATER_CELLS = 3;
-
 const FLOWER_VARIANTS: readonly PropKind[] = ['flower_pink', 'flower_yellow', 'flower_clump'];
 
 /** Deterministic 32-bit hash of a tile coordinate. */
@@ -63,10 +52,6 @@ export function hashTile(x: number, y: number): number {
   h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
   return (h ^ (h >>> 16)) >>> 0;
-}
-
-function mod(value: number, n: number): number {
-  return ((value % n) + n) % n;
 }
 
 function fill(alias: string, source: TileArtSource = FULL, tint = WHITE): TileArtLayer {
@@ -99,16 +84,6 @@ function grass(tint = WHITE): TileArtLayer {
   return fill(GRASS_ALIAS, FULL, tint);
 }
 
-function hillStrip(alias: string, index: number, horizontal: boolean): TileArtLayer {
-  const segment = mod(index, HILL_STRIP_SEGMENTS);
-  return fill(
-    alias,
-    horizontal
-      ? { type: 'grid', col: segment, row: 0, cols: HILL_STRIP_SEGMENTS, rows: 1 }
-      : { type: 'grid', col: 0, row: segment, cols: 1, rows: HILL_STRIP_SEGMENTS },
-  );
-}
-
 /** Layers (bottom → top) for the terrain tile at (x, y). */
 export function getTileArt(tileId: number, x: number, y: number): TileArtLayer[] {
   switch (tileId) {
@@ -122,31 +97,23 @@ export function getTileArt(tileId: number, x: number, y: number): TileArtLayer[]
       return [grass(), contain(decorAlias(kind), 0.8, 0.8, 'center', WHITE, jitterX, jitterY)];
     }
     case Tile.RIVER:
-      return [
-        fill('tile_water', {
-          type: 'cell',
-          frameX: mod(x, WATER_CELLS),
-          frameY: mod(y, WATER_CELLS),
-          frameW: WATER_CELL_PX,
-          frameH: WATER_CELL_PX,
-        }),
-      ];
+      return [fill('tile_water')];
     case Tile.RAMP:
       return [fill('tile_bridge')];
     case Tile.LOG:
-      return [grass(), contain(decorAlias('log_horizontal'), 1, 1, 'center')];
+      return [fill('tile_bridge')];
     case Tile.FOREST:
-      return [grass(0xd6e6cc), contain('tile_tree', 1, 1, 'bottom')];
+      return [grass()];
     case Tile.BORDER:
-      return [grass(0xa8b8a0), contain('tile_tree', 1, 1, 'bottom', 0xa8b8a0)];
+      return [grass()];
     case Tile.HILL_N:
-      return [grass(), hillStrip('hill_n', x, true)];
+      return [grass(), fill('hill_n')];
     case Tile.HILL_S:
-      return [grass(), hillStrip('hill_s', x, true)];
+      return [grass(), fill('hill_s')];
     case Tile.HILL_E:
-      return [grass(), hillStrip('hill_e', y, false)];
+      return [grass(), fill('hill_e')];
     case Tile.HILL_W:
-      return [grass(), hillStrip('hill_w', y, false)];
+      return [grass(), fill('hill_w')];
     case Tile.HILL_NE:
       return [grass(), fill('hill_ne')];
     case Tile.HILL_NW:
