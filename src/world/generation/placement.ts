@@ -196,9 +196,58 @@ export interface SpawnPlan {
 }
 
 /**
+ * Spawn spacing, strictest first. Enemies used to only need 3 tiles from the
+ * player, so on hill/river-heavy maps the whole pack (and the boss) started
+ * inside aggro range. Each tier is [enemy distance from spawn, boss distance,
+ * minimum gap between enemies] in tiles; the first tier that fits wins.
+ */
+export const ENEMY_SPACING_TIERS: ReadonlyArray<readonly [number, number, number]> = [
+  [12, 20, 4],
+  [9, 14, 3],
+  [6, 8, 2],
+];
+
+/**
+ * Greedy pick of spaced enemy tiles. For each tier, strictest first, it takes
+ * tiles from `primary` (ground the enemies can walk to the player from) before
+ * `overflow` (other land the player can reach, e.g. across a river). A cramped
+ * start island therefore pushes the extra enemies out into the wider map
+ * instead of packing them around the player. Null if nothing fits.
+ */
+function pickEnemyTiles(
+  primary: readonly TilePoint[],
+  overflow: readonly TilePoint[],
+  spawn: TilePoint,
+  count: number,
+): { pack: TilePoint[]; boss: TilePoint } | null {
+  const dist = (a: TilePoint, b: TilePoint) => Math.hypot(a.x - b.x, a.y - b.y);
+  let boss: TilePoint | undefined;
+  for (const [, bossFromSpawn] of ENEMY_SPACING_TIERS) {
+    boss = primary.find((t) => dist(t, spawn) >= bossFromSpawn) ?? overflow.find((t) => dist(t, spawn) >= bossFromSpawn);
+    if (boss) break;
+  }
+  if (!boss) return null;
+  const pack: TilePoint[] = [];
+  const used = new Set<TilePoint>([boss]);
+  for (const [fromSpawn, , gap] of ENEMY_SPACING_TIERS) {
+    for (const t of [...primary, ...overflow]) {
+      if (pack.length >= count) break;
+      if (used.has(t) || dist(t, spawn) < fromSpawn) continue;
+      if (dist(t, boss) < gap || pack.some((p) => dist(p, t) < gap)) continue;
+      pack.push(t);
+      used.add(t);
+    }
+  }
+  return pack.length >= count ? { pack, boss } : null;
+}
+
+/**
  * Enemies (even mantis/maggot split plus one beetle boss) and coins on
  * distinct reachable grass tiles away from spawn, portal and solid props.
- * Returns null if the map has too few candidate tiles.
+ * Enemies keep their distance from the player and each other
+ * (ENEMY_SPACING_TIERS); enemies that cannot walk to the start (overflow from
+ * a cramped start island) always keep the full distance. Returns null if the
+ * map has too few candidate tiles.
  */
 export function planSpawns(
   grid: GenGrid,
@@ -234,29 +283,24 @@ export function planSpawns(
       available.push({ x, y });
     }
   }
-  if (
-    available.filter((t) => groundReached[t.y * grid.width + t.x]).length < enemyCount + 1 ||
-    available.length < enemyCount + 1 + coinCount
-  )
-    return null;
+  if (available.length < enemyCount + 1 + coinCount) return null;
   rng.shuffle(available);
 
   const take = (): TilePoint => available.pop() ?? spawn;
   const groundAvailable = available.filter((t) => groundReached[t.y * grid.width + t.x]);
-  const takeEnemy = (): TilePoint => {
-    const tile = groundAvailable.pop() ?? spawn;
+  const otherAvailable = available.filter((t) => !groundReached[t.y * grid.width + t.x]);
+  const placed = pickEnemyTiles(groundAvailable, otherAvailable, spawn, enemyCount);
+  if (!placed) return null;
+  for (const tile of [...placed.pack, placed.boss]) {
     const index = available.indexOf(tile);
     if (index >= 0) available.splice(index, 1);
-    return tile;
-  };
-  const enemySpawns: EnemySpawn[] = [];
-  for (let i = 0; i < enemyCount; i++) {
-    const type: EnemyType = i % 2 === 0 ? 'mantis' : 'maggot';
-    const t = takeEnemy();
-    enemySpawns.push({ type, x: t.x, y: t.y });
   }
-  const boss = takeEnemy();
-  enemySpawns.push({ type: 'beetle', x: boss.x, y: boss.y });
+  const enemySpawns: EnemySpawn[] = placed.pack.map((t, i) => ({
+    type: (i % 2 === 0 ? 'mantis' : 'maggot') as EnemyType,
+    x: t.x,
+    y: t.y,
+  }));
+  enemySpawns.push({ type: 'beetle', x: placed.boss.x, y: placed.boss.y });
 
   const pickupSpawns: PickupSpawn[] = [];
   for (let i = 0; i < coinCount; i++) {

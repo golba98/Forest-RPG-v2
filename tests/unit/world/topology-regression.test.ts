@@ -31,8 +31,11 @@ describe('final terrain topology', () => {
       expect(open(w.spawn.x, w.spawn.y), `spawn seed ${seed}`).toBe(true);
       for (const point of [w.portal, ...w.enemySpawns, ...w.pickupSpawns])
         expect(reached[point.y * w.meta.width + point.x], `objective seed ${seed}`).toBe(1);
+      // Enemies either have a ground route to the player, or were pushed off a
+      // cramped start island and wait well away from it.
       for (const e of w.enemySpawns)
-        expect(ground[e.y * w.meta.width + e.x], `ground route seed ${seed}`).toBe(1);
+        if (!ground[e.y * w.meta.width + e.x])
+          expect(Math.hypot(e.x - w.spawn.x, e.y - w.spawn.y), `ground route seed ${seed}`).toBeGreaterThanOrEqual(6);
       for (let y = 0; y < w.meta.height; y++)
         for (let x = 0; x < w.meta.width; x++) {
           const id = w.tiles[y * w.meta.width + x]!;

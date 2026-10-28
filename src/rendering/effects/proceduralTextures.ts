@@ -94,31 +94,44 @@ function seq(seed: number): () => number {
 }
 
 /**
- * A cumulus seen from above: a union of overlapping round lobes, flattened
- * underneath, white on top with a cool shaded underside and a soft 1 px fringe.
+ * Pixel-art cumulus: a scalloped outline of round puffs (big dome in the
+ * middle), shaded by position relative to the silhouette only. That gives a
+ * bright rim along the top, a plain body, and a cool band hugging the
+ * underside with a darker 1 px bottom line. Interior circles or creases read
+ * as stacked balls, not a cloud.
  */
 function cloudShape(seed: number): Texture {
-  // ~240 px wide so, scaled 2–3× to 14–24 tiles, its pixels match the sprites'.
-  const W = 240, H = 128;
+  // ~200 px wide: scaled ~2–3× to 12–18 tiles, a texel is a sprite-sized pixel.
+  const W = 200, H = 100;
   const r = seq(seed);
-  const lobes: Array<[number, number, number]> = [];
-  const count = 9 + Math.floor(r() * 5);
-  for (let i = 0; i < count; i++) {
-    const t = i / (count - 1);
-    const rise = Math.sin(t * Math.PI);
-    lobes.push([26 + t * (W - 52) + (r() - 0.5) * 18, H * 0.58 - rise * (16 + r() * 22), 18 + rise * 24 + r() * 10]);
+  const base = H - 16;
+  const dome: [number, number, number] = [W / 2 + (r() - 0.5) * 16, base - 22 - r() * 6, 30 + r() * 6];
+  const puffs: Array<[number, number, number]> = [dome];
+  for (const side of [-1, 1]) {
+    let x = dome[0], rad = dome[2];
+    for (;;) {
+      const next = rad * (0.6 + r() * 0.18);
+      x += side * (rad * 0.72 + next * 0.5);
+      rad = next;
+      if (rad < 8 || x - rad < 2 || x + rad > W - 2) break;
+      puffs.push([x, base - rad * (0.45 + r() * 0.35), rad]);
+    }
   }
-  const floor = H - 14;
-  const inside = (x: number, y: number) => y < floor && lobes.some(([cx, cy, rad]) => (x - cx) ** 2 + (y - cy) ** 2 <= rad * rad);
+  // Underside lobes: smaller puffs below the base line make it scalloped, not flat.
+  for (const [cx, , rad] of puffs.slice()) if (rad > 12) puffs.push([cx + (r() - 0.5) * rad * 0.6, base + 2, rad * 0.45]);
+  const inside = (x: number, y: number) => puffs.some(([cx, cy, rad]) => (x - cx) ** 2 + (y - cy) ** 2 <= rad * rad);
   return canvas(W, H, (ctx) => {
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const px = x + 0.5, py = y + 0.5;
       if (!inside(px, py)) continue;
-      // Soft 2 px fringe, a cool shaded underside, a lit top-left and stepped mid-tones.
-      const fringe = !inside(px - 2, py) || !inside(px + 2, py) || !inside(px, py - 2) || !inside(px, py + 2);
-      const under = !inside(px + 3, py + 9);
-      const lit = !inside(px - 7, py - 7);
-      ctx.fillStyle = fringe ? 'rgba(232,240,246,0.5)' : under ? '#c3d0dc' : lit ? '#ffffff' : (x + y) % 9 === 0 ? '#e4ebf1' : '#eef3f7';
+      let c: string;
+      if (!inside(px, py + 1)) c = '#93a8bc'; // bottom line
+      else if (!inside(px, py + 5)) c = '#b9c9d7'; // underside band
+      else if (!inside(px, py - 1) || !inside(px - 1, py)) c = '#d6e2ec'; // outer top/left line
+      else if (!inside(px - 2, py - 5)) c = '#ffffff'; // lit rim
+      else if (!inside(px + 3, py + 12)) c = '#e2eaf1'; // soft lower body
+      else c = '#f2f6fa';
+      ctx.fillStyle = c;
       ctx.fillRect(x, y, 1, 1);
     }
   });

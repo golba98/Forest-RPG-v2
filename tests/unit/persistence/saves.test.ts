@@ -151,7 +151,8 @@ it('imports legacy boulders and trees as physical objects with intentional footp
     portalPos: { x: 6, y: 6 },
   });
   expect(world.tiles[2 * 8 + 2]).toBe(1);
-  expect(canOccupy(world, 2.5, 2.2, 0.1)).toBe(true);
+  expect(canOccupy(world, 2.5, 1.2, 0.1)).toBe(true);
+  expect(canOccupy(world, 2.5, 1.8, 0.1)).toBe(false);
   expect(canOccupy(world, 2.5, 2.8, 0.1)).toBe(false);
   expect(canOccupy(world, 5.5, 3.7, 0.3)).toBe(false);
 });
