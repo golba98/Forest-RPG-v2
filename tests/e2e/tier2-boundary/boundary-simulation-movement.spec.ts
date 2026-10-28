@@ -10,6 +10,7 @@
 
 import { test, expect } from '@playwright/test';
 import { GameDriver } from '../helpers/game-driver';
+import { loadBorderWorld } from '../helpers/collision-fixture';
 
 test.describe('Tier 2 Boundary: Simulation Pacing & Movement Limits', () => {
   let driver: GameDriver;
@@ -21,38 +22,29 @@ test.describe('Tier 2 Boundary: Simulation Pacing & Movement Limits', () => {
   });
 
   test('T2.2.1 — World edge clamping: player at (0, 0) cannot move North or West beyond boundaries', async () => {
-    // Teleport player directly into corner (0, 0)
+    await loadBorderWorld(driver.page);
     await driver.executeDebugCommand('/tp 0 0');
-    const startPos = await driver.getState();
-    expect(startPos.player.x).toBe(0);
-    expect(startPos.player.y).toBe(0);
-
-    // Attempt to move North (KeyW)
+    const start = await driver.getState();
+    expect(start.player.x).toBeCloseTo(1.5);
+    expect(start.player.y).toBeCloseTo(1.5);
     await driver.moveDirection('N', 1);
-    const postNorth = await driver.getState();
-    expect(postNorth.player.y).toBe(0);
-
-    // Attempt to move West (KeyA)
     await driver.moveDirection('W', 1);
-    const postWest = await driver.getState();
-    expect(postWest.player.x).toBe(0);
+    const after = await driver.getState();
+    expect(after.player.x).toBeCloseTo(1.3);
+    expect(after.player.y).toBeCloseTo(1.3);
   });
 
   test('T2.2.2 — World maximum coordinate clamping: player at (149, 149) cannot exceed map dimensions', async () => {
+    await loadBorderWorld(driver.page);
     await driver.executeDebugCommand('/tp 149 149');
-    const startPos = await driver.getState();
-    expect(startPos.player.x).toBe(149);
-    expect(startPos.player.y).toBe(149);
-
-    // Attempt to move South
+    const start = await driver.getState();
+    expect(start.player.x).toBeCloseTo(10.5);
+    expect(start.player.y).toBeCloseTo(10.5);
     await driver.moveDirection('S', 1);
-    const postSouth = await driver.getState();
-    expect(postSouth.player.y).toBe(149);
-
-    // Attempt to move East
     await driver.moveDirection('E', 1);
-    const postEast = await driver.getState();
-    expect(postEast.player.x).toBe(149);
+    const after = await driver.getState();
+    expect(after.player.x).toBeCloseTo(10.7);
+    expect(after.player.y).toBeCloseTo(10.7);
   });
 
   test('T2.2.3 — Zero stamina boundary: stamina never goes below 0 and prevents sprint engagement', async () => {

@@ -109,3 +109,32 @@ describe('authoritative collision', () => {
     }
   });
 });
+
+it('keeps swept motion outside solids over seeded arbitrary angles and frame spikes', async () => {
+  const { Rng } = await import('../../../src/world/Rng');
+  const rng = new Rng(20261028);
+  const w = {
+    ...makeWorld(),
+    meta: { ...makeWorld().meta, width: 24, height: 24 },
+    tiles: new Uint8Array(576).fill(Tile.GRASS),
+    spawn: { x: 2, y: 2 },
+  };
+  for (let y = 0; y < 24; y++)
+    for (let x = 0; x < 24; x++)
+      if (x === 0 || y === 0 || x === 23 || y === 23 || (x > 4 && y > 4 && rng.nextFloat() < 0.22))
+        w.tiles[y * 24 + x] = Tile.CLIFF;
+  const s = new Simulation();
+  s.loadWorld(w);
+  for (const profile of ['player', 'groundEnemy', 'ghost'] as const) {
+    s.setPlayerPosition(2.5, 2.5);
+    for (let i = 0; i < 1000; i++) {
+      const dx = (rng.nextFloat() - 0.5) * 16,
+        dy = (rng.nextFloat() - 0.5) * 16;
+      moveWithCollision(w, s.player, dx, dy, profile);
+      expect(
+        canOccupy(w, s.player.x, s.player.y, 0.3, profile),
+        `${profile} step ${i}: ${s.player.x},${s.player.y}, input ${dx},${dy}`,
+      ).toBe(true);
+    }
+  }
+});

@@ -118,3 +118,16 @@ it('separates overlapping enemies and drops navigation on death/world replacemen
   ai.step({ ...s.world }, s.player, [], 1 / 60, actions);
   expect(ai.debug()).toHaveLength(0);
 });
+
+it('connects an enemy standing beside a trunk to a clear navigation node', () => {
+  const s = setup();
+  s.loadWorld({ ...s.world, props: [{ id: 1, kind: 'tree', tileX: 6, tileY: 4, solid: true }] });
+  s.setPlayerPosition(2.5, 4.1);
+  const e = enemy(s, 'mantis', 6.9, 4.1);
+  step(s, 1);
+  expect(canOccupy(s.world, 6.5, 4.5, 0.3, 'groundEnemy')).toBe(false);
+  s.world.tiles[4 * 20 + 4] = Tile.CLIFF;
+  step(s, 120);
+  expect(canOccupy(s.world, e.x, e.y, 0.3, 'groundEnemy')).toBe(true);
+  expect(e.x).toBeLessThan(5);
+});
