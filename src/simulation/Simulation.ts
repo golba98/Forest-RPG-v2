@@ -1,5 +1,8 @@
+import { EncounterDirector, type EncounterCue } from '../systems/EncounterDirector';
+import { prepareEncounterWorld } from '../world/EncounterPlacement';
+import type { SimulationRuntime } from '../types/encounters';
 import { entityFootprint, groundTile, resolveFootprint } from '../systems/EntityFootprint';
-import { onBridgeDeck } from '../world/BridgeGeometry';
+import { supportingSurface } from '../systems/SurfaceState';
 import { PortalSystem } from '../systems/PortalSystem';
 import { restoreSafePosition } from '../systems/SpawnSafety';
 import { describeTerrain } from '../world/TerrainTopology';
@@ -7,7 +10,6 @@ import { queryColliders, canOccupy } from '../systems/CollisionSystem';
 import { floodFill } from '../world/pathfinding';
 import type { GameplayDebug, PortalChange, RoundStatus } from '../types/gameplay';
 import { Rng } from '../world/Rng';
-import { Tile } from '../types/tiles';
 import { GAME_CONFIG as C } from '../config/GameConfig';
 import type { Entity, EntityBase, EnemyType, PlayerEntity, PlayerIntent } from '../types/entities';
 import type { RenderSnapshot } from '../types/render';
@@ -35,7 +37,8 @@ export class Simulation implements ISimulation {
   private time = 0.3;
   private entities: Entity[] = [];
   private sequence = 0;
-  private ghostNightSpawned = false;
+  private director!: EncounterDirector;
+  onEncounterCue: ((kind: EncounterCue) => void) | null = null;
   onFeedback:
     | ((
         kind: CombatFeedback,
@@ -69,14 +72,15 @@ export class Simulation implements ISimulation {
     };
   }
   loadWorld(world: WorldData): void {
+    world = prepareEncounterWorld(world);
     this.encounters = new EncounterSystem(
       (enemy, damage) => this.onHit?.(enemy, damage),
       new Rng(world.meta.seed),
       (kind, player, enemy) => this.onFeedback?.(kind, player, enemy),
       (x, y, propId) => this.onCut?.(x, y, propId),
+      (enemy) => this.director.claimDefeat(enemy),
     );
     this.tutorial = new TutorialSystem();
-    this.ghostNightSpawned = false;
     this.portal = new PortalSystem(
       (change) => this.onPortalChange?.(change),
       (status) => this.onRoundComplete?.(status),
@@ -117,9 +121,11 @@ export class Simulation implements ISimulation {
     };
     restoreSafePosition(world, this.player);
     this.entities.push(this.player);
+    this.director = new EncounterDirector(world, (type, x, y, id) => this.createEnemy(type, x, y, id), (kind) => this.onEncounterCue?.(kind));
     for (const s of world.enemySpawns) {
-      const id = this.spawnEnemy(s.type, s.x + 0.5, s.y + 0.5);
-      const enemy = this.entities.find((e) => e.id === id);
+      // Forest boss/ghost spawn descriptors are migration evidence, not live spawn instructions.
+      if (!world.meta.isTutorial && (s.type === 'beetle' || s.type === 'ghost')) continue;
+      const enemy = this.createEnemy(s.type, s.x + 0.5, s.y + 0.5);
       if (enemy?.kind === 'enemy') {
         enemy.aggressive = s.aggressive ?? true;
         enemy.health = enemy.maxHealth = s.maxHealth ?? enemy.maxHealth;
@@ -145,25 +151,6 @@ export class Simulation implements ISimulation {
     this.elapsedMs += dt * 1000;
     this.time = (this.time + dt / C.dayNight.cycleSec) % 1;
     const night = this.time >= C.dayNight.nightStart || this.time < C.dayNight.nightEnd;
-    if (night && !this.ghostNightSpawned && !this.world.meta.isTutorial) {
-      this.ghostNightSpawned = true;
-      const count = C.world.ghostsByDifficulty[this.world.meta.difficulty];
-      for (let i = 0; i < count; i++) {
-        const angle = (i * Math.PI * 2) / count;
-        this.spawnEnemy(
-          'ghost',
-          Math.max(0.5, Math.min(this.world.meta.width - 0.5, this.player.x + Math.cos(angle) * 8)),
-          Math.max(
-            0.5,
-            Math.min(this.world.meta.height - 0.5, this.player.y + Math.sin(angle) * 8),
-          ),
-        );
-      }
-    } else if (!night) {
-      this.ghostNightSpawned = false;
-      for (const e of this.entities)
-        if (e.kind === 'enemy' && e.enemyType === 'ghost') e.alive = false;
-    }
     movePlayer(
       this.world,
       this.player,
@@ -171,8 +158,10 @@ export class Simulation implements ISimulation {
       dt,
       this.sensitivity,
     );
+    this.director.step(this.player, this.entities, intent, dt, night, this.encounters.getNavigationDebug());
     this.encounters.step(this.world, this.player, this.entities, intent, dt);
-    this.portal.step(this.player, this.entities, dt);
+    this.director.afterCombat(this.player, this.entities);
+    this.portal.step(this.player, this.entities, dt, this.director.pendingBosses(this.entities));
     if (this.world.meta.isTutorial) this.tutorial.update(this.player, this.entities, intent);
     this.entities = this.entities.filter(
       (e) =>
@@ -198,18 +187,18 @@ export class Simulation implements ISimulation {
     }
     return true;
   }
-  getRuntimeState(): { rngState: number; ghostNightSpawned: boolean } {
-    return {
-      rngState: this.encounters.getRandomState(),
-      ghostNightSpawned: this.ghostNightSpawned,
-    };
+  getRuntimeState(): SimulationRuntime {
+    this.director.afterCombat(this.player, this.entities);
+    return { rngState: this.encounters.getRandomState(), encounters: structuredClone(this.director.state) };
   }
+  getEncounterDebug() { return { sites: this.director.getSites(), ...structuredClone(this.director.state) }; }
+  clearEncounters(bossesOnly = false): void { this.director.clear(this.entities, bossesOnly); }
   restoreEntities(
     entities: Entity[],
     time: number,
     elapsedMs: number,
     tutorialStage: number,
-    runtime?: { rngState: number; ghostNightSpawned: boolean },
+    runtime?: SimulationRuntime,
   ): void {
     const player = entities.find((e): e is PlayerEntity => e.kind === 'player');
     if (!player) throw new Error('Save has no player');
@@ -218,13 +207,9 @@ export class Simulation implements ISimulation {
     this.time = time;
     this.elapsedMs = elapsedMs;
     this.tutorial.stage = tutorialStage;
-    if (runtime) {
-      this.encounters.setRandomState(runtime.rngState);
-      this.ghostNightSpawned = runtime.ghostNightSpawned;
-    } else
-      this.ghostNightSpawned =
-        (time >= C.dayNight.nightStart || time < C.dayNight.nightEnd) &&
-        !this.world.meta.isTutorial;
+    if (runtime) this.encounters.setRandomState(runtime.rngState);
+    if (!runtime?.encounters && runtime?.ghostNightSpawned) this.player.hauntedIntroComplete = true;
+    this.director.restore(runtime?.encounters, this.player, this.entities);
     for (const entity of entities) {
       const match = /-(\d+)$/.exec(entity.id);
       if (match) this.sequence = Math.max(this.sequence, Number(match[1]) + 1);
@@ -237,7 +222,7 @@ export class Simulation implements ISimulation {
           e,
           e.kind === 'enemy' ? (e.enemyType === 'ghost' ? 'ghost' : 'groundEnemy') : 'player',
         );
-    this.portal.restore(entities);
+    this.portal.restore(entities, this.director.pendingBosses(this.entities));
   }
   claimPortalTransition(): boolean {
     return this.portal.claim(this.player, this.entities);
@@ -251,6 +236,7 @@ export class Simulation implements ISimulation {
     const portal = this.entities.find((e) => e.kind === 'portal');
     const f = resolveFootprint(entityFootprint(this.player));
     return {
+      encounters: this.getEncounterDebug(),
       playerFootprint: {
         minX: this.player.x + f.offsetX - f.halfWidth,
         minY: this.player.y + f.offsetY - f.halfHeight,
@@ -299,6 +285,17 @@ export class Simulation implements ISimulation {
     restoreSafePosition(this.world, this.player);
   }
   spawnEnemy(type: EnemyType, x: number, y: number): string {
+    if (!this.world.meta.isTutorial && (type === 'beetle' || type === 'ghost'))
+      return this.director.requestSpawn(type, this.player, this.entities, this.time < C.dayNight.nightEnd || this.time >= C.dayNight.nightStart);
+    return this.createEnemy(type, x, y).id;
+  }
+  private createEnemy(type: EnemyType, x: number, y: number, id?: string): import('../types/entities').EnemyEntity {
+    if (id) {
+      const existing = this.entities.find((e) => e.id === id);
+      if (existing?.kind === 'enemy' && existing.alive) return existing;
+      const index = this.entities.findIndex((e) => e.id === id);
+      if (index >= 0) this.entities.splice(index, 1);
+    }
     const hp =
       type === 'beetle'
         ? 15 + (this.world.meta.level - 1) * 5
@@ -307,6 +304,7 @@ export class Simulation implements ISimulation {
           : 3 + Math.floor(this.world.meta.level / 2);
     const e = {
       ...this.base('enemy', x, y),
+      ...(id ? { id } : {}),
       kind: 'enemy' as const,
       enemyType: type,
       health: hp,
@@ -318,7 +316,26 @@ export class Simulation implements ISimulation {
     };
     restoreSafePosition(this.world, e, type === 'ghost' ? 'ghost' : 'groundEnemy');
     this.entities.push(e);
-    return e.id;
+    return e;
+  }
+  restoreLegacyEnemies(health: readonly { health: number; maxHealth: number }[], portalComplete = false): void {
+    this.entities = this.entities.filter((e) => e.kind !== 'enemy');
+    this.world.enemySpawns.forEach((spawn, index) => {
+      const enemy = this.createEnemy(spawn.type, spawn.x + 0.5, spawn.y + 0.5);
+      const saved = health[index];
+      if (saved) { enemy.health = saved.health; enemy.maxHealth = saved.maxHealth; enemy.alive = saved.health > 0; }
+    });
+    const portal = this.entities.find((e) => e.kind === 'portal');
+    if (portal?.kind === 'portal' && portalComplete) { portal.active = true; portal.roundComplete = true; }
+    // A legacy boss saved inside a newly solid face may have been repaired above.
+    // Adopt that repaired home rather than dropping the actor on a cramped map.
+    if (!this.director.getSites().some((s) => s.kind === 'nest') && this.entities.some((e) => e.kind === 'enemy' && e.enemyType === 'beetle')) {
+      const { encounterSites: _sites, ...oldWorld } = this.world;
+      this.world = prepareEncounterWorld(oldWorld, this.entities);
+      this.director = new EncounterDirector(this.world, (type, x, y, id) => this.createEnemy(type, x, y, id), (kind) => this.onEncounterCue?.(kind));
+    }
+    this.director.restore(undefined, this.player, this.entities);
+    this.portal.restore(this.entities, this.director.pendingBosses(this.entities));
   }
   setTimeOfDay(ratio: number): void {
     this.time = ((ratio % 1) + 1) % 1;
@@ -330,6 +347,7 @@ export class Simulation implements ISimulation {
     const darkness = Math.max(0, Math.cos(this.time * Math.PI * 2)) * 0.8;
     return {
       world: this.world,
+      encounters: this.director.presentation(this.player, this.entities),
       worldVersion: this.worldVersion,
       playerId: this.player.id,
       entities: this.entities
@@ -345,10 +363,8 @@ export class Simulation implements ISimulation {
           submerged:
             e.kind === 'player' &&
             !e.isJumping &&
-            !onBridgeDeck(this.world, e.x + resolveFootprint(entityFootprint(e)).offsetX, e.y + resolveFootprint(entityFootprint(e)).offsetY) &&
-            this.world.tiles[groundTile(e).y * this.world.meta.width + groundTile(e).x] ===
-              Tile.RIVER,
-          alpha: 1,
+            supportingSurface(this.world, e).kind === 'water',
+          ...(e.kind === 'enemy' ? this.director.appearance(e) : { alpha: 1 }),
           hurtFlash: (e.kind === 'player' || e.kind === 'enemy') && e.hurtTimerMs > 0,
         })),
       environment: {

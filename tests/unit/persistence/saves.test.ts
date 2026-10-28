@@ -9,6 +9,9 @@ import { generateTutorialWorld } from '../../../src/world/TutorialMap';
 import { Simulation } from '../../../src/simulation/Simulation';
 import { FakeRenderer, FakeWorldFactory } from '../game/fakes';
 import { bridgeFixture } from '../../fixtures/bridge-world';
+import { Tile } from '../../../src/types/tiles';
+import { PLAYER_FOOTPRINT } from '../../../src/systems/EntityFootprint';
+import { moveWithCollision } from '../../../src/systems/CollisionSystem';
 let game: Game;
 let sim: Simulation;
 let saves: SaveManager;
@@ -58,6 +61,30 @@ it('rejects malformed, overlapping or unsupported bridges before replacing the a
     expect(sim.worldVersion).toBe(version);
   }
 });
+for (const orientation of ['horizontal', 'vertical'] as const)
+  it(`loads ${orientation} raised bridge landings without changing terrain or progress`, () => {
+    const { world, bridge } = bridgeFixture(orientation);
+    for (let y = 1; y < 47; y++)
+      for (let x = 1; x < 47; x++)
+        if (world.tiles[y * 48 + x] === Tile.GRASS) world.tiles[y * 48 + x] = Tile.PLATEAU;
+    game.loadWorld(world);
+    const horizontal = orientation === 'horizontal';
+    const start = { x: bridge.x + (horizontal ? -1 : 1),
+      y: bridge.y + (horizontal ? 1 : -1) - PLAYER_FOOTPRINT.offsetY };
+    sim.setPlayerPosition(start.x, start.y);
+    sim.player.stats.coins = 4321;
+    sim.player.inventory.speedPotions = 4;
+    saves.save('raised-bridge');
+    saves.load('raised-bridge');
+    expect(sim.world.tiles).toEqual(world.tiles);
+    expect(sim.world.bridges).toEqual([bridge]);
+    expect(sim.player.stats.coins).toBe(4321);
+    expect(sim.player.inventory.speedPotions).toBe(4);
+    moveWithCollision(sim.world, sim.player, horizontal ? bridge.span + 4 : 0,
+      horizontal ? 0 : bridge.span + 4);
+    expect(horizontal ? sim.player.x - start.x : sim.player.y - start.y).toBeCloseTo(bridge.span + 4);
+    expect(sim.buildRenderSnapshot().entities.find(e => e.id === sim.player.id)?.submerged).toBe(false);
+  });
 it('round-trips world, combat and player state in a slot', () => {
   sim.setPlayerPosition(15.5, 5.5);
   sim.player.stats.health = 4;

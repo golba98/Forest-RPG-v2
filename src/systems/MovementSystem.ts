@@ -1,10 +1,10 @@
-import { entityFootprint, groundTile, resolveFootprint } from './EntityFootprint';
+import { entityFootprint, resolveFootprint } from './EntityFootprint';
 import { GAME_CONFIG as C } from '../config/GameConfig';
 import type { Direction, PlayerEntity, PlayerIntent } from '../types/entities';
 import type { WorldData } from '../types/world';
 import { TILE_PROPERTIES, type TileId } from '../types/tiles';
 import { canOccupy, moveWithCollision } from './CollisionSystem';
-import { onBridgeDeck } from '../world/BridgeGeometry';
+import { supportingSurface } from './SurfaceState';
 
 const dashTimers = new WeakMap<PlayerEntity, { remaining: number; cooldown: number }>();
 const landingPositions = new WeakMap<PlayerEntity, { x: number; y: number }>();
@@ -117,17 +117,14 @@ export function movePlayer(
       p.stats.maxStamina,
       p.stats.stamina + C.player.staminaRegenPerSec * dt,
     );
-  const ground = groundTile(p);
-  const terrain = world.tiles[ground.y * world.meta.width + ground.x] as TileId;
-  const feet = resolveFootprint(entityFootprint(p));
-  const dryBridge = onBridgeDeck(world, p.x + feet.offsetX, p.y + feet.offsetY);
+  const surface = supportingSurface(world, p);
   const groundSpeed =
     ((p.isDashing
       ? C.player.sprintSpeed * 1.45
       : p.isSprinting
         ? C.player.sprintSpeed
         : C.player.walkSpeed) *
-      (dryBridge ? 1 : (TILE_PROPERTIES[terrain]?.speedMultiplier ?? 1)) *
+      surface.speedMultiplier *
       (p.speedBuffMs > 0 ? 1.4 : 1)) /
     (1 - (sensitivity - 5) * 0.06);
   // A jump covers about two tiles: enough to clear a cliff edge, not to fly.

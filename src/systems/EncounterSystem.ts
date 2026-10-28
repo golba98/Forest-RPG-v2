@@ -42,6 +42,7 @@ export class EncounterSystem {
       enemy?: EnemyEntity,
     ) => void,
     private readonly onCut?: (x: number, y: number, propId?: number) => void,
+    private readonly claimDefeat?: (enemy: EnemyEntity) => boolean,
   ) {}
   setSequence(sequence: number): void {
     this.sequence = Math.max(this.sequence, sequence);
@@ -88,7 +89,7 @@ export class EncounterSystem {
     p.stats.mana = Math.min(p.stats.maxMana, p.stats.mana + C.player.manaRegenPerSec * dt);
     this.comboRemaining = Math.max(0, this.comboRemaining - ms);
     if (this.comboRemaining === 0 && this.attackRemaining <= 0) p.comboCount = 0;
-    const enemies = entities.filter((e): e is EnemyEntity => e.kind === 'enemy' && e.alive);
+    const enemies = entities.filter((e): e is EnemyEntity => e.kind === 'enemy' && e.alive && e.combatReady !== false);
     if (
       intent.attack &&
       this.attackRemaining <= 0 &&
@@ -213,7 +214,7 @@ export class EncounterSystem {
       p.inventory.healthPotions--;
       p.stats.health = Math.min(p.stats.maxHealth, p.stats.health + C.player.healthPotionHeal);
     }
-    this.ai.step(world, p, enemies, dt, {
+    this.ai.step(world, p, entities.filter((e): e is EnemyEntity => e.kind === 'enemy' && e.alive), dt, {
       hurt: () => {
         if (p.hurtTimerMs === 0) {
           p.stats.health = Math.max(0, p.stats.health - 1);
@@ -362,12 +363,14 @@ export class EncounterSystem {
   ): void {
     if (
       !e.alive ||
+      e.combatReady === false ||
       e.hurtTimerMs > 0 ||
       (requireLineOfSight && !hasClearPath(world, p.x, p.y, e.x, e.y))
     )
       return;
     e.health = Math.max(0, e.health - damage);
-    this.onHit?.(e, damage);
+    // Managed defeat, loot and XP must be committed before feedback observers can save.
+    if (!e.encounterId) this.onHit?.(e, damage);
     e.hurtTimerMs = e.enemyType === 'beetle' ? 800 : 250;
     if (e.enemyType !== 'beetle' && e.enemyType !== 'ghost') {
       const dx = e.x - p.x,
@@ -392,6 +395,7 @@ export class EncounterSystem {
       e.aiState = 'dead';
       e.anim = 'death';
       e.animTimeMs = 0;
+      if (this.claimDefeat && !this.claimDefeat(e)) return;
       if (this.rng.chance(C.combat.lootDropChance))
         entities.push({
           id: `loot-${this.sequence++}`,
@@ -411,5 +415,6 @@ export class EncounterSystem {
       awardXp(p.stats, e.enemyType === 'beetle' ? 100 : 20);
       if (p.stats.level > oldLevel) this.onFeedback?.('level', p);
     }
+    if (e.encounterId) this.onHit?.(e, damage);
   }
 }

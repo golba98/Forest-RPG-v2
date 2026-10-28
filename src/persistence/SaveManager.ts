@@ -1,3 +1,6 @@
+import type { SimulationRuntime } from '../types/encounters';
+import { validateEncounterSites, validateEncounterState } from './EncounterValidation';
+import { prepareEncounterWorld } from '../world/EncounterPlacement';
 import { restoreSafePosition } from '../systems/SpawnSafety';
 import { adaptLegacySave } from './LegacySaveAdapter';
 import type { Entity } from '../types/entities';
@@ -17,7 +20,7 @@ interface SavePayload {
   time: number;
   elapsedMs: number;
   tutorialStage: number;
-  runtime: { rngState: number; ghostNightSpawned: boolean };
+  runtime: SimulationRuntime;
   legacyExtras?: Record<string, unknown>;
 }
 const object = (v: unknown): v is Record<string, unknown> =>
@@ -42,6 +45,8 @@ function validEntity(v: unknown, w: number, h: number): v is Entity {
     !directions.includes(String(v.facing)) ||
     !animations.includes(String(v.anim)) ||
     typeof v.alive !== 'boolean' ||
+    (v.kind === 'player' && v.hauntedIntroComplete !== undefined && typeof v.hauntedIntroComplete !== 'boolean') ||
+    (v.encounterId !== undefined && (typeof v.encounterId !== 'string' || v.encounterId.length > 160)) ||
     !hasNumbers(v, ['prevX', 'prevY', 'halfSize', 'animTimeMs'])
   )
     return false;
@@ -163,7 +168,7 @@ function decode(raw: string): {
   time: number;
   elapsedMs: number;
   tutorialStage: number;
-  runtime?: { rngState: number; ghostNightSpawned: boolean };
+  runtime?: SimulationRuntime;
 } {
   const data: unknown = JSON.parse(raw);
   if (!object(data) || data.version !== 2 || !object(data.world) || !object(data.world.meta))
@@ -211,7 +216,8 @@ function decode(raw: string): {
     if (
       new Set(bridges.map(b => b.id)).size !== bridges.length ||
       bridges.some((b, i) =>
-        !validBridgeTerrain(grid, b) || bridges.slice(0, i).some(other =>
+        // Existing deck geometry can support raised landings without rewriting saved terrain.
+        !validBridgeTerrain(grid, b, true) || bridges.slice(0, i).some(other =>
           boundsOverlap(bridgeGeometry(b).footprint, bridgeGeometry(other).footprint),
         ),
       )
@@ -293,12 +299,20 @@ function decode(raw: string): {
       !integer(data.runtime.rngState) ||
       data.runtime.rngState < 0 ||
       data.runtime.rngState > 0xffffffff ||
-      typeof data.runtime.ghostNightSpawned !== 'boolean')
+      (data.runtime.ghostNightSpawned !== undefined && typeof data.runtime.ghostNightSpawned !== 'boolean'))
   )
     throw new Error('Invalid runtime state');
-  const runtime = data.runtime as { rngState: number; ghostNightSpawned: boolean } | undefined;
+  const runtime = data.runtime as SimulationRuntime | undefined;
+  const convertedWorld = { ...(world as unknown as WorldData), tiles: Uint8Array.from(world.tiles as number[]) };
+  if (convertedWorld.encounterSites === undefined && !runtime?.encounters)
+    for (const e of data.entities as Entity[])
+      if (e.alive && (e.kind === 'player' || e.kind === 'enemy'))
+        restoreSafePosition(convertedWorld, e, e.kind === 'enemy' ? e.enemyType === 'ghost' ? 'ghost' : 'groundEnemy' : 'player');
+  const restoredWorld = prepareEncounterWorld(convertedWorld, data.entities as Entity[]);
+  validateEncounterSites(restoredWorld);
+  validateEncounterState(restoredWorld, runtime?.encounters);
   return {
-    world: { ...(world as unknown as WorldData), tiles: Uint8Array.from(world.tiles as number[]) },
+    world: restoredWorld,
     entities: data.entities as Entity[],
     time: data.time,
     elapsedMs: data.elapsedMs,
@@ -332,14 +346,7 @@ export class SaveManager {
     if (object(parsed) && parsed.version === undefined) {
       const legacy = adaptLegacySave(parsed);
       this.game.loadWorld(legacy.world);
-      const enemies = this.sim.getEntities().filter((e) => e.kind === 'enemy');
-      legacy.enemyHealth.forEach((health, i) => {
-        const e = enemies[i];
-        if (e?.kind === 'enemy') {
-          e.health = health.health;
-          e.maxHealth = health.maxHealth;
-        }
-      });
+      this.sim.restoreLegacyEnemies(legacy.enemyHealth, legacy.legacyExtras.isPortalActive === true);
       this.legacyExtras = legacy.legacyExtras;
       return;
     }

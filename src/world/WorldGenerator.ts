@@ -1,3 +1,4 @@
+import { reserveNest, clearNestReservation, siteBounds, placeGroves } from './EncounterPlacement';
 import { canOccupy, hasClearPath } from '../systems/CollisionSystem';
 import { bridgeGeometry } from './BridgeGeometry';
 import { placeMud } from './generation/mud';
@@ -31,7 +32,7 @@ import { PerlinNoise } from './Noise';
 import { Rng } from './Rng';
 
 export const MIN_WORLD_SIZE = 32;
-const MAX_ATTEMPTS = 8;
+const MAX_ATTEMPTS = 32;
 const SPAWN_BRANCH_CHANCE = 0.55;
 
 /**
@@ -95,17 +96,23 @@ function tryGenerate(
   roundRiverTips(grid, clear);
   applyBorderRing(grid);
 
+  const nest = reserveNest(grid, spawn, opts.seed, opts.level, stream('nest'));
+  if (!nest) return null;
+  const reservations = [siteBounds(nest)];
+  clearNestReservation(grid, nest);
+
   // Part 3 — hills (then re-open the spawn clearing they may cover).
   generateHills(grid, stream('hills'), noise);
+  clearNestReservation(grid, nest);
   restoreSpawnClearing(grid, spawn);
   refreshHillEdges(grid);
   placeStairs(grid, stream('stairs'));
-  const bridges = placeBridges(grid, spawn, stream('bridges'));
+  const bridges = placeBridges(grid, spawn, stream('bridges'), reservations);
 
   // Part 4 — anything the player cannot reach becomes forest.
   pruneUnreachable(grid, spawn);
 
-  const trees = placeWoodland(grid, stream('woodland'), spawn, bridges);
+  const trees = placeWoodland(grid, stream('woodland'), spawn, bridges, reservations);
   placeMud(grid, spawn, stream('mud'), bridges);
 
   const trunkCells = new Set(trees.map((t) => t.tileY * width + t.tileX));
@@ -120,9 +127,9 @@ function tryGenerate(
   }
 
   // Part 5 — portal, props, enemies and coins.
-  const portal = findPortalTile(grid, spawn, trees, bridges);
+  const portal = findPortalTile(grid, spawn, trees, bridges, reservations);
   if (!portal) return null;
-  const decorations = placeProps(grid, spawn, portal, stream('props'), true, trees, bridges);
+  const decorations = placeProps(grid, spawn, portal, stream('props'), true, trees, bridges, reservations);
   const props = [...trees, ...decorations].map((p, id) => ({ ...p, id }));
   const collisionWorld = { meta: { width, height }, tiles: grid.tiles, props, bridges };
   const finalReached = floodFill(grid, spawn, (x, y) =>
@@ -155,10 +162,20 @@ function tryGenerate(
     GAME_CONFIG.world.coinsPerLevel,
     stream('spawns'),
     bridges,
+    reservations,
   );
   if (!plan) return null;
 
-  return {
+  const nestReached = floodFill(grid, spawn, (x, y) => canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3, 'groundEnemy'));
+  if (!nestReached[Math.floor(nest.y) * width + Math.floor(nest.x)]) return null;
+  let exits = 0;
+  for (const [dx, dy] of [[0, -6], [6, 0], [0, 6], [-6, 0]] as const) {
+    const x = Math.floor(nest.x) + dx, y = Math.floor(nest.y) + dy;
+    if (x >= 0 && y >= 0 && x < width && y < height && nestReached[y * width + x] && hasClearPath(collisionWorld, nest.x, nest.y, x + 0.5, y + 0.5, 0.3, 'groundEnemy')) exits++;
+  }
+  if (exits < 2) return null;
+
+  const world: WorldData = {
     meta: {
       seed: opts.seed,
       generatorVersion: WORLD_GENERATOR_VERSION,
@@ -175,5 +192,7 @@ function tryGenerate(
     portal,
     enemySpawns: plan.enemySpawns,
     pickupSpawns: plan.pickupSpawns,
+    encounterSites: [nest],
   };
+  return { ...world, encounterSites: [nest, ...placeGroves(world, [nest])] };
 }

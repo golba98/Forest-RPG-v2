@@ -173,6 +173,13 @@ export function buildVisualManifest(): VisualAssetEntry[] {
       ...(OBSTACLE_PROPS.has(kind) ? { solidFootprint: 'own tile when placed as an obstacle (WorldProp.solid)' } : {}),
     });
   }
+  for (const layer of ['body', 'front', 'ground', 'cleared']) entries.push({
+    id: `nest_${layer}`, alias: `nest_${layer}`, path: `assets/images/objects/nest/nest_${layer}.png`,
+    texture: { w: 96, h: 80 }, frame: { w: 96, h: 80 }, anchor: { x: 0.5, y: 0.65 },
+    renderOffset: { x: 0, y: -10 }, tileFootprint: { w: 3, h: 2.5 },
+    depthAnchor: layer === 'ground' ? 'none' : 'foot', layer: layer === 'ground' ? 'ground-fx' : 'actors',
+    solidFootprint: 'player-only stepped nest base; upper projections and padding excluded',
+  });
   entries.push(...sheetEntries());
   return entries;
 }

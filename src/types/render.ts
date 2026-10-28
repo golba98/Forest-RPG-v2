@@ -15,6 +15,10 @@ export type PortalVisualState = 'locked' | 'reacting' | 'open' | 'transitioning'
  * Coordinates are in tiles; the renderer interpolates prev→current with alpha.
  */
 export interface RenderEntityView {
+  readonly formation?: number;
+  readonly nestEmergence?: { readonly siteId: string; readonly progress: number };
+  /** A lifecycle fade already handled this removal; do not replay a death effect. */
+  readonly quietRemoval?: boolean;
   readonly id: string;
   readonly kind: EntityKind;
   /** Animation-set key, e.g. 'player', 'mantis', 'coin', 'portal', 'acid'. */
@@ -85,6 +89,7 @@ export interface EnvironmentView {
 }
 
 export interface RenderSnapshot {
+  readonly encounters?: import('./encounters').EncounterPresentation;
   readonly world: WorldData;
   /** Increments whenever `world` is replaced (new level, load, regeneration). */
   readonly worldVersion: number;

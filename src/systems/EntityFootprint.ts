@@ -19,11 +19,16 @@ export function resolveFootprint(shape: number | CollisionFootprint): CollisionF
     ? { halfWidth: shape, halfHeight: shape, offsetX: 0, offsetY: 0 }
     : shape;
 }
-/** Tile under the centre of the entity's feet: the ground it is standing on. */
-export function groundTile(entity: Pick<EntityBase, 'kind' | 'halfSize' | 'x' | 'y'>): {
+/** Continuous ground contact, independent of the animation frame and sprite lift. */
+export function groundPosition(entity: Pick<EntityBase, 'kind' | 'halfSize' | 'x' | 'y'>): {
   x: number;
   y: number;
 } {
   const f = resolveFootprint(entityFootprint(entity));
-  return { x: Math.floor(entity.x + f.offsetX), y: Math.floor(entity.y + f.offsetY) };
+  return { x: entity.x + f.offsetX, y: entity.y + f.offsetY };
+}
+/** Tile supporting the centre of the feet. */
+export function groundTile(entity: Pick<EntityBase, 'kind' | 'halfSize' | 'x' | 'y'>): { x: number; y: number } {
+  const p = groundPosition(entity);
+  return { x: Math.floor(p.x), y: Math.floor(p.y) };
 }

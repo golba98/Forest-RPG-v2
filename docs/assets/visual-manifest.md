@@ -84,3 +84,7 @@ Units:
 | `item_potion_health` | `assets/images/items/potion_health.png` | 32×32 | 32×32 | (0.5, 0.5) | (0, 0) | 0.75×0.75 | foot | actors | idle 1×1000ms | entity AABB, halfSize 0.3 tiles (simulation) |
 | `item_potion_speed` | `assets/images/items/potion_speed.png` | 32×32 | 32×32 | (0.5, 0.5) | (0, 0) | 0.75×0.75 | foot | actors | idle 1×1000ms | entity AABB, halfSize 0.3 tiles (simulation) |
 | `item_chest` | `assets/images/items/chest.png` | 32×32 | 32×32 | (0.5, 0.5) | (0, 0) | 1×1 | foot | actors | idle 1×1000ms | entity AABB, halfSize 0.3 tiles (simulation) |
+| `nest_body` | `assets/images/objects/nest/nest_body.png` | 96×80 | 96×80 | (0.5, 0.65) | (0, -10) | 3×2.5 | foot | actors | — | player-only stepped nest base; upper projections and padding excluded |
+| `nest_front` | `assets/images/objects/nest/nest_front.png` | 96×80 | 96×80 | (0.5, 0.65) | (0, -10) | 3×2.5 | foot | actors | — | player-only stepped nest base; upper projections and padding excluded |
+| `nest_ground` | `assets/images/objects/nest/nest_ground.png` | 96×80 | 96×80 | (0.5, 0.65) | (0, -10) | 3×2.5 | none | ground-fx | — | player-only stepped nest base; upper projections and padding excluded |
+| `nest_cleared` | `assets/images/objects/nest/nest_cleared.png` | 96×80 | 96×80 | (0.5, 0.65) | (0, -10) | 3×2.5 | foot | actors | — | player-only stepped nest base; upper projections and padding excluded |

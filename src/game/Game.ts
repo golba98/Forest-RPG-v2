@@ -152,7 +152,7 @@ export class Game {
   /** Loads an already-built world (new game, next level, or restored save). */
   public loadWorld(world: WorldData, mode: 'new' | 'loaded' = 'loaded'): void {
     this.deps.simulation.loadWorld(world);
-    this.deps.renderer.setWorld(world);
+    this.deps.renderer.setWorld(this.deps.simulation.world);
     this.intents.reset();
     if (this.loop.isPaused) this.loop.resume();
     this.setScene('playing');
@@ -165,11 +165,13 @@ export class Game {
     const stats = { ...old.stats, coins: 0 };
     const inventory = { ...old.inventory };
     const speedBuffMs = old.speedBuffMs;
+    const hauntedIntroComplete = old.hauntedIntroComplete ?? false;
     const level = this.deps.simulation.world.meta.level + 1;
     this.startNewGame({ level, difficulty: this.difficulty, seed: randomSeed() });
     Object.assign(this.deps.simulation.player.stats, stats);
     Object.assign(this.deps.simulation.player.inventory, inventory);
     this.deps.simulation.player.speedBuffMs = speedBuffMs;
+    this.deps.simulation.player.hauntedIntroComplete = hauntedIntroComplete;
   }
 
   /** P key: a fresh procedural world at the current level. */

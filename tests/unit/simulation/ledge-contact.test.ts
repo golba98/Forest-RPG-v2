@@ -141,7 +141,9 @@ describe('walking on the actual hill rim', () => {
         expect(b.maxX).toBeGreaterThan(b.minX);
         expect(b.maxY).toBeGreaterThan(b.minY);
       }
-      expect(hillCollisionBounds(Tile.STAIRS, mask)).toHaveLength(0);
+      // A stair cuts a route through the face; the painted cheeks remain solid.
+      const stair = hillCollisionBounds(Tile.STAIRS, mask);
+      expect(stair.every((b) => b.minX >= 0 && b.maxX <= 1 && b.minY >= 0 && b.maxY <= 1)).toBe(true);
     }
   });
   it('restores a valid position saved on the rim without relocating it', () => {

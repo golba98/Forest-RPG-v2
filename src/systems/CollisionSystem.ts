@@ -1,15 +1,19 @@
+import { nestBaseBounds } from '../world/NestGeometry';
+import { elevationMask } from '../world/ElevationTopology';
 import { cachedHillBounds, isRaisedSurface } from '../world/HillCollisionGeometry';
 import { entityFootprint, resolveFootprint } from './EntityFootprint';
 import type { EntityBase } from '../types/entities';
 import type { Bounds, Collider, CollisionFootprint, TraversalProfile } from '../types/gameplay';
 import type { WorldData } from '../types/world';
 import { bridgeAtTile, bridgeGeometry, boundsOverlap, subtractDeck } from '../world/BridgeGeometry';
-export type CollisionWorld = Pick<WorldData, 'tiles' | 'props' | 'bridges'> & {
+export type CollisionWorld = Pick<WorldData, 'tiles' | 'props' | 'bridges' | 'encounterSites'> & {
   readonly meta: Pick<WorldData['meta'], 'width' | 'height'>;
 };
 import { Tile, TILE_PROPERTIES, type TileId, type TileProperties } from '../types/tiles';
 import { propFootprint } from '../world/ObjectSemantics';
 
+/** Visibility queries may inspect an interaction target through its own base. Movement never bypasses nests. */
+export interface CollisionQueryOptions { readonly ignoreNestId?: string }
 export const CONTACT_EPSILON = 1e-9;
 const indexes = new WeakMap<CollisionWorld, Map<number, Collider[]>>();
 function indexedProps(world: CollisionWorld): Map<number, Collider[]> {
@@ -61,6 +65,7 @@ export function queryColliders(
   world: CollisionWorld,
   area: Bounds,
   profile: TraversalProfile = 'player',
+  options: CollisionQueryOptions = {},
 ): Collider[] {
   const { width, height } = world.meta;
   const make = (
@@ -87,6 +92,12 @@ export function queryColliders(
     make('boundary:s', 'boundary', 0, height, width, 1e9),
   ];
   if (profile === 'ghost') return colliders;
+  if (profile === 'player' || profile === 'jumping')
+    for (const site of world.encounterSites ?? []) {
+      if (site.kind !== 'nest' || site.id === options.ignoreNestId) continue;
+      for (const [i, b] of nestBaseBounds(world, site).entries())
+        if (boundsOverlap(area, b)) colliders.push(make(`nest:${site.id}:${i}`, 'nest', b.minX, b.minY, b.maxX, b.maxY));
+    }
   if (profile !== 'jumping') {
     for (const bridge of world.bridges ?? [])
       for (const [i, rail] of bridgeGeometry(bridge).rails.entries())
@@ -108,33 +119,15 @@ export function queryColliders(
       const tile = world.tiles[y * width + x] ?? Tile.BORDER;
       if (isRaisedSurface(tile)) {
         if (profile !== 'jumping') {
-          let mask = 0;
-          const offsets = [
-            [0, -1],
-            [1, -1],
-            [1, 0],
-            [1, 1],
-            [0, 1],
-            [-1, 1],
-            [-1, 0],
-            [-1, -1],
-          ] as const;
-          offsets.forEach(([dx, dy], i) => {
-            const nx = x + dx,
-              ny = y + dy;
-            if (
-              nx >= 0 &&
-              ny >= 0 &&
-              nx < width &&
-              ny < height &&
-              isRaisedSurface(world.tiles[ny * width + nx] ?? 0)
-            )
-              mask |= 1 << i;
-          });
-          for (const [i, b] of cachedHillBounds(tile, mask).entries())
-            colliders.push(
-              make(`cliff:${x},${y}:${i}`, 'cliff', x + b.minX, y + b.minY, x + b.maxX, y + b.maxY),
-            );
+          const mask = elevationMask(world.tiles, width, height, x, y);
+          const bridge = bridgeAtTile(world, x, y);
+          for (const [i, b] of cachedHillBounds(tile, mask).entries()) {
+            const bounds = { minX: x + b.minX, minY: y + b.minY, maxX: x + b.maxX, maxY: y + b.maxY };
+            // Only the actual deck overrides a face at a landing. Placement buffers do not.
+            const pieces = bridge ? subtractDeck(bounds, bridgeGeometry(bridge).deck) : [bounds];
+            for (const [j, piece] of pieces.entries())
+              colliders.push(make(`cliff:${x},${y}:${i}:${j}`, 'cliff', piece.minX, piece.minY, piece.maxX, piece.maxY));
+          }
         }
       } else if (blocksTile(properties, profile)) {
         const bridge = tile === Tile.RIVER ? bridgeAtTile(world, x, y) : undefined;
@@ -159,6 +152,7 @@ export function canOccupy(
   y: number,
   shape: number | CollisionFootprint,
   profile: TraversalProfile = 'player',
+  options: CollisionQueryOptions = {},
 ): boolean {
   const f = resolveFootprint(shape);
   if (
@@ -173,7 +167,7 @@ export function canOccupy(
     maxX: x + f.offsetX + f.halfWidth,
     maxY: y + f.offsetY + f.halfHeight,
   };
-  return !queryColliders(world, area, profile).some((c) => overlaps(area, c));
+  return !queryColliders(world, area, profile, options).some((c) => overlaps(area, c));
 }
 interface Contact {
   time: number;
@@ -217,8 +211,9 @@ export function hasClearPath(
   ty: number,
   half: number | CollisionFootprint = 0.01,
   profile: TraversalProfile = 'player',
+  options: CollisionQueryOptions = {},
 ): boolean {
-  if (!canOccupy(world, x, y, half, profile) || !canOccupy(world, tx, ty, half, profile))
+  if (!canOccupy(world, x, y, half, profile, options) || !canOccupy(world, tx, ty, half, profile, options))
     return false;
   const f = resolveFootprint(half);
   const area = {
@@ -227,7 +222,7 @@ export function hasClearPath(
     maxX: Math.max(x, tx) + f.offsetX + f.halfWidth,
     maxY: Math.max(y, ty) + f.offsetY + f.halfHeight,
   };
-  return !queryColliders(world, area, profile).some((c) => sweep(x, y, tx - x, ty - y, half, c));
+  return !queryColliders(world, area, profile, options).some((c) => sweep(x, y, tx - x, ty - y, half, c));
 }
 /** Swept square AABB, earliest contact followed by tangential sliding. */
 export function moveWithCollision(
@@ -271,14 +266,15 @@ export function moveWithCollision(
         if (hit.ny && blocks(c.minX, c.minY - Math.sign(dy))) hit.ny = false;
         if (!hit.nx && !hit.ny) continue;
       }
-      if (c.source === 'cliff') {
+      if (c.source === 'cliff' || c.source === 'nest') {
         const px = entity.x + dx * hit.time + f.offsetX,
           py = entity.y + dy * hit.time + f.offsetY;
         const covered = (x: number, y: number) =>
           nearby.some(
             (other) =>
               other !== c &&
-              other.source === 'cliff' &&
+              other.source === c.source &&
+              (c.source !== 'nest' || other.ownerId.slice(0, other.ownerId.lastIndexOf(':')) === c.ownerId.slice(0, c.ownerId.lastIndexOf(':'))) &&
               x > other.minX + CONTACT_EPSILON &&
               x < other.maxX - CONTACT_EPSILON &&
               y > other.minY + CONTACT_EPSILON &&

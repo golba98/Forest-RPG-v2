@@ -23,6 +23,24 @@ const ALL_DIRS: readonly Direction[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'N
 const ALL_ANIMS: readonly AnimState[] = ['idle', 'walk', 'run', 'jump', 'attack', 'hurt', 'death'];
 
 describe('resolveSpriteFrame — player', () => {
+  it.each([
+    ['N', 'north', 92], ['NE', 'northwest', 96],
+    ['E', 'east', 97], ['SE', 'southwest', 113],
+    ['S', 'south', 121], ['SW', 'southeast', 113],
+    ['W', 'west', 97], ['NW', 'northeast', 96],
+  ] as const)('uses visually verified %s punch artwork for every frame', (facing, suffix, height) => {
+    for (let i = 0; i < 4; i++) {
+      const ref = resolveSpriteFrame(view({ anim: 'attack', facing, animTimeMs: i * 80 }));
+      expect(ref.textureAlias).toBe(`player_attack_${suffix}`);
+      expect(ref.flipX).toBe(false);
+      expect(ref.scale).toBeCloseTo(0.34);
+      expect(ref.frame).toEqual({
+        x: Math.floor(i * 446 / 4), y: 0,
+        w: Math.floor((i + 1) * 446 / 4) - Math.floor(i * 446 / 4), h: height,
+      });
+    }
+  });
+
   it('slices idle_south into 4 × 20 px frames at 150 ms', () => {
     const f0 = resolveSpriteFrame(view({ animTimeMs: 0 }));
     expect(f0.textureAlias).toBe('player_idle_south');

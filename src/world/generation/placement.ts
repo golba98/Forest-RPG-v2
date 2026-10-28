@@ -1,3 +1,5 @@
+import type { Bounds } from '../../types/gameplay';
+import { intersectsReservations } from '../EncounterPlacement';
 import { canOccupy } from '../../systems/CollisionSystem';
 import { Tile } from '../../types/tiles';
 import type { EnemyType } from '../../types/entities';
@@ -73,6 +75,7 @@ export function findPortalTile(
   spawn: TilePoint,
   blocked: readonly WorldProp[] = [],
   bridges: readonly WorldBridge[] = [],
+  reservations: readonly Bounds[] = [],
 ): TilePoint | null {
   const midX = Math.floor(grid.width / 2);
   const midY = Math.floor(grid.height / 2);
@@ -85,8 +88,10 @@ export function findPortalTile(
         const y = midY + dy;
         if (!grid.inBounds(x, y) || grid.get(x, y) !== Tile.GRASS) continue;
         if (intersectsBridgeReservation(bridges, { minX: x - 1, minY: y - 1, maxX: x + 2, maxY: y + 2 })) continue;
+        if (intersectsReservations({ minX: x - 1, minY: y - 1, maxX: x + 2, maxY: y + 2 }, reservations)) continue;
         if (blocked.some((p) => p.solid && p.tileX === x && p.tileY === y)) continue;
-        if (Math.hypot(x - spawn.x, y - spawn.y) > SPAWN_CLEAR_RADIUS) return { x, y };
+        if (intersectsReservations({ minX: x, minY: y, maxX: x + 1, maxY: y + 1 }, reservations)) continue;
+      if (Math.hypot(x - spawn.x, y - spawn.y) > SPAWN_CLEAR_RADIUS) return { x, y };
       }
     }
   }
@@ -106,6 +111,7 @@ export function placeProps(
   allowObstacles: boolean,
   existing: readonly WorldProp[] = [],
   bridges: readonly WorldBridge[] = [],
+  reservations: readonly Bounds[] = [],
 ): WorldProp[] {
   const grass: TilePoint[] = [];
   for (let y = 0; y < grid.height; y++) {
@@ -135,6 +141,7 @@ export function placeProps(
     if (solid) blocked[idx] = 1;
   };
   const nearProtected = (t: TilePoint): boolean =>
+    intersectsReservations({ minX: t.x - 1, minY: t.y - 1, maxX: t.x + 2, maxY: t.y + 2 }, reservations) ||
     intersectsBridgeReservation(bridges, { minX: t.x - 0.5, minY: t.y - 0.5, maxX: t.x + 1.5, maxY: t.y + 1.5 }) ||
     Math.hypot(t.x - spawn.x, t.y - spawn.y) <= SPAWN_CLEAR_RADIUS ||
     Math.hypot(t.x - portal.x, t.y - portal.y) <= 1;
@@ -202,14 +209,13 @@ export interface SpawnPlan {
 
 /**
  * Spawn spacing, strictest first. Enemies used to only need 3 tiles from the
- * player, so on hill/river-heavy maps the whole pack (and the boss) started
- * inside aggro range. Each tier is [enemy distance from spawn, boss distance,
- * minimum gap between enemies] in tiles; the first tier that fits wins.
+ * player, so on hill/river-heavy maps the whole pack started
+ * inside aggro range. Each tier is [enemy distance from spawn, minimum gap between enemies] in tiles; the first tier that fits wins.
  */
-export const ENEMY_SPACING_TIERS: ReadonlyArray<readonly [number, number, number]> = [
-  [12, 20, 4],
-  [9, 14, 3],
-  [6, 8, 2],
+export const ENEMY_SPACING_TIERS: ReadonlyArray<readonly [number, number]> = [
+  [12, 4],
+  [9, 3],
+  [6, 2],
 ];
 
 /**
@@ -224,30 +230,23 @@ function pickEnemyTiles(
   overflow: readonly TilePoint[],
   spawn: TilePoint,
   count: number,
-): { pack: TilePoint[]; boss: TilePoint } | null {
+): TilePoint[] | null {
   const dist = (a: TilePoint, b: TilePoint) => Math.hypot(a.x - b.x, a.y - b.y);
-  let boss: TilePoint | undefined;
-  for (const [, bossFromSpawn] of ENEMY_SPACING_TIERS) {
-    boss = primary.find((t) => dist(t, spawn) >= bossFromSpawn) ?? overflow.find((t) => dist(t, spawn) >= bossFromSpawn);
-    if (boss) break;
-  }
-  if (!boss) return null;
   const pack: TilePoint[] = [];
-  const used = new Set<TilePoint>([boss]);
-  for (const [fromSpawn, , gap] of ENEMY_SPACING_TIERS) {
+  const used = new Set<TilePoint>();
+  for (const [fromSpawn, gap] of ENEMY_SPACING_TIERS) {
     for (const t of [...primary, ...overflow]) {
       if (pack.length >= count) break;
-      if (used.has(t) || dist(t, spawn) < fromSpawn) continue;
-      if (dist(t, boss) < gap || pack.some((p) => dist(p, t) < gap)) continue;
+      if (used.has(t) || dist(t, spawn) < fromSpawn || pack.some((p) => dist(p, t) < gap)) continue;
       pack.push(t);
       used.add(t);
     }
   }
-  return pack.length >= count ? { pack, boss } : null;
+  return pack.length >= count ? pack : null;
 }
 
 /**
- * Enemies (even mantis/maggot split plus one beetle boss) and coins on
+ * Ordinary enemies (an even mantis/maggot split) and coins on
  * distinct reachable grass tiles away from spawn, portal and solid props.
  * Enemies keep their distance from the player and each other
  * (ENEMY_SPACING_TIERS); enemies that cannot walk to the start (overflow from
@@ -263,6 +262,7 @@ export function planSpawns(
   coinCount: number,
   rng: Rng,
   bridges: readonly WorldBridge[] = [],
+  reservations: readonly Bounds[] = [],
 ): SpawnPlan | null {
   const collisionWorld = {
     meta: { width: grid.width, height: grid.height },
@@ -286,12 +286,13 @@ export function planSpawns(
       const idx = y * grid.width + x;
       if (reached[idx] !== 1 || solidProp[idx] === 1 || grid.get(x, y) !== Tile.GRASS) continue;
       if (intersectsBridgeReservation(bridges, { minX: x, minY: y, maxX: x + 1, maxY: y + 1 })) continue;
+      if (intersectsReservations({ minX: x, minY: y, maxX: x + 1, maxY: y + 1 }, reservations)) continue;
       if (Math.hypot(x - spawn.x, y - spawn.y) <= SPAWN_CLEAR_RADIUS) continue;
       if (Math.hypot(x - portal.x, y - portal.y) <= 1) continue;
       available.push({ x, y });
     }
   }
-  if (available.length < enemyCount + 1 + coinCount) return null;
+  if (available.length < enemyCount + coinCount) return null;
   rng.shuffle(available);
 
   const take = (): TilePoint => available.pop() ?? spawn;
@@ -299,16 +300,15 @@ export function planSpawns(
   const otherAvailable = available.filter((t) => !groundReached[t.y * grid.width + t.x]);
   const placed = pickEnemyTiles(groundAvailable, otherAvailable, spawn, enemyCount);
   if (!placed) return null;
-  for (const tile of [...placed.pack, placed.boss]) {
+  for (const tile of placed) {
     const index = available.indexOf(tile);
     if (index >= 0) available.splice(index, 1);
   }
-  const enemySpawns: EnemySpawn[] = placed.pack.map((t, i) => ({
+  const enemySpawns: EnemySpawn[] = placed.map((t, i) => ({
     type: (i % 2 === 0 ? 'mantis' : 'maggot') as EnemyType,
     x: t.x,
     y: t.y,
   }));
-  enemySpawns.push({ type: 'beetle', x: placed.boss.x, y: placed.boss.y });
 
   const pickupSpawns: PickupSpawn[] = [];
   for (let i = 0; i < coinCount; i++) {

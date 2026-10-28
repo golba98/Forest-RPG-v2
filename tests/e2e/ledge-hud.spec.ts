@@ -16,8 +16,10 @@ async function ledgeFixture(page: Page): Promise<void> {
     const tiles = new Array<number>(24 * 24).fill(1);
     for (let y = 5; y <= 17; y++) for (let x = 5; x <= 17; x++) tiles[y * 24 + x] = 21;
     tiles[10 * 24 + 5] = 23;
+    delete d.runtime.encounters;
     d.world = {
       ...d.world,
+      encounterSites: [],
       meta: { ...d.world.meta, width: 24, height: 24 },
       tiles,
       bridges: [],

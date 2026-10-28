@@ -16,7 +16,7 @@ async function boot(page: Page, query = 'tutorial=1'): Promise<string[]> {
   await page.waitForFunction(
     () => !!window.__RENDER_DEBUG__ && window.__GAME__?.getState().ui.currentMenu === null,
   );
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   await page.evaluate(() => window.__GAME__!.setDaylightRatio(0.5));
   return errors;
 }
@@ -63,7 +63,8 @@ for (const orientation of ['horizontal', 'vertical'] as const) {
           (w) => {
             window.__GAME__!.saveGame('bridge-fixture');
             const payload = JSON.parse(localStorage.getItem('forestrpg.v2.save.bridge-fixture')!);
-            payload.world = w;
+            delete payload.runtime.encounters;
+    payload.world = w;
             payload.entities = payload.entities.filter(
               (e: { kind: string }) => e.kind === 'player' || e.kind === 'portal',
             );

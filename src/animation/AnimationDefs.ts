@@ -140,6 +140,17 @@ const WALK_H: HeightTable = { N: 19, NE: 19, E: 20, SE: 21, S: 22, SW: 21, W: 20
 const RUN_H: HeightTable = { N: 20, NE: 18, E: 22, SE: 20, S: 21, SW: 20, W: 22, NW: 18 };
 const JUMP_H: HeightTable = { N: 20, NE: 20, E: 21, SE: 20, S: 21, SW: 20, W: 21, NW: 20 };
 const ATTACK_H: HeightTable = { N: 92, NE: 96, E: 97, SE: 113, S: 121, SW: 113, W: 97, NW: 96 };
+const ATTACK_SHEETS = playerSheets('attack', 446, ATTACK_H);
+
+// Visually verified: the diagonal punch art faces horizontally opposite its
+// filename (unlike movement art). Select the matching artwork without flipping.
+const PLAYER_ATTACK_SHEETS: Readonly<Record<Direction, DirectionalSheet>> = {
+  ...ATTACK_SHEETS,
+  NW: ATTACK_SHEETS.NE,
+  NE: ATTACK_SHEETS.NW,
+  SW: ATTACK_SHEETS.SE,
+  SE: ATTACK_SHEETS.SW,
+};
 
 /** Legacy SPRITE_SCALE = cellSize * 1.25 / SPRITE_REFERENCE_HEIGHT(20) → 2 at a 32 px tile. */
 const PLAYER_SCALE = 2;
@@ -189,7 +200,7 @@ const PLAYER: SpriteSetDef = {
     // Legacy mirrored attack_west for East; V2 ships a real east sheet (= legacy
     // attack_west.png, which faces east) and a pre-mirrored west sheet, so no flip.
     attack: {
-      source: { kind: 'perDirectionSheets', sheets: playerSheets('attack', 446, ATTACK_H) },
+      source: { kind: 'perDirectionSheets', sheets: PLAYER_ATTACK_SHEETS },
       frameCount: 4,
       frameDurationMs: 80,
       loop: false,
