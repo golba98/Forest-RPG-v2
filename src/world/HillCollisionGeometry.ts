@@ -38,12 +38,8 @@ export function hillCollisionBounds(tile: number, mask: number): Bounds[] {
     )
       return true;
     if (!s && y >= face) return true;
-    if (
-      (!n && y < HILL_SURFACE.lip) ||
-      (!w && x < HILL_SURFACE.lip) ||
-      (!e && x >= t - HILL_SURFACE.lip)
-    )
-      return true;
+    // The atlas paints exposed east/west rims as cliff sides; only the north rim is a thin lip.
+    if ((!n && y < HILL_SURFACE.lip) || (!w && x < rim) || (!e && x >= t - rim)) return true;
     if (s && w && !(mask & 32) && x < rim && y >= face) return true;
     if (s && e && !(mask & 8) && x >= t - rim && y >= face) return true;
     return false;

@@ -3,7 +3,8 @@ import { entityFootprint, resolveFootprint } from './EntityFootprint';
 import type { EntityBase } from '../types/entities';
 import type { Bounds, Collider, CollisionFootprint, TraversalProfile } from '../types/gameplay';
 import type { WorldData } from '../types/world';
-export type CollisionWorld = Pick<WorldData, 'tiles' | 'props'> & {
+import { bridgeAtTile, bridgeGeometry, boundsOverlap, subtractDeck } from '../world/BridgeGeometry';
+export type CollisionWorld = Pick<WorldData, 'tiles' | 'props' | 'bridges'> & {
   readonly meta: Pick<WorldData['meta'], 'width' | 'height'>;
 };
 import { Tile, TILE_PROPERTIES, type TileId, type TileProperties } from '../types/tiles';
@@ -86,6 +87,11 @@ export function queryColliders(
     make('boundary:s', 'boundary', 0, height, width, 1e9),
   ];
   if (profile === 'ghost') return colliders;
+  if (profile !== 'jumping') {
+    for (const bridge of world.bridges ?? [])
+      for (const [i, rail] of bridgeGeometry(bridge).rails.entries())
+        if (boundsOverlap(area, rail)) colliders.push(make(`bridge:${bridge.id}:rail:${i}`, 'bridge', rail.minX, rail.minY, rail.maxX, rail.maxY));
+  }
   const seen = new Set<Collider>();
   const index = indexedProps(world);
   for (
@@ -130,8 +136,13 @@ export function queryColliders(
               make(`cliff:${x},${y}:${i}`, 'cliff', x + b.minX, y + b.minY, x + b.maxX, y + b.maxY),
             );
         }
-      } else if (blocksTile(properties, profile))
-        colliders.push(make(`tile:${x},${y}`, 'terrain', x, y, x + 1, y + 1));
+      } else if (blocksTile(properties, profile)) {
+        const bridge = tile === Tile.RIVER ? bridgeAtTile(world, x, y) : undefined;
+        if (bridge) {
+          for (const [i, b] of subtractDeck({ minX: x, minY: y, maxX: x + 1, maxY: y + 1 }, bridgeGeometry(bridge).deck).entries())
+            colliders.push(make(`bridge:${bridge.id}:water:${x},${y}:${i}`, 'bridge', b.minX, b.minY, b.maxX, b.maxY));
+        } else colliders.push(make(`tile:${x},${y}`, 'terrain', x, y, x + 1, y + 1));
+      }
       for (const c of index.get(y * width + x) ?? []) {
         if (profile === 'jumping' && !c.ownerId.endsWith(':tree')) continue;
         if (!seen.has(c)) {
@@ -249,6 +260,8 @@ export function moveWithCollision(
       if (c.source === 'terrain') {
         const blocks = (x: number, y: number) => {
           if (x < 0 || y < 0 || x >= world.meta.width || y >= world.meta.height) return true;
+          // Partial bridge cells cannot hide a neighbouring water face.
+          if (world.tiles[y * world.meta.width + x] === Tile.RIVER && bridgeAtTile(world, x, y)) return false;
           return blocksTile(
             TILE_PROPERTIES[world.tiles[y * world.meta.width + x] as TileId],
             profile,

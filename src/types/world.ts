@@ -1,7 +1,7 @@
 import type { EnemyType, PickupType } from './entities';
 
 /** Bump whenever generator output for a given seed changes. Stored in saves. */
-export const WORLD_GENERATOR_VERSION = 6;
+export const WORLD_GENERATOR_VERSION = 7;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -20,6 +20,16 @@ export interface WorldMeta {
   /** 1-based world/level number (tutorial is level 0). */
   readonly level: number;
   readonly difficulty: Difficulty;
+}
+
+/** Origin is the north/west bank end; span counts water tiles, excluding both bank ends. */
+export interface WorldBridge {
+  readonly id: number;
+  readonly x: number;
+  readonly y: number;
+  readonly orientation: 'horizontal' | 'vertical';
+  readonly span: number;
+  readonly variant: number;
 }
 
 export type PropKind =
@@ -71,6 +81,8 @@ export interface WorldData {
   readonly meta: WorldMeta;
   readonly tiles: Uint8Array;
   readonly props: readonly WorldProp[];
+  /** Older saves and legacy maps have no bridge overlay. */
+  readonly bridges?: readonly WorldBridge[];
   readonly spawn: TilePoint;
   readonly portal: TilePoint;
   readonly enemySpawns: readonly EnemySpawn[];

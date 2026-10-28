@@ -11,3 +11,5 @@ The bottom HUD has a pure `hudLayout` function, owns its screen-space transform,
 HUD: hearts left (10 per row), stamina right, mana below hearts, two potion readouts with 1/2 shortcuts in the middle, level and coins beside them, slim XP bar and figures below. It is a readout for existing potion controls, not a new action inventory.
 
 Integration update: these changes are now also in the primary `18-Forest RPG v2` working folder. Existing in-progress renderer/minimap/effects/combat/menu edits were retained. The normal `npm run dev` entrypoint serves the bottom HUD and ledge fixes.
+
+Side-rim update: the atlas paints exposed east/west rims as 6px cliff sides, so those 6px now block walking (previously a 1px lip let feet walk onto them, and on diagonal staircase edges the player visibly stood inside the next step's face). The north rim keeps the 1px lip; south faces and rounded corners are unchanged.

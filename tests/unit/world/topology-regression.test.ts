@@ -8,6 +8,10 @@ import { GenGrid } from '../../../src/world/generation/GenGrid';
 import { generateHills, refreshHillEdges } from '../../../src/world/generation/hills';
 import { Rng } from '../../../src/world/Rng';
 import { PerlinNoise } from '../../../src/world/Noise';
+import { bridgeGeometry, bridgeReservations, boundsOverlap } from '../../../src/world/BridgeGeometry';
+import { validBridgeTerrain } from '../../../src/world/generation/bridges';
+import { hasClearPath } from '../../../src/systems/CollisionSystem';
+import { propFootprint } from '../../../src/world/ObjectSemantics';
 
 describe('final terrain topology', () => {
   it('validates 100 deterministic seeds including lower rows and objective clearance', () => {
@@ -23,6 +27,19 @@ describe('final terrain topology', () => {
       const w = generateWorld(options);
       expect(w).toEqual(generateWorld(options));
       expect(w.tiles.length).toBe(w.meta.width * w.meta.height);
+      const grid = new GenGrid(w.meta.width, w.meta.height, Tile.GRASS);
+      grid.tiles.set(w.tiles);
+      for (const bridge of w.bridges ?? []) {
+        expect(validBridgeTerrain(grid, bridge), `bridge terrain seed ${seed}`).toBe(true);
+        const f = bridgeGeometry(bridge).footprint, horizontal = bridge.orientation === 'horizontal';
+        const x = f.minX + (horizontal ? -0.5 : 1), y = f.minY + (horizontal ? 1 : -0.5);
+        expect(hasClearPath(w, x, y, horizontal ? f.maxX + 0.5 : x, horizontal ? y : f.maxY + 0.5, 0.3, 'groundEnemy')).toBe(true);
+        for (const prop of w.props) {
+          const p = propFootprint(prop);
+          if (!p) continue;
+          expect(bridgeReservations(bridge).some(r => boundsOverlap(r, { minX: prop.tileX + p.minX, minY: prop.tileY + p.minY, maxX: prop.tileX + p.maxX, maxY: prop.tileY + p.maxY }))).toBe(false);
+        }
+      }
       const open = (x: number, y: number) => canOccupy(w, x + 0.5, y + 0.5, 0.3);
       const reached = floodFill(w.meta, w.spawn, open),
         ground = floodFill(w.meta, w.spawn, (x, y) =>

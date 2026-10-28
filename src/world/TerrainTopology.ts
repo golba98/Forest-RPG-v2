@@ -2,6 +2,7 @@ import { isRaisedSurface } from './HillCollisionGeometry';
 import { Tile, isHillTile, TILE_PROPERTIES, type TileId } from '../types/tiles';
 import type { TerrainInfo } from '../types/gameplay';
 import type { WorldData } from '../types/world';
+import { onBridgeDeck } from './BridgeGeometry';
 
 export function isHillTerrain(id: number): boolean {
   return isHillTile(id as TileId) || id === Tile.PLATEAU || id === Tile.CLIFF || id === Tile.STAIRS;
@@ -18,7 +19,7 @@ const NEIGHBORS = [
 ] as const;
 /** Derives topology from final cells, never from an image or stale generation mask. */
 export function describeTerrain(
-  world: Pick<WorldData, 'tiles'> & { readonly meta: Pick<WorldData['meta'], 'width' | 'height'> },
+  world: Pick<WorldData, 'tiles' | 'bridges'> & { readonly meta: Pick<WorldData['meta'], 'width' | 'height'> },
   x: number,
   y: number,
 ): TerrainInfo {
@@ -46,7 +47,7 @@ export function describeTerrain(
       if (a && b && !n(i * 2 + 1)) concaveCorners |= 1 << i;
     }
   }
-  const crossing = tileId === Tile.RAMP || tileId === Tile.LOG || tileId === Tile.STAIRS;
+  const crossing = tileId === Tile.RAMP || tileId === Tile.LOG || tileId === Tile.STAIRS || onBridgeDeck(world, x + 0.5, y + 0.5);
   return {
     tileId,
     category: hill

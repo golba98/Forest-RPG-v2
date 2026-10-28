@@ -35,6 +35,8 @@ export class TextureStore {
   private readonly warned = new Set<string>();
   /** Sub-textures created here (they share, and must not destroy, the asset source). */
   private readonly owned = new Set<Texture>();
+  /** Textures drawn at runtime and served by alias; this store owns and frees them. */
+  private readonly runtime = new Set<string>();
   private placeholder: Texture | null = null;
   private loaded = false;
 
@@ -155,8 +157,21 @@ export class TextureStore {
     return this.placeholder;
   }
 
-  /** Frees sub-textures and the placeholder. Loaded assets stay in the Assets cache. */
+  /** Serves a runtime-drawn texture through `get`/`has` under `alias`. */
+  public registerRuntime(alias: string, texture: Texture): void {
+    if (Assets.cache.has(alias)) Assets.cache.remove(alias);
+    Assets.cache.set(alias, texture);
+    this.runtime.add(alias);
+  }
+
+  /** Frees sub-textures, runtime textures and the placeholder. Loaded assets stay in the Assets cache. */
   public destroy(): void {
+    for (const alias of this.runtime) {
+      const texture: unknown = Assets.cache.get(alias);
+      Assets.cache.remove(alias);
+      if (texture instanceof Texture) texture.destroy(true);
+    }
+    this.runtime.clear();
     for (const texture of this.owned) texture.destroy(false);
     this.owned.clear();
     this.cellFrames.clear();

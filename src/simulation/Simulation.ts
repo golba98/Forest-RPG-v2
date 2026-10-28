@@ -1,4 +1,5 @@
-import { entityFootprint, resolveFootprint } from '../systems/EntityFootprint';
+import { entityFootprint, groundTile, resolveFootprint } from '../systems/EntityFootprint';
+import { onBridgeDeck } from '../world/BridgeGeometry';
 import { PortalSystem } from '../systems/PortalSystem';
 import { restoreSafePosition } from '../systems/SpawnSafety';
 import { describeTerrain } from '../world/TerrainTopology';
@@ -242,8 +243,7 @@ export class Simulation implements ISimulation {
     return this.portal.claim(this.player, this.entities);
   }
   getGameplayDebug(): GameplayDebug {
-    const x = Math.floor(this.player.x),
-      y = Math.floor(this.player.y),
+    const { x, y } = groundTile(this.player),
       radius = 3;
     const reached = floodFill(this.world.meta, this.world.spawn, (tx, ty) =>
       canOccupy(this.world, tx + 0.5, ty + 0.5, entityFootprint(this.player)),
@@ -345,7 +345,8 @@ export class Simulation implements ISimulation {
           submerged:
             e.kind === 'player' &&
             !e.isJumping &&
-            this.world.tiles[Math.floor(e.y) * this.world.meta.width + Math.floor(e.x)] ===
+            !onBridgeDeck(this.world, e.x + resolveFootprint(entityFootprint(e)).offsetX, e.y + resolveFootprint(entityFootprint(e)).offsetY) &&
+            this.world.tiles[groundTile(e).y * this.world.meta.width + groundTile(e).x] ===
               Tile.RIVER,
           alpha: 1,
           hurtFlash: (e.kind === 'player' || e.kind === 'enemy') && e.hurtTimerMs > 0,

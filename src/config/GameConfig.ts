@@ -16,6 +16,15 @@ export const GAME_CONFIG = {
     coinsPerLevel: 20,
     enemiesByDifficulty: { easy: 6, normal: 12, hard: 24 },
     ghostsByDifficulty: { easy: 2, normal: 4, hard: 8 },
+    bridges: {
+      minSpan: 1,
+      maxSpan: 6,
+      minSpacing: 16,
+      tilesPerBridge: 4500,
+      maxCount: 8,
+      approachLength: 2,
+      approachBuffer: 1,
+    },
   },
 
   dayNight: {

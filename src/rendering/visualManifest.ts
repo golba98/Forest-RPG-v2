@@ -1,5 +1,5 @@
 import { ANIMATION_DEFS, type ClipDef, type SpriteSetDef } from '../animation/AnimationDefs';
-import { DECOR_KINDS, decorAlias } from './assetCatalog';
+import { DECOR_KINDS, GROUND_PROPS, decorAlias } from './assetCatalog';
 import { HILL_ATLAS_ALIAS, HILL_ATLAS_SRC } from './hillAutotile';
 import type { PropKind } from '../types/world';
 
@@ -168,7 +168,8 @@ export function buildVisualManifest(): VisualAssetEntry[] {
     entries.push({
       id: `prop:${kind}`, alias: decorAlias(kind), path: `assets/images/objects/decor/${kind}.png`, texture: { w, h }, frame: { w, h },
       anchor: { x: 0, y: 0 }, renderOffset: { x: (TILE - w * scale) / 2, y: flower ? (TILE - h * scale) / 2 : TILE - h * scale },
-      tileFootprint: { w: (w * scale) / TILE, h: (h * scale) / TILE }, depthAnchor: 'tile-bottom', layer: 'actors',
+      tileFootprint: { w: (w * scale) / TILE, h: (h * scale) / TILE },
+      ...(GROUND_PROPS.has(kind) ? { depthAnchor: 'none' as const, layer: 'terrain' as const } : { depthAnchor: 'tile-bottom' as const, layer: 'actors' as const }),
       ...(OBSTACLE_PROPS.has(kind) ? { solidFootprint: 'own tile when placed as an obstacle (WorldProp.solid)' } : {}),
     });
   }

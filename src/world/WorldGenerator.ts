@@ -1,4 +1,5 @@
-import { canOccupy } from '../systems/CollisionSystem';
+import { canOccupy, hasClearPath } from '../systems/CollisionSystem';
+import { bridgeGeometry } from './BridgeGeometry';
 import { placeMud } from './generation/mud';
 import { placeWoodland } from './generation/woodland';
 import { GAME_CONFIG } from '../config/GameConfig';
@@ -8,7 +9,7 @@ import { Tile } from '../types/tiles';
 import { WORLD_GENERATOR_VERSION } from '../types/world';
 import type { TilePoint, WorldData, WorldGenOptions } from '../types/world';
 import { applyBorderRing, computeClearArea, fillBaseTerrain } from './generation/baseTerrain';
-import { placeBridges } from './generation/bridges';
+import { placeBridges, validBridgeTerrain } from './generation/bridges';
 import { GenGrid } from './generation/GenGrid';
 import { generateHills, placeStairs, refreshHillEdges } from './generation/hills';
 import {
@@ -31,13 +32,12 @@ import { Rng } from './Rng';
 
 export const MIN_WORLD_SIZE = 32;
 const MAX_ATTEMPTS = 8;
-const MAX_BRIDGE_PASSES = 5;
 const SPAWN_BRANCH_CHANCE = 0.55;
 
 /**
  * Deterministic procedural world: identical options always produce
  * byte-identical output. Ports the legacy pipeline (base forest → rivers →
- * bridges → CA hills → reachability pruning → portal → props → spawns).
+ * CA hills → bridges → reachability pruning → portal → props → spawns).
  *
  * If an attempt cannot fit all spawns (e.g. hills wall the spawn in), the
  * next attempt re-rolls from a seed derived from (seed, attempt), so the
@@ -85,7 +85,7 @@ function tryGenerate(
   const clear = computeClearArea(width, height, terrainRng);
   fillBaseTerrain(grid, clear, terrainRng, noise);
 
-  // Part 2 — rivers, spawn safe area, smoothing, border, bridges.
+  // Part 2 — rivers, spawn safe area, smoothing and border.
   const riverRng = stream('rivers');
   carveMainRiver(grid, riverRng, noise);
   carveGuidedRivers(grid, clear, riverRng, noise);
@@ -94,19 +94,19 @@ function tryGenerate(
   smoothRiverDiagonals(grid, clear);
   roundRiverTips(grid, clear);
   applyBorderRing(grid);
-  placeBridges(grid, spawn, stream('bridges'), MAX_BRIDGE_PASSES);
 
   // Part 3 — hills (then re-open the spawn clearing they may cover).
   generateHills(grid, stream('hills'), noise);
   restoreSpawnClearing(grid, spawn);
   refreshHillEdges(grid);
   placeStairs(grid, stream('stairs'));
+  const bridges = placeBridges(grid, spawn, stream('bridges'));
 
   // Part 4 — anything the player cannot reach becomes forest.
   pruneUnreachable(grid, spawn);
 
-  const trees = placeWoodland(grid, stream('woodland'), spawn);
-  placeMud(grid, spawn, stream('mud'));
+  const trees = placeWoodland(grid, stream('woodland'), spawn, bridges);
+  placeMud(grid, spawn, stream('mud'), bridges);
 
   const trunkCells = new Set(trees.map((t) => t.tileY * width + t.tileX));
   const reached = floodFill(
@@ -120,11 +120,11 @@ function tryGenerate(
   }
 
   // Part 5 — portal, props, enemies and coins.
-  const portal = findPortalTile(grid, spawn, trees);
+  const portal = findPortalTile(grid, spawn, trees, bridges);
   if (!portal) return null;
-  const decorations = placeProps(grid, spawn, portal, stream('props'), true, trees);
+  const decorations = placeProps(grid, spawn, portal, stream('props'), true, trees, bridges);
   const props = [...trees, ...decorations].map((p, id) => ({ ...p, id }));
-  const collisionWorld = { meta: { width, height }, tiles: grid.tiles, props };
+  const collisionWorld = { meta: { width, height }, tiles: grid.tiles, props, bridges };
   const finalReached = floodFill(grid, spawn, (x, y) =>
     canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3),
   );
@@ -133,6 +133,18 @@ function tryGenerate(
       if (canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3) && !finalReached[y * width + x])
         grid.set(x, y, Tile.FOREST);
   refreshHillEdges(grid);
+  for (const bridge of bridges) {
+    if (!validBridgeTerrain(grid, bridge)) return null;
+    const f = bridgeGeometry(bridge).footprint;
+    const horizontal = bridge.orientation === 'horizontal';
+    for (const cross of [0.5, 1, 1.5]) {
+      const x = horizontal ? f.minX - 0.5 : f.minX + cross;
+      const y = horizontal ? f.minY + cross : f.minY - 0.5;
+      const tx = horizontal ? f.maxX + 0.5 : x;
+      const ty = horizontal ? y : f.maxY + 0.5;
+      if (!hasClearPath(collisionWorld, x, y, tx, ty, 0.3, 'groundEnemy')) return null;
+    }
+  }
   const enemyCount = GAME_CONFIG.world.enemiesByDifficulty[opts.difficulty];
   const plan = planSpawns(
     grid,
@@ -142,6 +154,7 @@ function tryGenerate(
     enemyCount,
     GAME_CONFIG.world.coinsPerLevel,
     stream('spawns'),
+    bridges,
   );
   if (!plan) return null;
 
@@ -157,6 +170,7 @@ function tryGenerate(
     },
     tiles: grid.tiles,
     props,
+    bridges,
     spawn,
     portal,
     enemySpawns: plan.enemySpawns,

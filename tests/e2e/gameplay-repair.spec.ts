@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { PLAYER_FOOTPRINT } from '../../src/systems/EntityFootprint';
 
 /** Save import sets up a deterministic world; movement/combat use actual browser input. */
 async function fixture(page: Page, combat = false): Promise<void> {
@@ -38,6 +39,7 @@ async function fixture(page: Page, combat = false): Promise<void> {
         ...data.world,
         meta: { ...data.world.meta, width: 24, height: 24, isTutorial: false, seed: 123 },
         tiles,
+        bridges: [],
         props: [
           { id: 1, kind: 'tree', tileX: 4, tileY: 4, solid: true },
           { id: 2, kind: 'rock_boulder', tileX: 8, tileY: 4, solid: false },
@@ -73,7 +75,7 @@ async function fixture(page: Page, combat = false): Promise<void> {
       data.elapsedMs = 0;
       data.time = 0.3;
       localStorage.setItem('forestrpg.v2.save.fixture', JSON.stringify(data));
-      g.loadGame('fixture');
+      if (!g.loadGame('fixture')) throw new Error('Gameplay fixture save failed to load');
       g.resumeSimulation();
     },
     { combat },
@@ -93,10 +95,10 @@ function intersects(
   c: { minX: number; minY: number; maxX: number; maxY: number },
 ): boolean {
   return (
-    x + 0.3 > c.minX + 1e-8 &&
-    x - 0.3 < c.maxX - 1e-8 &&
-    y + 0.3 > c.minY + 1e-8 &&
-    y - 0.3 < c.maxY - 1e-8
+    x + PLAYER_FOOTPRINT.offsetX + PLAYER_FOOTPRINT.halfWidth > c.minX + 1e-8 &&
+    x + PLAYER_FOOTPRINT.offsetX - PLAYER_FOOTPRINT.halfWidth < c.maxX - 1e-8 &&
+    y + PLAYER_FOOTPRINT.offsetY + PLAYER_FOOTPRINT.halfHeight > c.minY + 1e-8 &&
+    y + PLAYER_FOOTPRINT.offsetY - PLAYER_FOOTPRINT.halfHeight < c.maxY - 1e-8
   );
 }
 

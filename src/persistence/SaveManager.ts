@@ -1,8 +1,12 @@
 import { restoreSafePosition } from '../systems/SpawnSafety';
 import { adaptLegacySave } from './LegacySaveAdapter';
 import type { Entity } from '../types/entities';
-import { isTileId } from '../types/tiles';
-import type { WorldData } from '../types/world';
+import { isTileId, Tile } from '../types/tiles';
+import type { WorldBridge, WorldData } from '../types/world';
+import { GAME_CONFIG } from '../config/GameConfig';
+import { boundsOverlap, bridgeGeometry } from '../world/BridgeGeometry';
+import { validBridgeTerrain } from '../world/generation/bridges';
+import { GenGrid } from '../world/generation/GenGrid';
 import type { Game } from '../game/Game';
 import type { Simulation } from '../simulation/Simulation';
 
@@ -188,6 +192,32 @@ function decode(raw: string): {
     !world.tiles.every((v: unknown) => integer(v) && isTileId(v))
   )
     throw new Error('Invalid terrain');
+  if (world.bridges !== undefined) {
+    const rules = GAME_CONFIG.world.bridges;
+    const validBridge = (b: unknown): b is WorldBridge =>
+      object(b) && integer(b.id) && b.id >= 0 && integer(b.x) && integer(b.y) &&
+      (b.orientation === 'horizontal' || b.orientation === 'vertical') &&
+      integer(b.span) && b.span >= rules.minSpan && b.span <= rules.maxSpan &&
+      integer(b.variant) && b.variant >= 0 && b.variant < 4;
+    if (
+      !Array.isArray(world.bridges) ||
+      world.bridges.length > rules.maxCount ||
+      !world.bridges.every(validBridge)
+    )
+      throw new Error('Invalid bridges');
+    const bridges = world.bridges as WorldBridge[];
+    const grid = new GenGrid(w, h, Tile.GRASS);
+    grid.tiles.set(world.tiles as number[]);
+    if (
+      new Set(bridges.map(b => b.id)).size !== bridges.length ||
+      bridges.some((b, i) =>
+        !validBridgeTerrain(grid, b) || bridges.slice(0, i).some(other =>
+          boundsOverlap(bridgeGeometry(b).footprint, bridgeGeometry(other).footprint),
+        ),
+      )
+    )
+      throw new Error('Invalid bridges');
+  }
   if (
     !point(world.spawn, w, h) ||
     !point(world.portal, w, h) ||

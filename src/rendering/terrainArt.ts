@@ -1,11 +1,12 @@
 import { Tile } from '../types/tiles';
 import type { PropKind } from '../types/world';
 import { decorAlias } from './assetCatalog';
+import { waterBaseAlias, waterEdgeAlias, waterEdges } from './waterArt';
 import { HILL_ATLAS_ALIAS, NB, hillFrame, hillShadowEastFrame, hillShadowFrame, hillStairsFrame, isElevatedTile, reduceMask, type AtlasRect } from './hillAutotile';
 
 /**
  * Ground-only terrain descriptions. Trees and standing props are rendered
- * separately in foot-depth order. Water and bridges use the original game's
+ * separately in foot-depth order. Water is procedural (waterArt.ts); bridges use the original game's
  * full-image-per-tile mapping; hills are autotiled from elevation topology
  * (see hillAutotile.ts).
  */
@@ -109,9 +110,10 @@ export function toneTint(x: number, y: number, depth = 0.12): number {
 
 /**
  * Layers (bottom → top) for the terrain tile at (x, y). `elevation` is the
- * tile's 8-neighbour elevated-cell mask (hillAutotile.elevationMask).
+ * tile's 8-neighbour elevated-cell mask (hillAutotile.elevationMask);
+ * `shore` is its land-neighbour mask (waterArt.waterEdgeMask), used by water.
  */
-export function getTileArt(tileId: number, x: number, y: number, elevation = 0): TileArtLayer[] {
+export function getTileArt(tileId: number, x: number, y: number, elevation = 0, shore = 0): TileArtLayer[] {
   if (isElevatedTile(tileId)) {
     const h = hashTile(x, y);
     const interior = reduceMask(elevation) === 255;
@@ -123,6 +125,11 @@ export function getTileArt(tileId: number, x: number, y: number, elevation = 0):
       layers.push(contain(decorAlias(kind), 0.9, 0.9, 'center', WHITE, ((h >>> 20) % 9) - 4, ((h >>> 24) % 7) - 3));
     }
     return layers;
+  }
+  if (tileId === Tile.RIVER) {
+    const h = hashTile(x, y);
+    // Gentle tone tint breaks up the repeating swell; shoreline overlays sit on top.
+    return [fill(waterBaseAlias(h), FULL, toneTint(x, y, 0.18)), ...waterEdges(shore).map((edge) => fill(waterEdgeAlias(edge)))];
   }
   const layers = getGroundArt(tileId, x, y);
   const base = layers[0];
@@ -146,8 +153,6 @@ function getGroundArt(tileId: number, x: number, y: number): TileArtLayer[] {
       const jitterY = ((h >>> 16) % 7) - 3;
       return [grass(), contain(decorAlias(kind), 0.8, 0.8, 'center', WHITE, jitterX, jitterY)];
     }
-    case Tile.RIVER:
-      return [fill('tile_water')];
     case Tile.RAMP:
       return [fill('tile_bridge')];
     case Tile.LOG:

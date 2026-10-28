@@ -11,8 +11,13 @@ import type { PlayerInventory, PlayerStats } from '../types/entities';
 import { Camera } from './Camera';
 import { TextureStore } from './TextureStore';
 import { getTileArt, getPropArt, type TileArtLayer } from './terrainArt';
-import { decorAlias } from './assetCatalog';
+import { decorAlias, GROUND_PROPS } from './assetCatalog';
 import { elevationMask } from './hillAutotile';
+import { Tile } from '../types/tiles';
+import { createWaterTextures, waterEdgeMask, WATER_PALETTE } from './waterArt';
+import { WaterLayer } from './effects/WaterLayer';
+import { createBridgeTextures } from './bridgeArt';
+import { createBridgeView } from './BridgeView';
 import { planForestTrees } from './forestTrees';
 import { resolveSpriteFrame } from '../animation/resolveSpriteFrame';
 import { EntityAnimator } from './EntityAnimator';
@@ -28,6 +33,11 @@ import { DebugOverlay, type DebugCollider, type SpriteDebugInfo, type VisualDebu
 const TILE = 32;
 const CHUNK = 16;
 const HURT_WHITE_MS = 70;
+/** After the white flash the hurt tint stays red this long, then the sprite blinks for the rest of the invulnerability. */
+const HURT_RED_MS = 220;
+/** Matches EncounterSystem's combo window: swings closer together than this chain. */
+const COMBO_WINDOW_MS = 800;
+const FACING_ANGLE: Readonly<Record<string, number>> = { E: 0, SE: Math.PI / 4, S: Math.PI / 2, SW: (3 * Math.PI) / 4, W: Math.PI, NW: (-3 * Math.PI) / 4, N: -Math.PI / 2, NE: -Math.PI / 4 };
 /** Matches the simulation's death display window (codex/gameplay-repair keeps dead enemies 450 ms). */
 const DEATH_FADE_MS = 450;
 
@@ -39,11 +49,23 @@ interface EntityVisual {
   hurtSince: number;
   /** The snapshot already showed this entity dying (`dead`), so removal needs no fade. */
   diedInView: boolean;
+  /** Soft ground shadow under characters and pickups (ground layer). */
+  shadow: Sprite | null;
+  lastAnim: string;
+  lastAnimTimeMs: number;
+  /** Consecutive swings within the combo window (every third is the finisher). */
+  swings: number;
+  lastSwingAt: number;
 }
 
 interface PortalEntry {
   readonly view: PortalView;
   readonly machine: PortalVisualMachine;
+}
+
+/** Player alpha while blinking out the post-hit invulnerability (~12 Hz). */
+export function hurtBlinkAlpha(sinceHurtMs: number): number {
+  return Math.floor(sinceHurtMs / 42) % 2 === 0 ? 0.35 : 1;
 }
 
 /**
@@ -66,13 +88,13 @@ export class PixiRenderer implements IRenderer {
   lightingEnabled = true;
   particlesEnabled = true;
   hudVisible = true;
-  minimapVisible = true;
   hudScale = 1;
   hudData: { stats: PlayerStats; inventory: PlayerInventory } | null = null;
   /** Dev-only visual diagnostics (off by default). */
   readonly debugOverlay = new DebugOverlay();
 
   private weather = new WeatherLayer();
+  private water = new WaterLayer();
   private performanceText = new Text({ text: '', style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffffff, stroke: { color: 0x102018, width: 3 } } });
   private impactHoldMs = 0;
   private damageNumbers: Array<{ text: Text; remaining: number }> = [];
@@ -87,6 +109,9 @@ export class PixiRenderer implements IRenderer {
   private camera = new Camera();
   private root = new Container();
   private terrain = new Container();
+  private bridgeGround = new Container();
+  /** Flat decor (logs, flowers, pebbles, holes) drawn over terrain, never over actors. */
+  private groundProps = new Container();
   private groundFx = new Container();
   private actors = new Container();
   /** World-transformed layer drawn above the darkness overlay (fireflies). */
@@ -103,6 +128,8 @@ export class PixiRenderer implements IRenderer {
   private ambient: AmbientLayer | null = null;
   private effects: EffectsLayer | null = null;
   private hurtFilter = new ColorMatrixFilter();
+  /** Lifts dark enemy sprites off the grass. */
+  private enemyFilter = new ColorMatrixFilter();
   private debugEntities: (() => readonly Entity[]) | null = null;
   /** Debug-only weather override for previewing rain (null follows the simulation). */
   weatherPreview: 'clear' | 'rain' | null = null;
@@ -122,8 +149,9 @@ export class PixiRenderer implements IRenderer {
     this.ambient = new AmbientLayer(this.fx);
     this.effects = new EffectsLayer(this.actors, this.fx);
     this.hurtFilter.brightness(2.4, false);
+    this.enemyFilter.brightness(1.18, false);
     this.groundFx.addChild(this.sky.shadows, this.weather.ground, this.effects.ground);
-    this.root.addChild(this.terrain, this.groundFx, this.actors, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
+    this.root.addChild(this.terrain, this.water.view, this.bridgeGround, this.groundProps, this.groundFx, this.actors, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
     this.actors.sortableChildren = true;
     this.actors.addChild(this.waterMask, this.waterRipple);
     this.nightGlow.addChild(this.ambient.fireflies);
@@ -134,6 +162,8 @@ export class PixiRenderer implements IRenderer {
 
   async loadAssets(progress?: (p: number) => void): Promise<void> {
     await this.textures.load(progress);
+    for (const [alias, texture] of createWaterTextures()) this.textures.registerRuntime(alias, texture);
+    for (const [alias, texture] of createBridgeTextures()) this.textures.registerRuntime(alias, texture);
     this.hud = new Hud(this.textures.get('ui_heart'), [this.textures.get('item_potion_health'), this.textures.get('item_potion_speed')]);
     this.hud.layout(this.app.screen.width, this.app.screen.height, this.hudScale);
     this.app.stage.addChild(this.hud);
@@ -178,12 +208,13 @@ export class PixiRenderer implements IRenderer {
   setWorld(world: WorldData): void {
     for (const chunk of this.chunks.values()) chunk.destroy({ children: true });
     this.chunks.clear();
-    for (const visual of this.entities.values()) visual.sprite.destroy();
+    for (const visual of this.entities.values()) { visual.sprite.destroy(); visual.shadow?.destroy(); }
     this.entities.clear();
     for (const { view } of this.portals.values()) view.destroy({ children: true });
     this.portals.clear();
     for (const sprite of this.objects) sprite.destroy();
     this.objects = [];
+    for (const child of this.bridgeGround.removeChildren()) child.destroy({ children: true });
     this.propSprites.clear();
     this.animator.clear();
     this.effects?.clear();
@@ -194,6 +225,14 @@ export class PixiRenderer implements IRenderer {
     this.enteringPortal = false;
     this.world = world;
     this.sky.setWorld(world.meta.width, world.meta.height, world.meta.seed, this.fx?.clouds ?? [], world.spawn.x, world.spawn.y);
+    for (const bridge of world.bridges ?? []) {
+      const view = createBridgeView(bridge, this.textures);
+      this.bridgeGround.addChild(view.ground);
+      for (const rail of view.rails) {
+        this.tag(rail, 'procedural:bridge-rail', 'actors/bridge');
+        this.actors.addChild(rail); this.objects.push(rail);
+      }
+    }
 
     for (const tree of planForestTrees(world)) {
       const sprite = this.tag(new Sprite(this.textures.get('tile_tree')), 'tile_tree', 'actors/forest');
@@ -202,10 +241,10 @@ export class PixiRenderer implements IRenderer {
       this.actors.addChild(sprite); this.objects.push(sprite);
     }
     for (const p of world.props) {
-      const sprite = this.tag(p.kind === 'tree' ? new Sprite(this.textures.get('tile_tree')) : this.art(getPropArt(p.kind)), decorAlias(p.kind), 'actors/prop');
+      const sprite = this.tag(p.kind === 'tree' ? new Sprite(this.textures.get('tile_tree')) : this.art(getPropArt(p.kind)), decorAlias(p.kind), GROUND_PROPS.has(p.kind) ? 'ground/prop' : 'actors/prop');
       if (p.kind === 'tree') { sprite.anchor.set(0.5, 1); sprite.width = 64; sprite.height = 64; sprite.position.set(16, 32); }
       sprite.x += p.tileX * TILE; sprite.y += p.tileY * TILE; sprite.zIndex = (p.tileY + 1) * TILE;
-      this.actors.addChild(sprite); this.objects.push(sprite);
+      (GROUND_PROPS.has(p.kind) ? this.groundProps : this.actors).addChild(sprite); this.objects.push(sprite);
       this.propSprites.set(p.id, sprite);
     }
     this.camera.setWorldSize(world.meta.width * TILE, world.meta.height * TILE);
@@ -222,7 +261,9 @@ export class PixiRenderer implements IRenderer {
     const chunk = new Container(); chunk.position.set(x * TILE, y * TILE);
     for (let ty = y; ty < Math.min(y + CHUNK, height); ty++) for (let tx = x; tx < Math.min(x + CHUNK, width); tx++) {
       const elevation = elevationMask(world.tiles, width, height, tx, ty);
-      for (const layer of getTileArt(world.tiles[ty * width + tx] ?? 0, tx, ty, elevation)) {
+      const tile = world.tiles[ty * width + tx] ?? 0;
+      const shore = tile === Tile.RIVER ? waterEdgeMask(world.tiles, width, height, tx, ty) : 0;
+      for (const layer of getTileArt(tile, tx, ty, elevation, shore)) {
         const sprite = this.art(layer); sprite.x += (tx - x) * TILE; sprite.y += (ty - y) * TILE; chunk.addChild(sprite);
       }
     }
@@ -258,12 +299,13 @@ export class PixiRenderer implements IRenderer {
       chunk.visible = chunk.x < rect.x + rect.width && chunk.x + CHUNK * TILE > rect.x && chunk.y < rect.y + rect.height && chunk.y + CHUNK * TILE > rect.y;
       if (chunk.visible) this.visibleChunks++;
     }
-    for (const sprite of this.objects) sprite.visible = sprite.x + 64 > rect.x && sprite.x - 64 < rect.x + rect.width && sprite.y > rect.y && sprite.y - 64 < rect.y + rect.height;
+    for (const sprite of this.objects) sprite.visible = sprite.x + 64 > rect.x && sprite.x - 64 < rect.x + rect.width && sprite.y + 64 > rect.y && sprite.y - 64 < rect.y + rect.height;
     const view = this.camera.getView();
     const weather = this.weatherPreview ?? snapshot.environment.weather;
     const raining = weather === 'rain' || weather === 'storm';
     this.sky.update(dt, view.x, view.y, this.paused, this.cloudsEnabled, raining);
     if (!this.paused) this.visualTime += dt;
+    this.water.update(dt, this.paused, rect, snapshot.world);
 
     this.renderEntities(snapshot, alpha, dt, player, fx, effects);
 
@@ -288,8 +330,8 @@ export class PixiRenderer implements IRenderer {
 
     this.performanceText.visible = this.performanceEnabled; this.performanceText.text = `${dt > 0 ? Math.round(1000 / dt) : 0} FPS | ${this.visibleChunks}/${this.chunks.size} chunks`; this.performanceText.position.set(20, this.app.screen.height - 24);
     const screenScale = this.hudScale * Math.max(1, Math.min(2, this.app.screen.height / 1080));
-    this.minimap.visible = this.hudVisible && this.minimapVisible; this.minimap.scale.set(screenScale); this.minimap.position.set(this.app.screen.width - 144 * screenScale, 20 * screenScale); this.minimap.setView(rect); this.minimap.update(snapshot);
-    if (this.hud) { this.hud.layout(this.app.screen.width, this.app.screen.height, screenScale, readSafeAreaInsets()); this.hud.visible = this.hudVisible; if (this.hudData) this.hud.update(this.hudData.stats, this.hudData.inventory, this.language); }
+    this.minimap.visible = this.hudVisible && this.minimap.currentMode !== 'hidden'; this.minimap.layout(this.app.screen.width, this.app.screen.height, screenScale); this.minimap.setView(rect); this.minimap.update(snapshot);
+    if (this.hud) { this.hud.layout(this.app.screen.width, this.app.screen.height, screenScale, readSafeAreaInsets(), this.minimap.visible && this.minimap.currentMode === 'radar' ? this.minimap.getBounds() : null); this.hud.visible = this.hudVisible; if (this.hudData) this.hud.update(this.hudData.stats, this.hudData.inventory, this.language); }
     if (this.debugOverlay.getFlags().enabled) {
       this.debugOverlay.update({
         world: snapshot.world, entities: this.debugEntities?.() ?? [], colliders: this.debugColliders?.(rect) ?? null, visible: rect, actors: this.actors, spriteInfo: this.spriteInfo,
@@ -298,6 +340,40 @@ export class PixiRenderer implements IRenderer {
       }, this.app.screen.height);
     }
     this.app.render();
+  }
+
+  /** Pixel-art wading: submerged silhouette, stepped waterline, dotted ripple rings, trailing splash. */
+  private drawWading(cx: number, cut: number, half: number, dx: number, dy: number): void {
+    const g = this.waterRipple, t = this.visualTime, moving = dx !== 0 || dy !== 0;
+    // Body under the surface: a dark, narrowing silhouette instead of a hard cut.
+    for (let row = 0; row < 4; row++) g.rect(cx - half + row, cut + 1 + row, (half - row) * 2, 1).fill({ color: WATER_PALETTE.deep, alpha: 0.45 - row * 0.08 });
+    // Collar: a steady pixel ellipse hugging the body at the surface.
+    for (let i = 0; i < 20; i++) {
+      const a = (i / 20) * Math.PI * 2;
+      g.rect(Math.round(cx + Math.cos(a) * (half + 2)), Math.round(cut + Math.sin(a) * 3), 1, 1).fill({ color: WATER_PALETTE.foam, alpha: 0.9 });
+    }
+    // Ripple rings: dotted ellipses that expand and fade; quicker while moving.
+    const period = moving ? 620 : 1300;
+    for (let k = 0; k < 2; k++) {
+      const phase = (t / period + k / 2) % 1;
+      const rx = half + 4 + phase * 14, ry = Math.max(2, rx * 0.34), dots = 16 + Math.round(phase * 12);
+      for (let i = 0; i < dots; i++) {
+        const a = (i / dots) * Math.PI * 2;
+        g.rect(Math.round(cx + Math.cos(a) * rx), Math.round(cut + Math.sin(a) * ry), i % 3 ? 1 : 2, 1).fill({ color: WATER_PALETTE.foam, alpha: (1 - phase) * 0.95 });
+      }
+    }
+    // Waterline: bright lip with a stepped, shorter row beneath it.
+    g.rect(cx - half, cut - 1, half * 2, 1).fill({ color: WATER_PALETTE.foam, alpha: 0.95 });
+    g.rect(cx - half + 2, cut, half * 2 - 4, 1).fill({ color: WATER_PALETTE.wave, alpha: 0.9 });
+    if (!moving) return;
+    // Splash droplets kicked up on the trailing side.
+    const len = Math.hypot(dx, dy) || 1, bx = -dx / len, by = -dy / len;
+    for (let i = 0; i < 4; i++) {
+      const phase = (t / 340 + i / 4) % 1, side = (i % 2 ? 1 : -1) * (2 + i);
+      const px = cx + bx * (half + phase * 7) - by * side, py = cut + by * phase * 4 + bx * side * 0.3 - Math.sin(phase * Math.PI) * 6;
+      const size = phase < 0.6 ? 2 : 1;
+      g.rect(Math.round(px), Math.round(py), size, size).fill({ color: i % 2 ? WATER_PALETTE.foam : WATER_PALETTE.glint, alpha: 1 - phase });
+    }
   }
 
   private renderEntities(snapshot: RenderSnapshot, alpha: number, dt: number, player: RenderEntityView | undefined, fx: EffectTextures, effects: EffectsLayer): void {
@@ -315,7 +391,13 @@ export class PixiRenderer implements IRenderer {
       let visual = this.entities.get(e.id);
       const isNew = !visual;
       if (!visual) {
-        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false };
+        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false, shadow: null, lastAnim: e.anim, lastAnimTimeMs: e.animTimeMs, swings: 0, lastSwingAt: -Infinity };
+        if (e.kind !== 'projectile') {
+          visual.shadow = new Sprite(fx.glow);
+          visual.shadow.anchor.set(0.5);
+          visual.shadow.tint = 0x000000;
+          this.groundFx.addChild(visual.shadow);
+        }
         this.actors.addChild(visual.sprite); this.entities.set(e.id, visual);
       }
       const sprite = visual.sprite;
@@ -352,29 +434,52 @@ export class PixiRenderer implements IRenderer {
         sprite.scale.set(sx * (1 - 0.4 * t), sy * (1 - 0.4 * t));
       }
 
-      // Hurt: a short white flash, then a red tint with a small recoil shake.
+      // Hurt: a short white flash, a brief red tint, then (player) a blink for
+      // the rest of the invulnerability instead of staying solid red.
       if (e.hurtFlash) {
         if (visual.hurtSince < 0) visual.hurtSince = this.visualTime;
         const since = this.visualTime - visual.hurtSince;
-        sprite.filters = since < HURT_WHITE_MS ? [this.hurtFilter] : null;
-        sprite.tint = since < HURT_WHITE_MS ? 0xffffff : 0xff8080;
+        const white = since < HURT_WHITE_MS, red = !white && since < HURT_RED_MS;
+        sprite.filters = white ? [this.hurtFilter] : e.kind === 'enemy' ? [this.enemyFilter] : null;
+        sprite.tint = red || (e.kind === 'enemy' && !white) ? 0xff8080 : 0xffffff;
+        if (e.kind === 'player' && !white && !red) sprite.alpha *= hurtBlinkAlpha(since);
         if (e.kind === 'enemy' && since < 160) sprite.x += Math.sin(since / 18) * 1.5;
-      } else { visual.hurtSince = -1; sprite.filters = null; sprite.tint = e.dead ? 0xffc4c4 : 0xffffff; }
+      } else {
+        visual.hurtSince = -1;
+        sprite.filters = e.kind === 'enemy' ? [this.enemyFilter] : null;
+        sprite.tint = e.dead ? 0xffc4c4 : 0xffffff;
+      }
+
+      // Ground shadow: stays on the ground during a jump and shrinks with height.
+      if (visual.shadow) {
+        const groundY = (e.prevY + (e.y - e.prevY) * alpha) * TILE + (e.kind === 'pickup' ? 9 : 8);
+        const w = Math.max(14, Math.min(46, Math.abs(sprite.width) * 0.7)) * (1 - Math.min(0.5, e.lift * 0.3));
+        visual.shadow.position.set(x, groundY);
+        visual.shadow.scale.set(w / 64, (w * 0.34) / 64);
+        visual.shadow.alpha = 0.42 * sprite.alpha;
+      }
+
+      // Sword slash when a swing starts (also on a re-swing mid-combo).
+      if (e.kind === 'player') {
+        const started = e.anim === 'attack' && (visual.lastAnim !== 'attack' || e.animTimeMs + 1 < visual.lastAnimTimeMs);
+        if (started && !this.paused) {
+          visual.swings = this.visualTime - visual.lastSwingAt <= COMBO_WINDOW_MS ? visual.swings + 1 : 1;
+          visual.lastSwingAt = this.visualTime;
+          effects.slash(x, y - 12, FACING_ANGLE[e.facing] ?? Math.PI / 2, visual.swings % 3 === 0);
+        }
+      }
+      visual.lastAnim = e.anim; visual.lastAnimTimeMs = e.animTimeMs;
 
       if (e.kind === 'player') {
         if (e.submerged) {
           const height = Math.abs(sprite.height);
           const top = sprite.y - f.anchorY * height;
-          this.waterMask.rect(sprite.x - 100, top - 5, 200, height * 0.65 + 5).fill(0xffffff);
+          const cut = Math.round(top + height * 0.65);
+          this.waterMask.rect(sprite.x - 100, top - 5, 200, cut - top + 5).fill(0xffffff);
           sprite.mask = this.waterMask;
-          this.waterRipple.ellipse(sprite.x, top + height * 0.65, 16 + Math.sin(this.visualTime / 250) * 2, 4).stroke({ width: 1.5, color: 0xa6e9e7, alpha: 0.85 });
-          if (e.x !== e.prevX || e.y !== e.prevY) {
-            for (let i = 0; i < 3; i++) {
-              const phase = (this.visualTime / 180 + i / 3) % 1;
-              const rx = sprite.x + (i - 1) * 7 + Math.sin(this.visualTime / 160 + i) * 2;
-              this.waterRipple.circle(rx, top + height * 0.65 - phase * 9, 1.2).fill({ color: 0xdaf9ef, alpha: 1 - phase });
-            }
-          }
+          this.drawWading(Math.round(sprite.x), cut, Math.max(6, Math.round(Math.abs(sprite.width) * 0.26)), e.x - e.prevX, e.y - e.prevY);
+          // The ground shadow would show through the water as a dark blob.
+          if (visual.shadow) visual.shadow.alpha = 0;
           this.waterRipple.zIndex = sprite.y + 1;
         } else sprite.mask = null;
       }
@@ -390,6 +495,7 @@ export class PixiRenderer implements IRenderer {
         else if (visual.kind === 'pickup') effects.burst(s.x, s.y, visual.spriteKey === 'coin' ? 0xffd84a : 0xf0f0ff, 8, s.zIndex + 1);
         else if (visual.kind === 'projectile') effects.burst(s.x, s.y, visual.spriteKey === 'acid' ? 0x9be04a : 0x8fe3ff, 5, s.zIndex + 1, 0.04);
       }
+      visual.shadow?.destroy();
       s.destroy(); this.entities.delete(id);
     }
     for (const [id, entry] of this.portals) if (!alive.has(id)) { entry.view.destroy({ children: true }); this.portals.delete(id); }
@@ -430,10 +536,23 @@ export class PixiRenderer implements IRenderer {
 
   showDamage(x: number, y: number, amount: number): void {
     this.impactHoldMs = 55;
+    // Impact: sparks and a small ring where the blow landed.
+    this.effects?.burst(x * TILE, y * TILE - 10, 0xfff1b0, 9, y * TILE + 50, 0.09);
+    this.effects?.ring(x * TILE, y * TILE - 10, 18, 0xffffff, 180);
     const text = new Text({ text: String(amount), style: { fontFamily: 'Georgia', fontSize: 18, fontWeight: 'bold', fill: 0xffe1a4, stroke: { color: 0x341816, width: 3 } } });
     text.anchor.set(0.5, 1); text.position.set(x * TILE, y * TILE - 28); text.zIndex = y * TILE + 100;
     this.actors.addChild(text); this.damageNumbers.push({ text, remaining: 700 });
   }
+  /** One-off combat effects triggered by the game layer (tile coordinates). */
+  playEffect(kind: 'spin', x: number, y: number): void {
+    if (kind === 'spin') this.effects?.ring(x * TILE, y * TILE - 8, 3.5 * TILE, 0xbfe8ff, 320);
+  }
+
+  /** M key: radar → full map → hidden. */
+  cycleMinimap(): void {
+    this.minimap.cycle();
+  }
+
   shake(magnitude: number, durationMs: number): void { if (this.cameraShakeEnabled) this.camera.shake(magnitude, durationMs); }
   setZoom(zoom: number | 'auto'): void { this.camera.setZoom(zoom); }
   getCamera() { return this.camera.getView(); }
@@ -448,10 +567,13 @@ export class PixiRenderer implements IRenderer {
       clouds: this.sky.cloudCount,
       raining: this.weather.raining,
       effects: this.effects?.activeCount ?? 0,
+      minimapMode: this.minimap.currentMode,
       transitionActive: this.effects?.transitionActive ?? false,
       actorChildren: this.actors.children.length,
       projectiles: [...this.entities.values()].filter(v => v.kind === 'projectile').length,
-      forestTrees: this.objects.length - this.propSprites.size,
+      forestTrees: this.objects.filter(s => this.spriteInfo.get(s)?.layer === 'actors/forest').length,
+      bridges: this.world?.bridges?.length ?? 0,
+      bridgeRailSprites: this.objects.filter(s => this.spriteInfo.get(s)?.layer === 'actors/bridge').length,
     };
   }
   worldToScreen(x: number, y: number) { return this.camera.worldToScreen(x, y); }

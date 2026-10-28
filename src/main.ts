@@ -61,7 +61,10 @@ simulation.onFeedback = (kind, p, enemy) => {
       manaCost: kind === 'spin' ? 30 : 20,
       position,
     });
-    if (kind === 'spin') renderer.shake(3, 200);
+    if (kind === 'spin') {
+      renderer.shake(3, 200);
+      renderer.playEffect('spin', p.x, p.y);
+    }
   } else if (kind === 'hurt')
     bus.emit('player:damaged', {
       amount: 1,
@@ -126,7 +129,7 @@ const game = new Game({
     onSystemAction(action) {
       if (action === 'toggleTerminal') terminal?.open();
       else if (action === 'characterMenu') shell.showCharacter();
-      else if (action === 'toggleMinimap') renderer.minimapVisible = !renderer.minimapVisible;
+      else if (action === 'toggleMinimap') renderer.cycleMinimap();
     },
     onTutorialComplete() {
       shell.onboarding.value.complete = true;

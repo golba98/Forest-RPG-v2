@@ -8,6 +8,7 @@ import { SaveManager } from '../../../src/persistence/SaveManager';
 import { generateTutorialWorld } from '../../../src/world/TutorialMap';
 import { Simulation } from '../../../src/simulation/Simulation';
 import { FakeRenderer, FakeWorldFactory } from '../game/fakes';
+import { bridgeFixture } from '../../fixtures/bridge-world';
 let game: Game;
 let sim: Simulation;
 let saves: SaveManager;
@@ -32,6 +33,31 @@ beforeEach(async () => {
   saves = new SaveManager(localStorage, game, sim);
 });
 afterEach(() => game.destroy());
+it('round-trips bridge structures and a player on the deck without regenerating terrain', () => {
+  const { world, bridge } = bridgeFixture();
+  game.loadWorld(world);
+  sim.setPlayerPosition(bridge.x + 2, bridge.y + 1);
+  const before = sim.world.tiles.slice();
+  saves.save('bridge');
+  sim.setPlayerPosition(8, 8);
+  saves.load('bridge');
+  expect(sim.world.bridges).toEqual([bridge]);
+  expect(sim.world.tiles).toEqual(before);
+  expect(sim.player.x).toBe(bridge.x + 2);
+  expect(sim.player.y).toBe(bridge.y + 1);
+  expect(sim.buildRenderSnapshot().entities.find(e => e.id === sim.player.id)?.submerged).toBe(false);
+});
+
+it('rejects malformed, overlapping or unsupported bridges before replacing the active world', () => {
+  const { world, bridge } = bridgeFixture();
+  game.loadWorld(world);
+  const version = sim.worldVersion, data = JSON.parse(saves.export());
+  for (const bridges of [[{ ...bridge, span: 1000 }], [{ ...bridge, orientation: 'diagonal' }], [{ ...bridge, x: -1 }], [{ ...bridge, x: 1e20 }], [bridge, { ...bridge, id: 1 }], [{ ...bridge, x: bridge.x + 1 }]]) {
+    data.world.bridges = bridges;
+    expect(() => saves.import(JSON.stringify(data))).toThrow('Invalid bridges');
+    expect(sim.worldVersion).toBe(version);
+  }
+});
 it('round-trips world, combat and player state in a slot', () => {
   sim.setPlayerPosition(15.5, 5.5);
   sim.player.stats.health = 4;

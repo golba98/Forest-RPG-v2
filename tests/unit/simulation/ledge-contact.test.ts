@@ -27,10 +27,10 @@ describe('walking on the actual hill rim', () => {
     for (const [dx, dy, expected] of [
       [0, 1, 10 + 12 / 32 - (PLAYER_FOOTPRINT.offsetY + PLAYER_FOOTPRINT.halfHeight)],
       [0, -1, 4 + 1 / 32 - PLAYER_FOOTPRINT.offsetY + PLAYER_FOOTPRINT.halfHeight],
-      [1, 0, 11 - 1 / 32 - PLAYER_FOOTPRINT.halfWidth],
-      [-1, 0, 4 + 1 / 32 + PLAYER_FOOTPRINT.halfWidth],
+      [1, 0, 11 - 6 / 32 - PLAYER_FOOTPRINT.halfWidth],
+      [-1, 0, 4 + 6 / 32 + PLAYER_FOOTPRINT.halfWidth],
     ] as const) {
-      it(`stops at the visible lip ${dx},${dy}, ${fps}Hz without pushing back`, () => {
+      it(`stops at the visible rim ${dx},${dy}, ${fps}Hz without pushing back`, () => {
         const s = hill();
         if (dx < 0) s.setPlayerPosition(7.5, 6.5);
         for (let i = 0; i < fps * 2; i++) s.step(1 / fps, { ...IDLE_INTENT, moveX: dx, moveY: dy });
@@ -90,6 +90,46 @@ describe('walking on the actual hill rim', () => {
       expect(s.player.y).toBeGreaterThan(3.5);
       expect(s.player.y).toBeLessThan(10.5);
     }
+  });
+  it('keeps feet out of painted side rims along a diagonal staircase edge', () => {
+    // Hill top where x + y <= 12: every edge cell is a step with an exposed east side.
+    const world = {
+      ...makeWorld(),
+      meta: { ...makeWorld().meta, width: 16, height: 16 },
+      tiles: new Uint8Array(256).fill(Tile.GRASS),
+      spawn: { x: 4, y: 4 },
+    };
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 16; x++) if (x + y <= 12) world.tiles[y * 16 + x] = Tile.PLATEAU;
+    const f = PLAYER_FOOTPRINT;
+    const sideRim = 6 / 32;
+    for (const fps of [30, 60, 144])
+      for (const [dx, dy] of [
+        [1, 0],
+        [1, -1],
+        [1, 1],
+      ] as const) {
+        const s = new Simulation();
+        s.loadWorld(world);
+        s.setPlayerPosition(6.4, 6 + 6 / 32 - f.offsetY);
+        for (let i = 0; i < fps * 2; i++) {
+          s.step(1 / fps, { ...IDLE_INTENT, moveX: dx, moveY: dy, sprint: true });
+          expect(canOccupy(s.world, s.player.x, s.player.y, f)).toBe(true);
+          const minY = s.player.y + f.offsetY - f.halfHeight,
+            maxY = s.player.y + f.offsetY + f.halfHeight,
+            maxX = s.player.x + f.offsetX + f.halfWidth;
+          for (let row = Math.floor(minY); row <= Math.floor(maxY); row++) {
+            const step = 12 - row; // raised edge cell on this row; its east side is exposed
+            if (maxX > step && maxX < step + 1 + sideRim)
+              expect(maxX).toBeLessThanOrEqual(step + 1 - sideRim + 1e-9);
+          }
+        }
+      }
+    const s = new Simulation();
+    s.loadWorld(world);
+    s.setPlayerPosition(6.4, 6 + 6 / 32 - f.offsetY);
+    for (let i = 0; i < 120; i++) s.step(1 / 60, { ...IDLE_INTENT, moveX: 1 });
+    expect(s.player.x).toBeCloseTo(7 - sideRim - f.halfWidth, 7);
   });
   it('emits valid bounded geometry for all adjacency masks', () => {
     for (let mask = 0; mask < 256; mask++) {

@@ -1,7 +1,8 @@
 import { canOccupy } from '../../systems/CollisionSystem';
 import { Tile } from '../../types/tiles';
 import type { EnemyType } from '../../types/entities';
-import type { EnemySpawn, PickupSpawn, PropKind, TilePoint, WorldProp } from '../../types/world';
+import type { EnemySpawn, PickupSpawn, PropKind, TilePoint, WorldBridge, WorldProp } from '../../types/world';
+import { intersectsBridgeReservation } from '../BridgeGeometry';
 import { floodFill } from '../pathfinding';
 import type { Rng } from '../Rng';
 import { tileProperties } from '../TileMap';
@@ -71,6 +72,7 @@ export function findPortalTile(
   grid: GenGrid,
   spawn: TilePoint,
   blocked: readonly WorldProp[] = [],
+  bridges: readonly WorldBridge[] = [],
 ): TilePoint | null {
   const midX = Math.floor(grid.width / 2);
   const midY = Math.floor(grid.height / 2);
@@ -82,6 +84,7 @@ export function findPortalTile(
         const x = midX + dx;
         const y = midY + dy;
         if (!grid.inBounds(x, y) || grid.get(x, y) !== Tile.GRASS) continue;
+        if (intersectsBridgeReservation(bridges, { minX: x - 1, minY: y - 1, maxX: x + 2, maxY: y + 2 })) continue;
         if (blocked.some((p) => p.solid && p.tileX === x && p.tileY === y)) continue;
         if (Math.hypot(x - spawn.x, y - spawn.y) > SPAWN_CLEAR_RADIUS) return { x, y };
       }
@@ -102,6 +105,7 @@ export function placeProps(
   rng: Rng,
   allowObstacles: boolean,
   existing: readonly WorldProp[] = [],
+  bridges: readonly WorldBridge[] = [],
 ): WorldProp[] {
   const grass: TilePoint[] = [];
   for (let y = 0; y < grid.height; y++) {
@@ -131,6 +135,7 @@ export function placeProps(
     if (solid) blocked[idx] = 1;
   };
   const nearProtected = (t: TilePoint): boolean =>
+    intersectsBridgeReservation(bridges, { minX: t.x - 0.5, minY: t.y - 0.5, maxX: t.x + 1.5, maxY: t.y + 1.5 }) ||
     Math.hypot(t.x - spawn.x, t.y - spawn.y) <= SPAWN_CLEAR_RADIUS ||
     Math.hypot(t.x - portal.x, t.y - portal.y) <= 1;
 
@@ -257,11 +262,13 @@ export function planSpawns(
   enemyCount: number,
   coinCount: number,
   rng: Rng,
+  bridges: readonly WorldBridge[] = [],
 ): SpawnPlan | null {
   const collisionWorld = {
     meta: { width: grid.width, height: grid.height },
     tiles: grid.tiles,
     props,
+    bridges,
   };
   const groundReached = floodFill(grid, spawn, (x, y) =>
     canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3, 'groundEnemy'),
@@ -278,6 +285,7 @@ export function planSpawns(
     for (let x = 0; x < grid.width; x++) {
       const idx = y * grid.width + x;
       if (reached[idx] !== 1 || solidProp[idx] === 1 || grid.get(x, y) !== Tile.GRASS) continue;
+      if (intersectsBridgeReservation(bridges, { minX: x, minY: y, maxX: x + 1, maxY: y + 1 })) continue;
       if (Math.hypot(x - spawn.x, y - spawn.y) <= SPAWN_CLEAR_RADIUS) continue;
       if (Math.hypot(x - portal.x, y - portal.y) <= 1) continue;
       available.push({ x, y });

@@ -19,7 +19,7 @@ export interface Collider extends Bounds {
   readonly ownerId: string;
   readonly shape: 'aabb';
   readonly classification: 'solid' | 'trigger';
-  readonly source: 'terrain' | 'object' | 'boundary' | 'portal' | 'cliff';
+  readonly source: 'terrain' | 'object' | 'boundary' | 'portal' | 'cliff' | 'bridge';
 }
 export interface RoundStatus {
   readonly complete: boolean;

@@ -49,6 +49,20 @@ export const DECOR_KINDS: readonly PropKind[] = [
   'hole',
 ];
 
+/**
+ * Decor that lies flat and whose art is an opaque tile of baked-in grass. Drawn
+ * under every actor: depth-sorting them lets the grass rectangle cover the player.
+ */
+export const GROUND_PROPS: ReadonlySet<PropKind> = new Set<PropKind>([
+  'flower_clump',
+  'flower_pink',
+  'flower_yellow',
+  'log_horizontal',
+  'log_vertical',
+  'rock_pebble',
+  'hole',
+]);
+
 function buildPlayerAliases(): Readonly<Record<PlayerSheetAnim, Readonly<Record<Direction, string>>>> {
   const table = {} as Record<PlayerSheetAnim, Record<Direction, string>>;
   for (const anim of PLAYER_SHEET_ANIMS) {

@@ -20,6 +20,7 @@ async function ledgeFixture(page: Page): Promise<void> {
       ...d.world,
       meta: { ...d.world.meta, width: 24, height: 24 },
       tiles,
+      bridges: [],
       props: [],
       spawn: { x: 12, y: 12 },
       portal: { x: 21, y: 21 },
@@ -47,7 +48,7 @@ async function ledgeFixture(page: Page): Promise<void> {
     d.entities = [player, portal, coin];
     d.time = 0.3;
     localStorage.setItem('forestrpg.v2.save.ledge', JSON.stringify(d));
-    g.loadGame('ledge');
+    if (!g.loadGame('ledge')) throw new Error('Ledge fixture save failed to load');
     g.resumeSimulation();
   });
   // A fading pause-menu button may otherwise lose focus after the first keydown
@@ -93,7 +94,7 @@ test('feet reach the visible lip, stay there, slide and reload without pushback'
   await page.screenshot({ path: info.outputPath('standing-at-lip.png') });
 });
 
-test('bottom HUD stays in the viewport with twenty hearts at every screen size and scale', async ({
+test('corner HUD stays in the viewport with twenty hearts at every screen size and scale', async ({
   page,
 }, info) => {
   for (const [width, height] of [
@@ -117,11 +118,16 @@ test('bottom HUD stays in the viewport with twenty hearts at every screen size a
       await page.waitForTimeout(80);
       const hud = await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().hud!);
       expect(hud.heartCount).toBe(20);
-      expect(hud.x).toBeGreaterThanOrEqual(10);
-      expect(hud.y).toBeGreaterThan(height * 0.5);
-      expect(hud.x + hud.width).toBeLessThanOrEqual(width - 10);
-      expect(hud.y + hud.height).toBeLessThanOrEqual(height - 10);
-      expect(Math.abs(hud.x + hud.width / 2 - width / 2)).toBeLessThan(8);
+      expect(hud.slotCount).toBe(5);
+      // Level/XP/coins top-left; hearts + hotbar bottom-right; both fully on screen.
+      expect(hud.level.x).toBeGreaterThanOrEqual(10);
+      expect(hud.level.y).toBeGreaterThanOrEqual(10);
+      expect(hud.level.x + hud.level.width).toBeLessThan(width / 2 + 100);
+      expect(hud.cluster.x + hud.cluster.width).toBeLessThanOrEqual(width - 10);
+      expect(hud.cluster.y + hud.cluster.height).toBeLessThanOrEqual(height - 10);
+      expect(hud.cluster.x + hud.cluster.width).toBeGreaterThan(width - 40);
+      expect(hud.cluster.y).toBeGreaterThan(height * 0.5);
+      expect(hud.level.y + hud.level.height).toBeLessThan(hud.cluster.y);
       if (scale === 1)
         await page.screenshot({ path: info.outputPath(`hud-${width}x${height}.png`) });
     }

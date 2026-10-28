@@ -1,9 +1,10 @@
 import { Tile, TILE_PROPERTIES, isTileId } from '../types/tiles';
 import type { TileId, TileProperties } from '../types/tiles';
 import type { WorldData } from '../types/world';
+import { onBridgeDeck, type BridgeWorld } from './BridgeGeometry';
 
 /** Minimal row-major tile grid view (WorldData or an in-progress generation buffer). */
-export interface TileGrid {
+export interface TileGrid extends BridgeWorld {
   readonly width: number;
   readonly height: number;
   readonly tiles: Uint8Array;
@@ -13,7 +14,7 @@ export interface TileGrid {
 const UNKNOWN_TILE: TileProperties = TILE_PROPERTIES[Tile.BORDER];
 
 export function gridOf(world: WorldData): TileGrid {
-  return { width: world.meta.width, height: world.meta.height, tiles: world.tiles };
+  return { width: world.meta.width, height: world.meta.height, tiles: world.tiles, bridges: world.bridges ?? [] };
 }
 
 export function index(grid: TileGrid, x: number, y: number): number {
@@ -48,11 +49,13 @@ export function isSolidAt(grid: TileGrid, x: number, y: number): boolean {
 
 /** Ground-enemy passability (rivers block mobs but not the player). */
 export function isWalkableForMobs(grid: TileGrid, x: number, y: number): boolean {
+  if (onBridgeDeck(grid, x + 0.5, y + 0.5)) return true;
   const props = tileProperties(getTile(grid, x, y));
   return !props.solid && !props.blocksMobs;
 }
 
 /** Speed factor for the tile under a continuous position (tile units). */
 export function speedMultiplierAt(grid: TileGrid, x: number, y: number): number {
+  if (onBridgeDeck(grid, x, y)) return 1;
   return tileProperties(getTile(grid, Math.floor(x), Math.floor(y))).speedMultiplier;
 }

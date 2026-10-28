@@ -5,6 +5,7 @@ import { TILE_PROPERTIES, type TileId } from '../types/tiles';
 import type { Entity } from '../types/entities';
 import type { WorldData } from '../types/world';
 import { PORTAL_ENTER_RADIUS_ASSUMED } from './portalVisualState';
+import type { MinimapMode } from './Minimap';
 
 const TILE = 32;
 const MAX_BOUNDS = 600;
@@ -21,9 +22,15 @@ export interface VisualDebugFlags {
 
 export const DEFAULT_DEBUG_FLAGS: VisualDebugFlags = { enabled: false, colliders: true, tileGrid: false, spriteBounds: false, labels: true };
 
+interface HudBounds { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
+
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
-  readonly hud?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number; readonly scale: number; readonly heartCount: number; readonly visible: boolean } | null;
+  readonly hud?: {
+    readonly x: number; readonly y: number; readonly width: number; readonly height: number;
+    readonly level: HudBounds; readonly cluster: HudBounds;
+    readonly scale: number; readonly heartCount: number; readonly slotCount: number; readonly visible: boolean;
+  } | null;
   readonly placeholderSprites: number;
   readonly portalStates: readonly string[];
   readonly portalViews: number;
@@ -31,11 +38,14 @@ export interface VisualDebugInfo {
   /** Rain is currently visible (fading counts). */
   readonly raining: boolean;
   readonly effects: number;
+  readonly minimapMode: MinimapMode;
   readonly transitionActive: boolean;
   readonly actorChildren: number;
   /** Projectile sprites drawn this frame. */
   readonly projectiles: number;
   readonly forestTrees: number;
+  readonly bridges: number;
+  readonly bridgeRailSprites: number;
 }
 
 /** `window.__RENDER_DEBUG__`, installed in debug builds only. */

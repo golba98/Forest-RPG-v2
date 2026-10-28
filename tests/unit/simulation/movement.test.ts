@@ -81,6 +81,31 @@ it('submerges only on grounded river tiles and slows movement in mud', async () 
   expect(s.player.x - 4.5).toBeCloseTo((6.25 * 0.72) / 60);
 });
 
+it('stays dry and at full speed with feet on a hill rim below a river', async () => {
+  const { makeWorld } = await import('../game/fakes');
+  const { Tile } = await import('../../../src/types/tiles');
+  const world = makeWorld();
+  for (let x = 0; x < 8; x++) {
+    world.tiles[3 * 8 + x] = Tile.RIVER;
+    for (let y = 4; y < 8; y++) world.tiles[y * 8 + x] = Tile.PLATEAU;
+  }
+  const s = new Simulation();
+  s.loadWorld(world);
+  s.setPlayerPosition(4.5, 5);
+  for (let i = 0; i < 120; i++) s.step(1 / 60, { ...IDLE_INTENT, moveY: -1 });
+  // The anchor sits above the feet, inside the river row; the feet are on the hill.
+  expect(Math.floor(s.player.y)).toBe(3);
+  const player = () => s.buildRenderSnapshot().entities.find((e) => e.id === s.player.id);
+  expect(player()?.submerged).toBe(false);
+  expect(s.getGameplayDebug().tile).toEqual({ x: 4, y: 4 });
+  s.step(1 / 60, { ...IDLE_INTENT, moveX: 1 });
+  expect(s.player.x - 4.5).toBeCloseTo(6.25 / 60);
+  world.tiles[4 * 8 + 4] = Tile.RIVER;
+  world.tiles[4 * 8 + 5] = Tile.RIVER;
+  s.setPlayerPosition(4.5, 4.5);
+  expect(player()?.submerged).toBe(true);
+});
+
 it('returns to safe ground if a jump ends on a solid prop', async () => {
   const { makeWorld } = await import('../game/fakes');
   const world = {
