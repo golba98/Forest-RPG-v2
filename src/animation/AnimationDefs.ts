@@ -200,12 +200,13 @@ const PLAYER: SpriteSetDef = {
 export const ANIMATION_DEFS: Readonly<Record<string, SpriteSetDef>> = {
   player: PLAYER,
 
-  // Mantis: MANTIS_ANIM_MS 200 (animates while idle too), attack 7 × 100 ms. drawH = 1.2 tiles.
+  // Mantis: MANTIS_ANIM_MS 200, attack 7 × 100 ms. drawH = 1.2 tiles.
   mantis: {
     scale: 1.2,
     anchor: { kind: 'feet', footOffsetPx: CHARACTER_FOOT_OFFSET_PX },
     clips: {
-      idle: enemyClip(MANTIS_MOVE, ROWS_SEWN, 4, 200, true),
+      // Idle breathes on two frames at a slow cadence so it never reads as walking.
+      idle: enemyClip(MANTIS_MOVE, ROWS_SEWN, 2, 450, true),
       walk: enemyClip(MANTIS_MOVE, ROWS_SEWN, 4, 200, true),
       attack: enemyClip(MANTIS_ATTACK, ROWS_SEWN, 7, 100, false),
     },
@@ -216,7 +217,7 @@ export const ANIMATION_DEFS: Readonly<Record<string, SpriteSetDef>> = {
     scale: 1,
     anchor: { kind: 'feet', footOffsetPx: CHARACTER_FOOT_OFFSET_PX },
     clips: {
-      idle: enemyClip(MAGGOT_WALK, ROWS_SWEN, 4, 250, true),
+      idle: enemyClip(MAGGOT_WALK, ROWS_SWEN, 2, 500, true),
       walk: enemyClip(MAGGOT_WALK, ROWS_SWEN, 4, 250, true),
       attack: enemyClip(MAGGOT_SPIT, ROWS_SWEN, 7, 120, false),
     },

@@ -1,7 +1,7 @@
-import { Application, Container, Graphics, Text, Sprite, Texture, TextureSource } from 'pixi.js';
-import type { IRenderer, RendererInitOptions, RenderSnapshot } from '../types/render';
+import { Application, ColorMatrixFilter, Container, Graphics, Text, Sprite, type Texture, TextureSource } from 'pixi.js';
+import type { IRenderer, RendererInitOptions, RenderEntityView, RenderSnapshot } from '../types/render';
+import type { Entity } from '../types/entities';
 import type { WorldData } from '../types/world';
-import { Tile } from '../types/tiles';
 import { translate } from '../ui/i18n';
 import type { Language } from '../types/languages';
 import { Minimap } from './Minimap';
@@ -10,7 +10,48 @@ import type { PlayerInventory, PlayerStats } from '../types/entities';
 import { Camera } from './Camera';
 import { TextureStore } from './TextureStore';
 import { getTileArt, getPropArt, type TileArtLayer } from './terrainArt';
+import { decorAlias } from './assetCatalog';
+import { elevationMask } from './hillAutotile';
+import { planForestTrees } from './forestTrees';
 import { resolveSpriteFrame } from '../animation/resolveSpriteFrame';
+import { EntityAnimator } from './EntityAnimator';
+import { PortalView } from './PortalView';
+import { PORTAL_ENTER_RADIUS_ASSUMED, PortalVisualMachine } from './portalVisualState';
+import { SkyLayer } from './effects/SkyLayer';
+import { AmbientLayer } from './effects/AmbientLayer';
+import { EffectsLayer } from './effects/EffectsLayer';
+import { createEffectTextures, destroyEffectTextures, type EffectTextures } from './effects/proceduralTextures';
+import { DebugOverlay, type DebugCollider, type SpriteDebugInfo, type VisualDebugInfo } from './DebugOverlay';
+
+const TILE = 32;
+const CHUNK = 16;
+const HURT_WHITE_MS = 70;
+/** Matches the simulation's death display window (codex/gameplay-repair keeps dead enemies 450 ms). */
+const DEATH_FADE_MS = 450;
+
+/** Last drawn state of an entity sprite, kept so removals can fade out. */
+interface EntityVisual {
+  readonly sprite: Sprite;
+  kind: RenderEntityView['kind'];
+  spriteKey: string;
+  hurtSince: number;
+  /** The snapshot already showed this entity dying (`dead`), so removal needs no fade. */
+  diedInView: boolean;
+}
+
+interface PortalEntry {
+  readonly view: PortalView;
+  readonly machine: PortalVisualMachine;
+}
+
+/**
+ * Animation-set key for an entity. Projectiles arrive as `spriteKey:
+ * 'projectile'`; their `projectileType` selects acid or magic-bolt art.
+ */
+function artKey(e: RenderEntityView): string {
+  if (e.kind === 'projectile' && e.spriteKey === 'projectile') return e.projectileType ?? 'magic_bolt';
+  return e.spriteKey;
+}
 
 export class PixiRenderer implements IRenderer {
   language: Language = 'English';
@@ -18,162 +59,302 @@ export class PixiRenderer implements IRenderer {
   starsEnabled = true;
   firefliesEnabled = true;
   performanceEnabled = false;
-  private stars = new Graphics();
-  private fireflies = new Graphics();
-  private rain = new Graphics();
-  private performanceText = new Text({ text: '', style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffffff, stroke: { color: 0x102018, width: 3 } } });
   cloudsEnabled = true;
   paused = false;
-  private clouds: Sprite[] = [];
-  private sky = new Container();
-  private skyMask = new Graphics();
-  private impactHoldMs = 0;
-  private damageNumbers: Array<{ text: Text; remaining: number }> = [];
-  private portalLabel = new Text({ text: '', style: { fontFamily: 'Georgia', fontSize: 11, fill: 0xffe8ae, stroke: { color: 0x152718, width: 3 } } });
-  private waterMask = new Graphics();
-  private waterRipple = new Graphics();
   lightingEnabled = true;
   particlesEnabled = true;
   hudVisible = true;
   minimapVisible = true;
   hudScale = 1;
   hudData: { stats: PlayerStats; inventory: PlayerInventory } | null = null;
+  /** Dev-only visual diagnostics (off by default). */
+  readonly debugOverlay = new DebugOverlay();
+
+  private rain = new Graphics();
+  private performanceText = new Text({ text: '', style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffffff, stroke: { color: 0x102018, width: 3 } } });
+  private impactHoldMs = 0;
+  private damageNumbers: Array<{ text: Text; remaining: number }> = [];
+  private waterMask = new Graphics();
+  private waterRipple = new Graphics();
   private hud: Hud | null = null;
   private minimap = new Minimap();
-  private ambient = new Graphics();
-  private leaves = new Graphics();
+  private darkness = new Graphics();
   private visualTime = 0;
   private app = new Application();
   private textures = new TextureStore();
   private camera = new Camera();
   private root = new Container();
   private terrain = new Container();
+  private groundFx = new Container();
   private actors = new Container();
+  /** World-transformed layer drawn above the darkness overlay (fireflies). */
+  private nightGlow = new Container();
   private chunks = new Map<string, Container>();
-  private sprites = new Map<string, Sprite>();
+  private entities = new Map<string, EntityVisual>();
+  private portals = new Map<string, PortalEntry>();
   private objects: Sprite[] = [];
   private propSprites = new Map<number, Sprite>();
+  private spriteInfo = new WeakMap<Container, SpriteDebugInfo>();
+  private animator = new EntityAnimator();
+  private sky = new SkyLayer();
+  private fx: EffectTextures | null = null;
+  private ambient: AmbientLayer | null = null;
+  private effects: EffectsLayer | null = null;
+  private hurtFilter = new ColorMatrixFilter();
+  private debugEntities: (() => readonly Entity[]) | null = null;
+  private debugColliders: ((rect: { x: number; y: number; width: number; height: number }) => readonly DebugCollider[]) | null = null;
   private world: WorldData | null = null;
   private visibleChunks = 0;
   private renderedEntities = 0;
+  private placeholderSprites = 0;
+  /** Previous frame showed an open portal with the player inside its entry radius. */
+  private enteringPortal = false;
+
   async init(options: RendererInitOptions): Promise<void> {
     TextureSource.defaultOptions.scaleMode = 'nearest';
     await this.app.init({ ...options, autoStart: false, sharedTicker: false, autoDensity: true, roundPixels: true, background: '#172c19' });
-    this.app.stop(); this.app.stage.addChild(this.root); this.root.addChild(this.terrain, this.actors); this.actors.sortableChildren = true;
-    this.root.addChild(this.sky, this.skyMask); this.sky.mask = this.skyMask; this.actors.addChild(this.waterMask, this.waterRipple, this.portalLabel); this.portalLabel.anchor.set(0.5, 1);
-    this.app.stage.addChild(this.ambient, this.stars, this.fireflies, this.rain, this.leaves, this.minimap, this.performanceText);
+    this.app.stop();
+    this.fx = createEffectTextures();
+    this.ambient = new AmbientLayer(this.fx);
+    this.effects = new EffectsLayer(this.actors, this.fx);
+    this.hurtFilter.brightness(2.4, false);
+    this.groundFx.addChild(this.sky.shadows, this.effects.ground);
+    this.root.addChild(this.terrain, this.groundFx, this.actors, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
+    this.actors.sortableChildren = true;
+    this.actors.addChild(this.waterMask, this.waterRipple);
+    this.nightGlow.addChild(this.ambient.fireflies);
+    // Stars sit behind the world so they only show in the void around it.
+    this.app.stage.addChild(this.ambient.stars, this.root, this.darkness, this.nightGlow, this.rain, this.effects.transition, this.debugOverlay.screenLayer, this.minimap, this.performanceText);
     this.resize(options.width, options.height, options.resolution);
   }
-  async loadAssets(progress?: (p: number) => void): Promise<void> { await this.textures.load(progress); this.hud = new Hud(this.textures.get('ui_heart')); this.hud.position.set(20, 20); this.app.stage.addChild(this.hud); }
+
+  async loadAssets(progress?: (p: number) => void): Promise<void> {
+    await this.textures.load(progress);
+    this.hud = new Hud(this.textures.get('ui_heart'));
+    this.hud.position.set(20, 20);
+    this.app.stage.addChild(this.hud);
+  }
+
+  /** Authoritative entity list for the collision overlay (debug builds only). */
+  setDebugEntitySource(source: () => readonly Entity[]): void {
+    this.debugEntities = source;
+  }
+
+  /** Authoritative object colliders (tile units) inside a visible world-px rect, when the simulation provides them. */
+  setDebugColliderSource(source: (rect: { x: number; y: number; width: number; height: number }) => readonly DebugCollider[]): void {
+    this.debugColliders = source;
+  }
+
   private art(layer: TileArtLayer): Sprite {
     const s = layer.source;
-    const texture = s.type === 'grid' ? this.textures.getGridFrame(layer.alias, s.col, s.row, s.cols, s.rows) : s.type === 'cell' ? this.textures.getFrame(layer.alias, s.frameX, s.frameY, s.frameW, s.frameH) : this.textures.get(layer.alias);
+    const texture =
+      s.type === 'grid' ? this.textures.getGridFrame(layer.alias, s.col, s.row, s.cols, s.rows)
+      : s.type === 'cell' ? this.textures.getFrame(layer.alias, s.frameX, s.frameY, s.frameW, s.frameH)
+      : s.type === 'rect' ? this.textures.getRect(layer.alias, s.rect.x, s.rect.y, s.rect.w, s.rect.h)
+      : this.textures.get(layer.alias);
     const sprite = new Sprite(texture);
     sprite.tint = layer.tint;
-    if (layer.fit === 'fill') { sprite.width = 32; sprite.height = 32; }
-    else sprite.scale.set(Math.min(1, 32 * layer.maxWidthTiles / texture.width, 32 * layer.maxHeightTiles / texture.height));
-    sprite.x = (32 - sprite.width) / 2 + layer.offsetX;
-    sprite.y = (layer.align === 'bottom' ? 32 - sprite.height : (32 - sprite.height) / 2) + layer.offsetY;
+    if (layer.fit === 'fill') { sprite.width = TILE; sprite.height = TILE; }
+    else sprite.scale.set(Math.min(1, TILE * layer.maxWidthTiles / texture.width, TILE * layer.maxHeightTiles / texture.height));
+    sprite.x = (TILE - sprite.width) / 2 + layer.offsetX;
+    sprite.y = (layer.align === 'bottom' ? TILE - sprite.height : (TILE - sprite.height) / 2) + layer.offsetY;
     return sprite;
   }
+
+  private tag<T extends Container>(sprite: T, assetId: string, layer: string): T {
+    this.spriteInfo.set(sprite, { assetId, layer });
+    return sprite;
+  }
+
   setWorld(world: WorldData): void {
     for (const chunk of this.chunks.values()) chunk.destroy({ children: true });
     this.chunks.clear();
-    for (const sprite of this.sprites.values()) sprite.destroy();
-    this.sprites.clear();
+    for (const visual of this.entities.values()) visual.sprite.destroy();
+    this.entities.clear();
+    for (const { view } of this.portals.values()) view.destroy({ children: true });
+    this.portals.clear();
     for (const sprite of this.objects) sprite.destroy();
     this.objects = [];
     this.propSprites.clear();
-    this.skyMask.clear().rect(0, 0, world.meta.width * 32, world.meta.height * 32).fill(0xffffff);
-    for (const n of this.damageNumbers) n.text.destroy(); this.damageNumbers = [];
+    this.animator.clear();
+    this.effects?.clear();
+    for (const n of this.damageNumbers) n.text.destroy();
+    this.damageNumbers = [];
+    // Walking into an open portal swaps the world: play the transition over the new one.
+    if (this.enteringPortal) this.effects?.startTransition();
+    this.enteringPortal = false;
     this.world = world;
-    for (const cloud of this.clouds) cloud.destroy();
-    this.clouds = [];
-    const cloudCount = Math.min(16, Math.max(2, Math.floor(world.meta.width * world.meta.height / 1000)));
-    for (let i = 0; i < cloudCount; i++) {
-      const cloud = new Sprite(this.textures.get(`cloud_${i % 4 + 1}`));
-      cloud.scale.set(1.1 + (i % 3) * 0.2); cloud.alpha = 0.25;
-      cloud.position.set((i * 739 % (world.meta.width * 32)), (i * 491 % (world.meta.height * 32)));
-      if (i < 3) cloud.position.set(world.spawn.x * 32 - 600 + i * 240, world.spawn.y * 32 - 500 + (i % 3) * 300);
-      this.sky.addChild(cloud); this.clouds.push(cloud);
-    }
-    for (let y = 0; y < world.meta.height; y++) for (let x = 0; x < world.meta.width; x++) {
-      const tile = world.tiles[y * world.meta.width + x];
-      if (tile !== Tile.FOREST && tile !== Tile.BORDER) continue;
-      if (tile === Tile.FOREST && (x % 2 !== 0 || y % 2 !== 0)) continue;
-      const tree = new Sprite(this.textures.get('tile_tree'));
-      tree.anchor.set(0.5, 1); tree.width = 64; tree.height = 64;
-      tree.position.set((x + 0.5) * 32, (y + 1) * 32); tree.zIndex = tree.y;
-      this.actors.addChild(tree); this.objects.push(tree);
+    this.sky.setWorld(world.meta.width, world.meta.height, world.spawn.x, world.spawn.y, (i) => this.textures.get(`cloud_${(i % 4) + 1}`));
+
+    for (const tree of planForestTrees(world)) {
+      const sprite = this.tag(new Sprite(this.textures.get('tile_tree')), 'tile_tree', 'actors/forest');
+      sprite.anchor.set(0.5, 1); sprite.width = 64; sprite.height = 64;
+      sprite.position.set((tree.x + 0.5) * TILE, (tree.y + 1) * TILE); sprite.zIndex = sprite.y;
+      this.actors.addChild(sprite); this.objects.push(sprite);
     }
     for (const p of world.props) {
-      const sprite = p.kind === 'tree' ? new Sprite(this.textures.get('tile_tree')) : this.art(getPropArt(p.kind));
+      const sprite = this.tag(p.kind === 'tree' ? new Sprite(this.textures.get('tile_tree')) : this.art(getPropArt(p.kind)), decorAlias(p.kind), 'actors/prop');
       if (p.kind === 'tree') { sprite.anchor.set(0.5, 1); sprite.width = 64; sprite.height = 64; sprite.position.set(16, 32); }
-      sprite.x += p.tileX * 32; sprite.y += p.tileY * 32; sprite.zIndex = (p.tileY + 1) * 32;
+      sprite.x += p.tileX * TILE; sprite.y += p.tileY * TILE; sprite.zIndex = (p.tileY + 1) * TILE;
       this.actors.addChild(sprite); this.objects.push(sprite);
       this.propSprites.set(p.id, sprite);
     }
-    this.camera.setWorldSize(world.meta.width * 32, world.meta.height * 32);
-    this.camera.snapTo((world.spawn.x + 0.5) * 32, (world.spawn.y + 0.5) * 32);
-    for (let y = 0; y < world.meta.height; y += 16) for (let x = 0; x < world.meta.width; x += 16) this.buildChunk(x, y);
+    this.camera.setWorldSize(world.meta.width * TILE, world.meta.height * TILE);
+    this.camera.snapTo((world.spawn.x + 0.5) * TILE, (world.spawn.y + 0.5) * TILE);
+    for (let y = 0; y < world.meta.height; y += CHUNK) for (let x = 0; x < world.meta.width; x += CHUNK) this.buildChunk(x, y);
   }
+
   private buildChunk(x: number, y: number): void {
     const world = this.world;
     if (!world) return;
+    const { width, height } = world.meta;
     const key = `${x},${y}`;
     this.chunks.get(key)?.destroy({ children: true });
-    const chunk = new Container(); chunk.position.set(x * 32, y * 32);
-    for (let ty = y; ty < Math.min(y + 16, world.meta.height); ty++) for (let tx = x; tx < Math.min(x + 16, world.meta.width); tx++) {
-      for (const layer of getTileArt(world.tiles[ty * world.meta.width + tx] ?? 0, tx, ty)) {
-        const sprite = this.art(layer); sprite.x += (tx - x) * 32; sprite.y += (ty - y) * 32; chunk.addChild(sprite);
+    const chunk = new Container(); chunk.position.set(x * TILE, y * TILE);
+    for (let ty = y; ty < Math.min(y + CHUNK, height); ty++) for (let tx = x; tx < Math.min(x + CHUNK, width); tx++) {
+      const elevation = elevationMask(world.tiles, width, height, tx, ty);
+      for (const layer of getTileArt(world.tiles[ty * width + tx] ?? 0, tx, ty, elevation)) {
+        const sprite = this.art(layer); sprite.x += (tx - x) * TILE; sprite.y += (ty - y) * TILE; chunk.addChild(sprite);
       }
     }
     // Ground-only chunks have exact integer bounds and nearest cache sampling.
     chunk.cacheAsTexture({ resolution: 1, antialias: false }); this.terrain.addChild(chunk); this.chunks.set(key, chunk);
   }
-  invalidateTile(x: number, y: number): void { this.buildChunk(Math.floor(x / 16) * 16, Math.floor(y / 16) * 16); }
+
+  invalidateTile(x: number, y: number): void {
+    // Autotiled art depends on neighbours, so rebuild every chunk the 3×3 neighbourhood touches.
+    const keys = new Set<string>();
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const cx = Math.floor((x + dx) / CHUNK) * CHUNK, cy = Math.floor((y + dy) / CHUNK) * CHUNK;
+      if (cx >= 0 && cy >= 0 && this.world && cx < this.world.meta.width && cy < this.world.meta.height) keys.add(`${cx},${cy}`);
+    }
+    for (const key of keys) { const [cx, cy] = key.split(',').map(Number); this.buildChunk(cx ?? 0, cy ?? 0); }
+  }
+
   removeProp(id: number): void {
     const sprite = this.propSprites.get(id);
     if (!sprite) return;
     this.propSprites.delete(id); this.objects = this.objects.filter(object => object !== sprite); sprite.destroy();
   }
+
   render(snapshot: RenderSnapshot, alpha: number, dt: number): void {
+    const fx = this.fx, effects = this.effects, ambient = this.ambient;
+    if (!fx || !effects || !ambient) return;
     const player = snapshot.entities.find(e => e.id === snapshot.playerId);
-    if (player) this.camera.follow((player.prevX + (player.x - player.prevX) * alpha) * 32, (player.prevY + (player.y - player.prevY) * alpha) * 32, dt);
+    if (player) this.camera.follow((player.prevX + (player.x - player.prevX) * alpha) * TILE, (player.prevY + (player.y - player.prevY) * alpha) * TILE, dt);
     const transform = this.camera.getTransform(); this.root.scale.set(transform.scale); this.root.position.set(transform.x, transform.y);
+    this.nightGlow.scale.copyFrom(this.root.scale); this.nightGlow.position.copyFrom(this.root.position);
     const rect = this.camera.getVisibleRect(); this.visibleChunks = 0;
     for (const chunk of this.chunks.values()) {
-      chunk.visible = chunk.x < rect.x + rect.width && chunk.x + 512 > rect.x && chunk.y < rect.y + rect.height && chunk.y + 512 > rect.y;
+      chunk.visible = chunk.x < rect.x + rect.width && chunk.x + CHUNK * TILE > rect.x && chunk.y < rect.y + rect.height && chunk.y + CHUNK * TILE > rect.y;
       if (chunk.visible) this.visibleChunks++;
     }
     for (const sprite of this.objects) sprite.visible = sprite.x + 64 > rect.x && sprite.x - 64 < rect.x + rect.width && sprite.y > rect.y && sprite.y - 64 < rect.y + rect.height;
-    this.sky.visible = this.cloudsEnabled;
-    if (!this.paused) for (const cloud of this.clouds) {
-      cloud.x += dt * 0.02;
-      if (cloud.x > snapshot.world.meta.width * 32 + cloud.width) cloud.x = -cloud.width;
+    const view = this.camera.getView();
+    this.sky.update(dt, view.x, view.y, this.paused, this.cloudsEnabled);
+    if (!this.paused) this.visualTime += dt;
+
+    this.renderEntities(snapshot, alpha, dt, player, fx, effects);
+
+    for (const n of this.damageNumbers) { if (!this.paused) { n.remaining -= dt; n.text.y -= dt * 0.025; } n.text.alpha = Math.min(1, n.remaining / 250); }
+    this.damageNumbers = this.damageNumbers.filter(n => { if (n.remaining > 0) return true; n.text.destroy(); return false; });
+    if (!this.paused) this.impactHoldMs = Math.max(0, this.impactHoldMs - dt);
+
+    this.darkness.clear();
+    if (this.lightingEnabled && snapshot.environment.darkness > 0) {
+      const light = snapshot.environment.lights[0];
+      const screen = light ? this.camera.worldToScreen(light.x * TILE, light.y * TILE) : null;
+      for (let i = 0; i < 6; i++) {
+        this.darkness.rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0x071129, alpha: snapshot.environment.darkness / 6 });
+        if (light && screen) this.darkness.circle(screen.x, screen.y, light.radiusPx * transform.scale * (0.35 + i * 0.13)).cut();
+      }
     }
-    this.waterMask.clear(); this.waterRipple.clear();
-    const alive = new Set<string>(); this.renderedEntities = snapshot.entities.length;
+    ambient.stars.visible = this.starsEnabled && snapshot.environment.darkness > 0.6;
+    ambient.update(dt, rect, { paused: this.paused, leaves: this.particlesEnabled, fireflies: this.firefliesEnabled, darkness: snapshot.environment.darkness, worldWidth: snapshot.world.meta.width * TILE, worldHeight: snapshot.world.meta.height * TILE });
+
+    this.rain.clear();
+    if (this.particlesEnabled && (snapshot.environment.weather === 'rain' || snapshot.environment.weather === 'storm')) for (let i = 0; i < 140; i++) {
+      const x = (i * 197 + this.visualTime * 0.15) % this.app.screen.width;
+      const y = (i * 313 + this.visualTime * 0.55) % this.app.screen.height;
+      this.rain.moveTo(x, y).lineTo(x - 5, y + 14).stroke({ color: 0xb4d7de, alpha: 0.38, width: 1 });
+    }
+    effects.update(dt, this.paused, this.app.screen.width, this.app.screen.height);
+
+    this.performanceText.visible = this.performanceEnabled; this.performanceText.text = `${dt > 0 ? Math.round(1000 / dt) : 0} FPS | ${this.visibleChunks}/${this.chunks.size} chunks`; this.performanceText.position.set(20, this.app.screen.height - 24);
+    const screenScale = this.hudScale * Math.max(1, Math.min(2, this.app.screen.height / 1080));
+    this.minimap.visible = this.hudVisible && this.minimapVisible; this.minimap.scale.set(screenScale); this.minimap.position.set(this.app.screen.width - 144 * screenScale, 20 * screenScale); this.minimap.update(snapshot);
+    if (this.hud) { this.hud.scale.set(screenScale); this.hud.visible = this.hudVisible; if (this.hudData) this.hud.update(this.hudData.stats, this.hudData.inventory, this.language); }
+    if (this.debugOverlay.getFlags().enabled) {
+      this.debugOverlay.update({
+        world: snapshot.world, entities: this.debugEntities?.() ?? [], colliders: this.debugColliders?.(rect) ?? null, visible: rect, actors: this.actors, spriteInfo: this.spriteInfo,
+        screenToWorld: (x, y) => this.camera.screenToWorld(x, y),
+        extraLines: [`portal ${[...this.portals.values()].map(p => p.machine.state).join(',') || '-'}  placeholders ${this.placeholderSprites}  fx ${effects.activeCount}  clouds ${this.sky.cloudCount}`],
+      }, this.app.screen.height);
+    }
+    this.app.render();
+  }
+
+  private renderEntities(snapshot: RenderSnapshot, alpha: number, dt: number, player: RenderEntityView | undefined, fx: EffectTextures, effects: EffectsLayer): void {
+    this.waterMask.clear(); this.waterRipple.clear(); effects.ground.clear();
+    this.animator.beginFrame();
+    const alive = new Set<string>(); this.renderedEntities = snapshot.entities.length; this.placeholderSprites = 0;
+    let entering = false;
     for (const e of snapshot.entities) {
       alive.add(e.id);
-      let sprite = this.sprites.get(e.id);
-      const newSprite = !sprite;
-      if (!sprite) { sprite = new Sprite(); this.actors.addChild(sprite); this.sprites.set(e.id, sprite); }
-      const f = resolveSpriteFrame(e);
-      if (this.impactHoldMs <= 0 || newSprite || (e.kind !== 'player' && e.kind !== 'enemy')) sprite.texture = f.placeholder ? Texture.WHITE : this.textures.getFrame(f.textureAlias, f.frame.x / f.frame.w, f.frame.y / f.frame.h, f.frame.w, f.frame.h);
-      if (e.kind === 'projectile') sprite.texture = Texture.WHITE;
-      if (e.kind === 'portal') sprite.texture = this.textures.get('portal_forest');
-      sprite.anchor.set(f.anchorX, f.anchorY); sprite.scale.set(f.scale * (f.flipX ? -1 : 1), f.scale);
-      sprite.position.set((e.prevX + (e.x - e.prevX) * alpha) * 32, (e.prevY + (e.y - e.prevY) * alpha - e.lift) * 32);
-      sprite.zIndex = sprite.y + e.lift * 32; sprite.alpha = e.alpha; sprite.tint = e.hurtFlash ? 0xff7777 : 0xffffff;
-      if (e.kind === 'portal') {
-        sprite.anchor.set(0.5, 1); sprite.width = 86; sprite.height = 80;
-        sprite.tint = e.active ? 0xffffff : 0xa5aa9f; sprite.alpha = e.active ? 1 : 0.9;
-        const coins = snapshot.entities.filter(item => item.spriteKey === 'coin').length;
-        const enemies = snapshot.entities.filter(item => item.kind === 'enemy' && item.spriteKey !== 'ghost').length;
-        this.portalLabel.text = e.active ? translate(this.language, 'PORTAL OPEN') : `${coins} ${translate(this.language, 'Coins')} • ${enemies} ${translate(this.language, 'foes')}`;
-        this.portalLabel.position.set(sprite.x, sprite.y - 72); this.portalLabel.zIndex = sprite.y + 3;
+      const x = (e.prevX + (e.x - e.prevX) * alpha) * TILE;
+      const y = (e.prevY + (e.y - e.prevY) * alpha - e.lift) * TILE;
+      if (e.kind === 'portal') { if (this.renderPortal(e, x, y, dt, snapshot, player, fx)) entering = true; continue; }
+      const spriteKey = artKey(e);
+
+      let visual = this.entities.get(e.id);
+      const isNew = !visual;
+      if (!visual) {
+        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false };
+        this.actors.addChild(visual.sprite); this.entities.set(e.id, visual);
       }
+      const sprite = visual.sprite;
+      visual.kind = e.kind; visual.spriteKey = spriteKey;
+      const anim = this.animator.resolve(spriteKey === e.spriteKey ? e : { ...e, spriteKey }, this.paused ? 0 : dt);
+      const f = resolveSpriteFrame(anim);
+      const holdFrame = this.impactHoldMs > 0 && !isNew && (e.kind === 'player' || e.kind === 'enemy');
+      if (!holdFrame) {
+        let texture: Texture;
+        if (spriteKey === 'magic_bolt') texture = fx.bolt;
+        else if (f.placeholder) texture = this.textures.getPlaceholder();
+        else texture = this.textures.getRect(f.textureAlias, f.frame.x, f.frame.y, f.frame.w, f.frame.h);
+        sprite.texture = texture;
+        this.spriteInfo.set(sprite, { assetId: spriteKey === 'magic_bolt' ? 'procedural:magic_bolt' : f.textureAlias || 'placeholder', layer: `actors/${e.kind}` });
+      }
+      if (this.textures.isPlaceholder(sprite.texture)) this.placeholderSprites++;
+
+      const flip = f.flipX ? -1 : 1;
+      let sx = f.scale * flip, sy = f.scale;
+      if (anim.telegraph > 0) {
+        // Wind-up: squash and a red ground ring under the attacker.
+        sx *= 1 + 0.1 * anim.telegraph; sy *= 1 - 0.1 * anim.telegraph;
+        effects.ground.circle(x, (e.y + 0.3) * TILE, 9 + (1 - anim.telegraph) * 8).stroke({ width: 1.5, color: 0xff4a3a, alpha: 0.85 * anim.telegraph });
+      }
+      if (spriteKey === 'magic_bolt') { sx = sy = 1; if (!this.paused) effects.trail(x, y, y - 1); }
+      sprite.anchor.set(f.anchorX, f.anchorY); sprite.scale.set(sx, sy);
+      sprite.position.set(x, y);
+      sprite.zIndex = y + e.lift * TILE; sprite.alpha = e.alpha;
+      if (e.dead) {
+        // Death shown by the simulation: fade and shrink over its death window.
+        const t = Math.min(1, anim.animTimeMs / DEATH_FADE_MS);
+        visual.diedInView = true;
+        sprite.alpha = e.alpha * (1 - t);
+        sprite.scale.set(sx * (1 - 0.4 * t), sy * (1 - 0.4 * t));
+      }
+
+      // Hurt: a short white flash, then a red tint with a small recoil shake.
+      if (e.hurtFlash) {
+        if (visual.hurtSince < 0) visual.hurtSince = this.visualTime;
+        const since = this.visualTime - visual.hurtSince;
+        sprite.filters = since < HURT_WHITE_MS ? [this.hurtFilter] : null;
+        sprite.tint = since < HURT_WHITE_MS ? 0xffffff : 0xff8080;
+        if (e.kind === 'enemy' && since < 160) sprite.x += Math.sin(since / 18) * 1.5;
+      } else { visual.hurtSince = -1; sprite.filters = null; sprite.tint = e.dead ? 0xffc4c4 : 0xffffff; }
+
       if (e.kind === 'player') {
         if (e.submerged) {
           const height = Math.abs(sprite.height);
@@ -184,71 +365,92 @@ export class PixiRenderer implements IRenderer {
           if (e.x !== e.prevX || e.y !== e.prevY) {
             for (let i = 0; i < 3; i++) {
               const phase = (this.visualTime / 180 + i / 3) % 1;
-              const x = sprite.x + (i - 1) * 7 + Math.sin(this.visualTime / 160 + i) * 2;
-              this.waterRipple.circle(x, top + height * 0.65 - phase * 9, 1.2).fill({ color: 0xdaf9ef, alpha: 1 - phase });
+              const rx = sprite.x + (i - 1) * 7 + Math.sin(this.visualTime / 160 + i) * 2;
+              this.waterRipple.circle(rx, top + height * 0.65 - phase * 9, 1.2).fill({ color: 0xdaf9ef, alpha: 1 - phase });
             }
           }
           this.waterRipple.zIndex = sprite.y + 1;
         } else sprite.mask = null;
       }
-      if (e.kind === 'projectile') { sprite.width = 10; sprite.height = 6; sprite.tint = 0xbfeaff; }
     }
-    for (const [id, sprite] of this.sprites) if (!alive.has(id)) { sprite.destroy(); this.sprites.delete(id); }
-    for (const n of this.damageNumbers) { if (!this.paused) { n.remaining -= dt; n.text.y -= dt * 0.025; } n.text.alpha = Math.min(1, n.remaining / 250); }
-    this.damageNumbers = this.damageNumbers.filter(n => { if (n.remaining > 0) return true; n.text.destroy(); return false; });
-    if (!this.paused) this.impactHoldMs = Math.max(0, this.impactHoldMs - dt);
-    this.ambient.clear();
-    if (this.lightingEnabled && snapshot.environment.darkness > 0) {
-      const light = snapshot.environment.lights[0];
-      const screen = light ? this.camera.worldToScreen(light.x * 32, light.y * 32) : null;
-      for (let i = 0; i < 6; i++) {
-        this.ambient.rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0x071129, alpha: snapshot.environment.darkness / 6 });
-        if (light && screen) this.ambient.circle(screen.x, screen.y, light.radiusPx * transform.scale * (0.35 + i * 0.13)).cut();
+    this.enteringPortal = entering;
+
+    for (const [id, visual] of this.entities) {
+      if (alive.has(id)) continue;
+      const s = visual.sprite;
+      if (!this.paused && !s.destroyed) {
+        if (visual.kind === 'enemy' && visual.diedInView) effects.burst(s.x, s.y - 10, 0xd9d2c4, 7, s.zIndex + 1, 0.05);
+        else if (visual.kind === 'enemy') effects.spawnDeath(s.texture, s.x, s.y, s.anchor.x, s.anchor.y, s.scale.x, s.scale.y, s.zIndex);
+        else if (visual.kind === 'pickup') effects.burst(s.x, s.y, visual.spriteKey === 'coin' ? 0xffd84a : 0xf0f0ff, 8, s.zIndex + 1);
+        else if (visual.kind === 'projectile') effects.burst(s.x, s.y, visual.spriteKey === 'acid' ? 0x9be04a : 0x8fe3ff, 5, s.zIndex + 1, 0.04);
       }
+      s.destroy(); this.entities.delete(id);
     }
-    if (!this.paused) this.visualTime += dt;
-    this.stars.visible = this.starsEnabled && snapshot.environment.darkness > 0.6;
-    this.fireflies.clear();
-    if (snapshot.environment.darkness > 0.35 && this.firefliesEnabled) for (let i = 0; i < 12; i++) {
-      const x = (i * 251 + this.visualTime * 0.009) % this.app.screen.width, y = (i * 173 + Math.sin(this.visualTime / 900 + i) * 13) % this.app.screen.height;
-      this.fireflies.circle(x, y, 2).fill({ color: 0xf3e589, alpha: 0.3 + 0.3 * Math.sin(this.visualTime / 400 + i) });
-    }
-    this.performanceText.visible = this.performanceEnabled; this.performanceText.text = `${dt > 0 ? Math.round(1000 / dt) : 0} FPS | ${this.visibleChunks}/${this.chunks.size} chunks`; this.performanceText.position.set(20, this.app.screen.height - 24);
-    this.rain.clear();
-    if (this.particlesEnabled && (snapshot.environment.weather === 'rain' || snapshot.environment.weather === 'storm')) for (let i = 0; i < 140; i++) {
-      const x = (i * 197 + this.visualTime * 0.15) % this.app.screen.width;
-      const y = (i * 313 + this.visualTime * 0.55) % this.app.screen.height;
-      this.rain.moveTo(x, y).lineTo(x - 5, y + 14).stroke({ color: 0xb4d7de, alpha: 0.38, width: 1 });
-    }
-    this.leaves.clear();
-    if (this.particlesEnabled) for (let i = 0; i < 24; i++) {
-      const x = ((i * 197 + this.visualTime * 0.025) % (this.app.screen.width + 20)) - 10;
-      const y = ((i * 113 + this.visualTime * 0.04) % (this.app.screen.height + 20)) - 10;
-      this.leaves.ellipse(x, y, 3, 1).fill({ color: 0xb5a644, alpha: 0.5 });
-    }
-    const screenScale = this.hudScale * Math.max(1, Math.min(2, this.app.screen.height / 1080));
-    this.minimap.visible = this.hudVisible && this.minimapVisible; this.minimap.scale.set(screenScale); this.minimap.position.set(this.app.screen.width - 144 * screenScale, 20 * screenScale); this.minimap.update(snapshot);
-    if (this.hud) { this.hud.scale.set(screenScale); this.hud.visible = this.hudVisible; if (this.hudData) this.hud.update(this.hudData.stats, this.hudData.inventory, this.language); }
-    this.app.render();
+    for (const [id, entry] of this.portals) if (!alive.has(id)) { entry.view.destroy({ children: true }); this.portals.delete(id); }
+    this.animator.sweep();
   }
-  resize(width: number, height: number, resolution: number): void { this.app.renderer.resolution = resolution; this.app.renderer.resize(width, height); this.camera.setViewport(width, height, resolution);
-    this.stars.clear();
-    for (let i = 0; i < 500; i++) {
-      const x = (i * 263.37) % Math.max(1, width), y = (i * 173.79) % Math.max(1, height);
-      this.stars.circle(x, y, i % 8 === 0 ? 1.3 : 0.6).fill({ color: 0xe9f1ef, alpha: 0.18 + (i % 5) * 0.06 });
+
+  /** Draws one portal; returns true when the player is inside an open portal's entry radius. */
+  private renderPortal(e: RenderEntityView, x: number, y: number, dt: number, snapshot: RenderSnapshot, player: RenderEntityView | undefined, fx: EffectTextures): boolean {
+    let entry = this.portals.get(e.id);
+    if (!entry) {
+      const view = this.tag(new PortalView(this.textures.get('portal_forest'), fx), 'portal_forest', 'actors/portal');
+      entry = { view, machine: new PortalVisualMachine() };
+      this.actors.addChild(view); this.portals.set(e.id, entry);
     }
+    const distance = player ? Math.hypot(e.x - player.x, e.y - player.y) : Infinity;
+    const state = entry.machine.update({ active: e.active === true, explicit: e.portalState, playerDistance: distance, dtMs: this.paused ? 0 : dt });
+    let label: string;
+    if (state === 'open' || state === 'transitioning') label = translate(this.language, 'PORTAL OPEN');
+    else {
+      const coins = snapshot.entities.filter(item => item.spriteKey === 'coin').length;
+      const enemies = snapshot.entities.filter(item => item.kind === 'enemy' && item.spriteKey !== 'ghost').length;
+      const progress = `${coins} ${translate(this.language, 'Coins')} • ${enemies} ${translate(this.language, 'foes')}`;
+      label = state === 'reacting' ? `${translate(this.language, 'Portal sealed')}\n${progress}` : progress;
+    }
+    // Foot point = bottom edge of the portal tile; the steps cover the entry point.
+    entry.view.position.set(x, y + TILE / 2);
+    entry.view.zIndex = entry.view.y;
+    entry.view.update(state, entry.machine.reactProgress, dt, this.paused, label);
+    // Generous margin: at low frame rates a sprinting player can cross the
+    // entry radius between two rendered frames.
+    return (state === 'open' || state === 'transitioning') && distance <= PORTAL_ENTER_RADIUS_ASSUMED + 0.8;
   }
+
+  resize(width: number, height: number, resolution: number): void {
+    this.app.renderer.resolution = resolution; this.app.renderer.resize(width, height); this.camera.setViewport(width, height, resolution);
+    this.ambient?.resizeStars(width, height);
+  }
+
   showDamage(x: number, y: number, amount: number): void {
     this.impactHoldMs = 55;
     const text = new Text({ text: String(amount), style: { fontFamily: 'Georgia', fontSize: 18, fontWeight: 'bold', fill: 0xffe1a4, stroke: { color: 0x341816, width: 3 } } });
-    text.anchor.set(0.5, 1); text.position.set(x * 32, y * 32 - 28); text.zIndex = y * 32 + 100;
+    text.anchor.set(0.5, 1); text.position.set(x * TILE, y * TILE - 28); text.zIndex = y * TILE + 100;
     this.actors.addChild(text); this.damageNumbers.push({ text, remaining: 700 });
   }
   shake(magnitude: number, durationMs: number): void { if (this.cameraShakeEnabled) this.camera.shake(magnitude, durationMs); }
   setZoom(zoom: number | 'auto'): void { this.camera.setZoom(zoom); }
   getCamera() { return this.camera.getView(); }
-  getStats() { return { backend: 'webgl' as const, canvasWidth: this.app.canvas.width, canvasHeight: this.app.canvas.height, pixelRatio: this.app.renderer.resolution, visibleChunks: this.visibleChunks, totalChunks: this.chunks.size, renderedEntities: this.renderedEntities }; }
+  getStats() { return { backend: 'webgl' as const, canvasWidth: this.app.canvas.width, canvasHeight: this.app.canvas.height, pixelRatio: this.app.renderer.resolution, visibleChunks: this.visibleChunks, totalChunks: this.chunks.size, renderedEntities: this.renderedEntities, placeholderSprites: this.placeholderSprites }; }
+  /** Debug-only counters for visual regression tests. */
+  getVisualDebugInfo(): VisualDebugInfo {
+    return {
+      placeholderSprites: this.placeholderSprites,
+      portalStates: [...this.portals.values()].map(p => p.machine.state),
+      portalViews: this.portals.size,
+      clouds: this.sky.cloudCount,
+      effects: this.effects?.activeCount ?? 0,
+      transitionActive: this.effects?.transitionActive ?? false,
+      actorChildren: this.actors.children.length,
+      projectiles: [...this.entities.values()].filter(v => v.kind === 'projectile').length,
+      forestTrees: this.objects.length - this.propSprites.size,
+    };
+  }
   worldToScreen(x: number, y: number) { return this.camera.worldToScreen(x, y); }
   screenToWorld(x: number, y: number) { return this.camera.screenToWorld(x, y); }
-  destroy(): void { this.app.destroy(true, { children: true }); this.textures.destroy(); }
+  destroy(): void {
+    this.sky.clear(); this.effects?.clear();
+    this.app.destroy(true, { children: true }); this.textures.destroy();
+    if (this.fx) destroyEffectTextures(this.fx);
+  }
 }
