@@ -18,6 +18,8 @@ export interface ISimulation {
   loadWorld(world: WorldData): void;
   /** Advances one fixed step. */
   step(dtSec: number, intent: PlayerIntent): void;
+  claimPortalTransition(): boolean;
+  getGameplayDebug?(): import('./gameplay').GameplayDebug;
   getEntities(): readonly Entity[];
   /** Builds the read-only view consumed by the renderer. */
   buildRenderSnapshot(): RenderSnapshot;

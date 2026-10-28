@@ -14,6 +14,8 @@ export type WeatherType = 'clear' | 'rain' | 'storm' | 'fog';
  * Exhaustive typed dictionary of all game events and their respective payloads.
  */
 export interface GameEvents {
+  'portal:stateChanged': import('../../types/gameplay').PortalChange;
+  'round:completed': import('../../types/gameplay').RoundStatus;
   // --------------------------------------------------------------------------
   // Player Events
   // --------------------------------------------------------------------------
@@ -265,7 +267,7 @@ export type Unsubscribe = () => void;
 export type EventBusErrorHandler = (
   error: unknown,
   event: keyof GameEvents,
-  payload: unknown
+  payload: unknown,
 ) => void;
 
 /**
@@ -278,18 +280,12 @@ export interface IEventBus {
    * @param handler The callback function
    * @returns Unsubscribe function
    */
-  on<K extends keyof GameEvents>(
-    event: K,
-    handler: EventHandler<GameEvents[K]>
-  ): Unsubscribe;
+  on<K extends keyof GameEvents>(event: K, handler: EventHandler<GameEvents[K]>): Unsubscribe;
 
   /**
    * Explicitly removes a listener previously registered with `on`.
    */
-  off<K extends keyof GameEvents>(
-    event: K,
-    handler: EventHandler<GameEvents[K]>
-  ): void;
+  off<K extends keyof GameEvents>(event: K, handler: EventHandler<GameEvents[K]>): void;
 
   /**
    * Emits an event with its strongly-typed payload.
@@ -301,10 +297,7 @@ export interface IEventBus {
    * Subscribes a listener that will be triggered at most once, then automatically unsubscribed.
    * @returns Unsubscribe function to cancel before the event fires
    */
-  once<K extends keyof GameEvents>(
-    event: K,
-    handler: EventHandler<GameEvents[K]>
-  ): Unsubscribe;
+  once<K extends keyof GameEvents>(event: K, handler: EventHandler<GameEvents[K]>): Unsubscribe;
 
   /**
    * Clears all listeners for a given event, or all listeners entirely if no event is specified.

@@ -29,7 +29,10 @@ export function placeBridges(grid: GenGrid, spawn: TilePoint, rng: Rng, maxPasse
     if (candidates.length === 0) break;
 
     candidates.sort((a, b) => a.score - b.score);
-    const count = Math.min(MAX_BRIDGES_PER_PASS, Math.max(1, Math.floor(candidates.length / PLACE_DIVISOR)));
+    const count = Math.min(
+      MAX_BRIDGES_PER_PASS,
+      Math.max(1, Math.floor(candidates.length / PLACE_DIVISOR)),
+    );
     for (let i = 0; i < count && i < candidates.length; i++) {
       const c = candidates[i];
       if (c) layBridge(grid, c.x, c.y);
@@ -54,15 +57,22 @@ function collectCandidates(grid: GenGrid, reached: Uint8Array, rng: Rng): Candid
       const idx = y * w + x;
       if (reached[idx] === 1 || grid.get(x, y) === Tile.RAMP || !isLand(grid.get(x, y))) continue;
       // (x, y) is unreachable land: look for river tiles next to it that also touch reached land.
-      for (const n of grid.neighbors8(x, y)) {
+      for (const n of grid
+        .neighbors8(x, y)
+        .filter((p) => Math.abs(p.x - x) + Math.abs(p.y - y) === 1)) {
         const nIdx = n.y * w + n.x;
         if (seen[nIdx] === 1 || grid.get(n.x, n.y) !== Tile.RIVER) continue;
         seen[nIdx] = 1;
         const touchesReached = grid
           .neighbors8(n.x, n.y)
+          .filter((p) => Math.abs(p.x - n.x) + Math.abs(p.y - n.y) === 1)
           .some((m) => reached[m.y * w + m.x] === 1 && isLand(grid.get(m.x, m.y)));
         if (touchesReached) {
-          out.push({ x: n.x, y: n.y, score: Math.hypot(n.x - w / 2, n.y - h / 2) + rng.nextFloat() * 20 });
+          out.push({
+            x: n.x,
+            y: n.y,
+            score: Math.hypot(n.x - w / 2, n.y - h / 2) + rng.nextFloat() * 20,
+          });
         }
       }
     }

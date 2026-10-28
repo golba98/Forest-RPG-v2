@@ -9,7 +9,8 @@ import type { Difficulty, WorldData, WorldGenOptions } from '../types/world';
 import { IntentMapper } from './IntentMapper';
 import { randomSeed, type LaunchParams } from './LaunchParams';
 
-export type SceneState = 'loading' | 'menu' | 'playing' | 'paused' | 'gameover' | 'victory' | 'error';
+export type SceneState =
+  'loading' | 'menu' | 'playing' | 'paused' | 'gameover' | 'victory' | 'error';
 
 export interface WorldFactory {
   generate(options: WorldGenOptions): WorldData;
@@ -75,7 +76,7 @@ export class Game {
         onFixedUpdate: (dtSec) => this.fixedUpdate(dtSec),
         onRender: (alpha, frameDeltaMs) => this.renderFrame(alpha, frameDeltaMs),
       },
-      { renderWhilePaused: true }
+      { renderWhilePaused: true },
     );
   }
 
@@ -89,7 +90,12 @@ export class Game {
     const vp = this.viewport();
     try {
       shell?.onLoadingProgress?.(0, 'Starting renderer');
-      await renderer.init({ canvas, width: vp.width, height: vp.height, resolution: vp.resolution });
+      await renderer.init({
+        canvas,
+        width: vp.width,
+        height: vp.height,
+        resolution: vp.resolution,
+      });
       shell?.onLoadingProgress?.(0.1, 'Loading assets');
       await renderer.loadAssets((p) => shell?.onLoadingProgress?.(0.1 + p * 0.9, 'Loading assets'));
     } catch (err) {
@@ -107,7 +113,12 @@ export class Game {
     // Gameplay input is disabled while paused, so Escape-to-resume is handled at the
     // DOM level. Overlay menus that consume Escape themselves call preventDefault().
     this.listen(window, 'keydown', (ev) => {
-      if (ev instanceof KeyboardEvent && ev.code === 'Escape' && !ev.defaultPrevented && this.scene === 'paused') {
+      if (
+        ev instanceof KeyboardEvent &&
+        ev.code === 'Escape' &&
+        !ev.defaultPrevented &&
+        this.scene === 'paused'
+      ) {
         this.resume();
       }
     });
@@ -249,9 +260,11 @@ export class Game {
     const intent = this.intents.nextIntent(this.deps.input);
     const sim = this.deps.simulation;
     sim.step(dtSec * this.timeScale, intent);
-    if (sim.player.stats.health <= 0) { this.endRun('gameover'); return; }
-    const portal = sim.getEntities().find(e => e.kind === 'portal' && e.active);
-    if (portal && Math.hypot(portal.x - sim.player.x, portal.y - sim.player.y) < 0.8) {
+    if (sim.player.stats.health <= 0) {
+      this.endRun('gameover');
+      return;
+    }
+    if (sim.claimPortalTransition()) {
       if (sim.world.meta.isTutorial) {
         this.deps.shell?.onTutorialComplete?.();
         this.startNewGame({ difficulty: this.difficulty });
@@ -279,7 +292,8 @@ export class Game {
     const { input, shell } = this.deps;
     if (input.isActionJustPressed('pause')) this.togglePause();
     if (input.isActionJustPressed('fullscreen')) void this.toggleFullscreen();
-    if (this.scene === 'playing' && input.isActionJustPressed('regenerateWorld')) this.regenerateWorld();
+    if (this.scene === 'playing' && input.isActionJustPressed('regenerateWorld'))
+      this.regenerateWorld();
     for (const action of SYSTEM_ACTIONS) {
       if (input.isActionJustPressed(action)) shell?.onSystemAction?.(action);
     }

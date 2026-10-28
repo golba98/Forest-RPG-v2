@@ -9,6 +9,7 @@
 
 import { test, expect } from '@playwright/test';
 import { GameDriver } from '../helpers/game-driver';
+import { loadBorderWorld } from '../helpers/collision-fixture';
 
 test.describe('Tier 1: Simulation, Movement, Physics & Player Mechanics', () => {
   let driver: GameDriver;
@@ -105,19 +106,12 @@ test.describe('Tier 1: Simulation, Movement, Physics & Player Mechanics', () => 
   });
 
   test('T1.2.6 — Top-down collision response: solid obstacle tiles block player movement', async () => {
-    // Teleport player adjacent to known solid border tile (x: 1, y: 1)
-    await driver.executeDebugCommand('/tp 1 1');
-    const pos = await driver.getState();
-    expect(pos.player.x).toBe(1);
-    expect(pos.player.y).toBe(1);
-
-    // Move West directly into BORDER / SOLID obstacle (x: 0 is border)
+    await loadBorderWorld(driver.page);
+    await driver.executeDebugCommand('/tp 1.5 2.5');
     await driver.moveDirection('W', 1);
-    const blockedState = await driver.getState();
-
-    // Player position must remain clamped at x: 1 (cannot walk onto solid tile)
-    expect(blockedState.player.x).toBe(1);
-    expect(blockedState.player.y).toBe(1);
+    const state = await driver.getState();
+    expect(state.player.x).toBeCloseTo(1.3);
+    expect(state.player.y).toBeCloseTo(2.5);
   });
 
   test('T1.2.7 — Water navigation: walking on RIVER tiles applies 1.5x speed reduction', async () => {

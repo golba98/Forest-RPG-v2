@@ -1,3 +1,4 @@
+import type { PortalState } from './gameplay';
 import type { Direction } from '../core/events/types';
 
 export type { Direction };
@@ -10,7 +11,17 @@ export type EntityKind = 'player' | 'enemy' | 'projectile' | 'pickup' | 'portal'
 /** Simulation-level animation intent; the animation layer maps it to sprite frames. */
 export type AnimState = 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'hurt' | 'death';
 
-export type EnemyAIState = 'idle' | 'patrol' | 'chase' | 'attack' | 'flee' | 'dead';
+export type EnemyAIState =
+  | 'idle'
+  | 'patrol'
+  | 'chase'
+  | 'attack'
+  | 'flee'
+  | 'investigate'
+  | 'return'
+  | 'recover'
+  | 'stunned'
+  | 'dead';
 
 /**
  * Common entity fields. Positions are in TILE units (floats); (x, y) is the
@@ -79,6 +90,8 @@ export interface EnemyEntity extends EntityBase {
   health: number;
   maxHealth: number;
   aiState: EnemyAIState;
+  attackPhase?: 'none' | 'windup' | 'strike' | 'recover';
+  moving?: boolean;
   aggressive: boolean;
   hurtTimerMs: number;
   attackCooldownMs: number;
@@ -103,6 +116,9 @@ export interface PickupEntity extends EntityBase {
 export interface PortalEntity extends EntityBase {
   readonly kind: 'portal';
   active: boolean;
+  portalState?: PortalState;
+  roundComplete?: boolean;
+  entryEligible?: boolean;
 }
 
 export type Entity = PlayerEntity | EnemyEntity | ProjectileEntity | PickupEntity | PortalEntity;

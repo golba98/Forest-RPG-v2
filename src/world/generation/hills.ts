@@ -1,3 +1,4 @@
+import { isHillTerrain } from '../TerrainTopology';
 import { Tile } from '../../types/tiles';
 import type { TileId } from '../../types/tiles';
 import type { PerlinNoise } from '../Noise';
@@ -14,9 +15,8 @@ const PRUNE_PASSES = 8;
 
 /**
  * Part 3: hill plateaus from thresholded noise, smoothed by a cellular
- * automaton, pruned of tips and 1-tile bars, then autotiled. Only the rim is
- * written (HILL_* edge/corner tiles); fully enclosed interior cells keep the
- * underlying terrain, exactly like the legacy renderer expected.
+ * automaton, pruned of tips and 1-tile bars, then autotiled. Interior cells are explicit solid PLATEAU terrain.
+ * Waterways and crossing endpoints are protected before deriving edges.
  */
 export function generateHills(grid: GenGrid, rng: Rng, noise: PerlinNoise): void {
   const { width: w, height: h } = grid;
@@ -25,7 +25,9 @@ export function generateHills(grid: GenGrid, rng: Rng, noise: PerlinNoise): void
 
   for (let y = HILL_MARGIN; y < h - HILL_MARGIN; y++) {
     for (let x = HILL_MARGIN; x < w - HILL_MARGIN; x++) {
-      if (noise.noise2(x * HILL_NOISE_SCALE + offset, y * HILL_NOISE_SCALE + offset) > HILL_THRESHOLD) {
+      if (
+        noise.noise2(x * HILL_NOISE_SCALE + offset, y * HILL_NOISE_SCALE + offset) > HILL_THRESHOLD
+      ) {
         hill[y * w + x] = 1;
       }
     }
@@ -39,6 +41,15 @@ export function generateHills(grid: GenGrid, rng: Rng, noise: PerlinNoise): void
     if (!result.changed) break;
   }
 
+  // Preserve waterways and the landings of previously placed crossings.
+  for (let y = 1; y < h - 1; y++)
+    for (let x = 1; x < w - 1; x++) {
+      const tile = grid.get(x, y);
+      if (tile === Tile.RIVER) hill[y * w + x] = 0;
+      if (tile === Tile.RAMP || tile === Tile.LOG)
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) hill[(y + dy) * w + x + dx] = 0;
+    }
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       if (hill[y * w + x] !== 1) continue;
@@ -59,7 +70,8 @@ function smoothStep(src: Uint8Array, w: number, h: number): Uint8Array {
         }
       }
       const idx = y * w + x;
-      next[idx] = src[idx] === 1 ? (neighbours >= CA_SURVIVE ? 1 : 0) : neighbours >= CA_BIRTH ? 1 : 0;
+      next[idx] =
+        src[idx] === 1 ? (neighbours >= CA_SURVIVE ? 1 : 0) : neighbours >= CA_BIRTH ? 1 : 0;
     }
   }
   return next;
@@ -109,4 +121,14 @@ function hillEdgeTile(hill: Uint8Array, w: number, h: number, x: number, y: numb
   if (!west) return Tile.HILL_W;
   if (!e) return Tile.HILL_E;
   return null;
+}
+
+/** Reclassify after spawn clearing and other edits, including bottom boundaries. */
+export function refreshHillEdges(grid: GenGrid): void {
+  const mask = Uint8Array.from(grid.tiles, (t) => Number(isHillTerrain(t)));
+  for (let y = 0; y < grid.height; y++)
+    for (let x = 0; x < grid.width; x++)
+      if (mask[y * grid.width + x]) {
+        grid.set(x, y, hillEdgeTile(mask, grid.width, grid.height, x, y) ?? Tile.PLATEAU);
+      }
 }
