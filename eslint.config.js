@@ -74,6 +74,7 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       '.agents/**',
+      '.claude/**',
     ],
   }
 );
