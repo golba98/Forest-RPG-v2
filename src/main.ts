@@ -17,6 +17,7 @@ import { SoundSynthesizer } from './audio/SoundSynthesizer';
 import { MusicPlayer } from './audio/MusicPlayer';
 import { registerAudioEvents } from './audio/AudioBridge';
 import { generateTutorialWorld } from './world/TutorialMap';
+import { attachVisualDebugControls } from './rendering/DebugOverlay';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game-canvas');
 if (!canvas) throw new Error('Game canvas missing');
@@ -95,5 +96,14 @@ try {
   applySettings();
   if (params.autostart) game.startNewGame({ tutorial: params.tutorial ?? false, seed: params.seed ?? 123, difficulty: params.difficulty ?? 'normal' });
   if (params.debug) window.__GAME__ = createDiagnostics(game, simulation, renderer, { executeCommand: command => terminal?.execute(command) ?? 'Debug mode is disabled', saveGame: slot => { try { saves.save(slot); return true; } catch { return false; } }, loadGame: slot => { try { saves.load(slot); return true; } catch { return false; } }, loadLegacySave: payload => { try { saves.import(JSON.stringify(payload)); return true; } catch { return false; } } });
+  if (params.debug) {
+    renderer.setDebugEntitySource(() => simulation.getEntities());
+    const controls = attachVisualDebugControls(canvas, renderer.debugOverlay);
+    window.__RENDER_DEBUG__ = {
+      setFlags: (flags) => { renderer.debugOverlay.setFlags(flags); controls.sync(); },
+      getFlags: () => renderer.debugOverlay.getFlags(),
+      getInfo: () => renderer.getVisualDebugInfo(),
+    };
+  }
   loading?.classList.add('hidden');
 } catch (error) { console.error(error); }
