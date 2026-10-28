@@ -4,6 +4,12 @@ import type { WorldData } from './world';
 export type WeatherKind = 'clear' | 'leaves' | 'rain' | 'storm';
 
 /**
+ * Presentation state of a portal (see docs/contracts/visual-contract.md).
+ * The simulation decides whether the portal is usable; the renderer only shows it.
+ */
+export type PortalVisualState = 'locked' | 'reacting' | 'open' | 'transitioning';
+
+/**
  * Read-only view of one entity for the renderer. Built by the simulation each
  * render frame; the renderer must never mutate simulation state.
  * Coordinates are in tiles; the renderer interpolates prev→current with alpha.
@@ -30,6 +36,16 @@ export interface RenderEntityView {
   readonly hurtFlash: boolean;
   /** Optional state flag (e.g. portal active). */
   readonly active?: boolean;
+  /**
+   * Optional authoritative portal presentation state. When absent the renderer
+   * derives it from `active` and the player's distance (visual only).
+   */
+  readonly portalState?: PortalVisualState;
+  /**
+   * Optional simulation time (ms) at which `anim` last changed. When absent the
+   * renderer restarts its own clip clock whenever `anim` changes.
+   */
+  readonly animStartedAtMs?: number;
 }
 
 export interface LightSource {
@@ -81,6 +97,8 @@ export interface RendererStats {
   readonly visibleChunks: number;
   readonly totalChunks: number;
   readonly renderedEntities: number;
+  /** Sprites currently drawn with the missing-art placeholder (should be 0). */
+  readonly placeholderSprites?: number;
 }
 
 export interface RendererInitOptions {
