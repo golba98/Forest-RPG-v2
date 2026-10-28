@@ -21,7 +21,9 @@ export type SoundEffectType =
   | 'levelUp'
   | 'portalHum'
   | 'buttonClick'
-  | 'spellCast';
+  | 'spellCast'
+  | 'nestWarning'
+  | 'ghostForm';
 
 /**
  * Interface contract for the retro sound synthesizer.
@@ -39,6 +41,8 @@ export interface ISoundSynthesizer {
   toggleMute(): boolean;
 
   // Retro SFX Generators
+  playNestWarning(): void;
+  playGhostForm(): void;
   playSwordSwing(): void;
   playEnemyHit(): void;
   playPlayerHurt(): void;

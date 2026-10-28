@@ -45,11 +45,11 @@ it('maggots fire acid and the projectile can hurt the player', async () => {
   expect(s.player.stats.health).toBeLessThan(7);
 });
 
-it('spawns ghosts at night and removes them at dawn', async () => {
+it('does not spawn a random ghost ring when night begins', async () => {
   const { makeWorld } = await import('../game/fakes');
   const s = new Simulation(); s.loadWorld(makeWorld());
   s.setTimeOfDay(0.95); s.step(1 / 60, { ...IDLE_INTENT });
-  expect(s.getEntities().filter(e => e.kind === 'enemy' && e.enemyType === 'ghost' && e.alive)).toHaveLength(4);
+  expect(s.getEntities().filter(e => e.kind === 'enemy' && e.enemyType === 'ghost' && e.alive)).toHaveLength(0);
   s.setTimeOfDay(0.3); s.step(1 / 60, { ...IDLE_INTENT });
   expect(s.getEntities().filter(e => e.kind === 'enemy' && e.enemyType === 'ghost' && e.alive)).toHaveLength(0);
 });

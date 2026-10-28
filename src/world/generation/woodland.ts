@@ -1,3 +1,5 @@
+import type { Bounds } from '../../types/gameplay';
+import { intersectsReservations } from '../EncounterPlacement';
 import { Tile } from '../../types/tiles';
 import type { TilePoint, WorldBridge, WorldProp } from '../../types/world';
 import { intersectsBridgeReservation } from '../BridgeGeometry';
@@ -5,7 +7,7 @@ import type { GenGrid } from './GenGrid';
 import type { Rng } from '../Rng';
 
 /** Forest regions become discrete trunks with traversable space between them. */
-export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint, bridges: readonly WorldBridge[] = []): WorldProp[] {
+export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint, bridges: readonly WorldBridge[] = [], reservations: readonly Bounds[] = []): WorldProp[] {
   const candidates: Array<{ x: number; y: number }> = [];
   for (let y = 1; y < grid.height - 1; y++)
     for (let x = 1; x < grid.width - 1; x++) {
@@ -23,6 +25,7 @@ export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint, bridges
   const trees: WorldProp[] = [];
   const occupied = new Set<number>();
   for (const p of rng.shuffle(candidates)) {
+    if (intersectsReservations({ minX: p.x - 1, minY: p.y - 1, maxX: p.x + 2, maxY: p.y + 1 }, reservations)) continue;
     if (intersectsBridgeReservation(bridges, { minX: p.x - 1, minY: p.y - 1, maxX: p.x + 2, maxY: p.y + 1 })) continue;
     let near = grid
       .neighbors8(p.x, p.y)

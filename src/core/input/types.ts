@@ -12,6 +12,7 @@ export type InputAction =
   | 'jump'
   | 'dash'
   | 'attack'
+  | 'interact'
   | 'skillQ'
   | 'skillE'
   | 'potionHealth'
@@ -75,6 +76,7 @@ export const DEFAULT_KEYBINDS: KeybindConfig = Object.freeze({
   // Legacy "cut" key (E) stays the melee attack; the legacy E spell was shadowed by it,
   // so the magic bolt moves to R in V2.
   attack: ['Mouse0', 'KeyE', 69],
+  interact: ['KeyG', 71],
   skillQ: ['KeyQ', 81],
   skillE: ['KeyR', 82],
   potionHealth: ['Digit1', 'Numpad1', 49, 97],

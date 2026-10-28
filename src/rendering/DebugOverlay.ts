@@ -26,6 +26,7 @@ interface HudBounds { readonly x: number; readonly y: number; readonly width: nu
 
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
+  readonly wading?: { readonly x: number; readonly waterlineY: number; readonly spriteY: number } | null;
   readonly hud?: {
     readonly x: number; readonly y: number; readonly width: number; readonly height: number;
     readonly level: HudBounds; readonly cluster: HudBounds;

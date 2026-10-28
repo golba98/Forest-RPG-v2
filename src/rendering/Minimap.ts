@@ -173,9 +173,13 @@ export class Minimap extends Container {
       if (!inside(at, 2)) continue;
       if (e.kind === 'enemy') {
         const boss = e.spriteKey === 'beetle';
-        g.circle(at.x, at.y, boss ? 5 : 3).fill(boss ? 0xff9a3c : 0xff5a4e).stroke({ color: 0x2a0d0b, width: 1 });
+        g.circle(at.x, at.y, boss ? 5 : 3).fill(e.formation !== undefined ? 0xabcac8 : boss ? 0xff9a3c : 0xff5a4e).stroke({ color: 0x2a0d0b, width: 1 });
       } else if (e.spriteKey === 'coin') g.circle(at.x, at.y, 2.5).fill(0xffd84a).stroke({ color: 0x3a2a08, width: 1 });
       else if (e.kind === 'pickup') g.circle(at.x, at.y, 2.5).fill(0xff8fd0).stroke({ color: 0x3a0f2a, width: 1 });
+    }
+    for (const site of snapshot.encounters?.sites ?? []) if (site.discovered) {
+      const at = radarPoint(site.x, site.y, player.x, player.y);
+      if (inside(at, 5)) this.diamond(at.x, at.y, 4, site.kind === 'nest' ? site.phase === 'defeated' ? 0x819d6e : 0xc89c5e : 0xabcac8);
     }
     this.playerMarker(half, half, player);
   }
@@ -195,10 +199,14 @@ export class Minimap extends Container {
         g.rect(left * k, top * k, (right - left) * k, (bottom - top) * k).stroke({ color: 0xffffff, width: 1.5, alpha: 0.7 });
       }
     }
+    for (const site of snapshot.encounters?.sites ?? []) if (site.discovered) {
+      const p = at(site.x, site.y);
+      this.diamond(p.x, p.y, 4, site.kind === 'nest' ? site.phase === 'defeated' ? 0x819d6e : 0xc89c5e : 0xabcac8);
+    }
     for (const e of snapshot.entities) {
       const p = at(e.x, e.y);
       if (e.kind === 'portal') this.diamond(p.x, p.y, 7, e.active ? 0xd9a6ff : 0x9a7cc0);
-      else if (e.kind === 'enemy') g.circle(p.x, p.y, e.spriteKey === 'beetle' ? 5 : 3).fill(e.spriteKey === 'beetle' ? 0xff9a3c : 0xff5a4e).stroke({ color: 0x2a0d0b, width: 1 });
+      else if (e.kind === 'enemy') g.circle(p.x, p.y, e.spriteKey === 'beetle' ? 5 : 3).fill(e.formation !== undefined ? 0xabcac8 : e.spriteKey === 'beetle' ? 0xff9a3c : 0xff5a4e).stroke({ color: 0x2a0d0b, width: 1 });
       else if (e.spriteKey === 'coin') g.circle(p.x, p.y, 2.5).fill(0xffd84a).stroke({ color: 0x3a2a08, width: 1 });
       else if (e.kind === 'pickup') g.circle(p.x, p.y, 2.5).fill(0xff8fd0);
     }

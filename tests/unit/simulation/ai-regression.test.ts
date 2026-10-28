@@ -24,7 +24,11 @@ function enemy(
   x: number,
   y: number,
 ) {
+  if (type === 'beetle') {
+    s.loadWorld({ ...s.world, encounterSites: [{ id: 'encounter:ai:nest:0', kind: 'nest', x, y }] });
+  }
   const id = s.spawnEnemy(type, x, y);
+  if (type === 'beetle') for (let i = 0; i < 169; i++) s.step(1 / 60, idle);
   return s.getEntities().find((e) => e.id === id) as EnemyEntity;
 }
 function step(s: Simulation, frames: number) {

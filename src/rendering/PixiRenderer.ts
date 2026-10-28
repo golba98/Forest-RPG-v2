@@ -1,4 +1,7 @@
+import { NestView } from './NestView';
+import { EncounterView } from './EncounterView';
 import { readSafeAreaInsets } from './safeArea';
+import { nearbyWaterBounds, wadingPose } from './wadingGeometry';
 import { Application, ColorMatrixFilter, Container, Graphics, Text, Sprite, type Texture, TextureSource } from 'pixi.js';
 import type { IRenderer, RendererInitOptions, RenderEntityView, RenderSnapshot } from '../types/render';
 import type { Entity } from '../types/entities';
@@ -49,6 +52,7 @@ interface EntityVisual {
   hurtSince: number;
   /** The snapshot already showed this entity dying (`dead`), so removal needs no fade. */
   diedInView: boolean;
+  quietRemoval: boolean;
   /** Soft ground shadow under characters and pickups (ground layer). */
   shadow: Sprite | null;
   lastAnim: string;
@@ -98,8 +102,13 @@ export class PixiRenderer implements IRenderer {
   private performanceText = new Text({ text: '', style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffffff, stroke: { color: 0x102018, width: 3 } } });
   private impactHoldMs = 0;
   private damageNumbers: Array<{ text: Text; remaining: number }> = [];
+  private encounterView = new EncounterView();
+  private nestView = new NestView();
+  interactBinding: () => string = () => 'G';
   private waterMask = new Graphics();
   private waterRipple = new Graphics();
+  private waterFxMask = new Graphics();
+  private wading: ReturnType<typeof wadingPose> | null = null;
   private hud: Hud | null = null;
   private minimap = new Minimap();
   private darkness = new Graphics();
@@ -151,10 +160,11 @@ export class PixiRenderer implements IRenderer {
     this.hurtFilter.brightness(2.4, false);
     this.enemyFilter.brightness(1.18, false);
     this.groundFx.addChild(this.sky.shadows, this.weather.ground, this.effects.ground);
-    this.root.addChild(this.terrain, this.water.view, this.bridgeGround, this.groundProps, this.groundFx, this.actors, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
+    this.root.addChild(this.terrain, this.water.view, this.bridgeGround, this.groundProps, this.encounterView.ground, this.nestView.ground, this.groundFx, this.actors, this.encounterView.effects, this.nestView.particles, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
     this.actors.sortableChildren = true;
-    this.actors.addChild(this.waterMask, this.waterRipple);
-    this.nightGlow.addChild(this.ambient.fireflies);
+    this.actors.addChild(this.waterMask, this.waterRipple, this.waterFxMask);
+    this.waterRipple.mask = this.waterFxMask;
+    this.nightGlow.addChild(this.ambient.fireflies, this.encounterView.glow);
     // Stars sit behind the world so they only show in the void around it.
     this.app.stage.addChild(this.ambient.stars, this.root, this.darkness, this.nightGlow, this.weather.sky, this.effects.transition, this.debugOverlay.screenLayer, this.minimap, this.performanceText);
     this.resize(options.width, options.height, options.resolution);
@@ -166,7 +176,7 @@ export class PixiRenderer implements IRenderer {
     for (const [alias, texture] of createBridgeTextures()) this.textures.registerRuntime(alias, texture);
     this.hud = new Hud(this.textures.get('ui_heart'), [this.textures.get('item_potion_health'), this.textures.get('item_potion_speed')]);
     this.hud.layout(this.app.screen.width, this.app.screen.height, this.hudScale);
-    this.app.stage.addChild(this.hud);
+    this.app.stage.addChild(this.hud, this.encounterView.hud);
   }
 
   /** Authoritative entity list for the collision overlay (debug builds only). */
@@ -224,6 +234,8 @@ export class PixiRenderer implements IRenderer {
     if (this.enteringPortal) this.effects?.startTransition();
     this.enteringPortal = false;
     this.world = world;
+    this.encounterView.reset();
+    this.nestView.reset();
     this.sky.setWorld(world.meta.width, world.meta.height, world.meta.seed, this.fx?.clouds ?? [], world.spawn.x, world.spawn.y);
     for (const bridge of world.bridges ?? []) {
       const view = createBridgeView(bridge, this.textures);
@@ -307,7 +319,10 @@ export class PixiRenderer implements IRenderer {
     if (!this.paused) this.visualTime += dt;
     this.water.update(dt, this.paused, rect, snapshot.world);
 
+    this.nestView.update(snapshot, this.actors, this.textures, this.visualTime);
     this.renderEntities(snapshot, alpha, dt, player, fx, effects);
+    this.encounterView.update(snapshot, this.visualTime, this.app.screen.width, this.app.screen.height, this.interactBinding(), this.language);
+    this.encounterView.hud.visible = this.hudVisible;
 
     for (const n of this.damageNumbers) { if (!this.paused) { n.remaining -= dt; n.text.y -= dt * 0.025; } n.text.alpha = Math.min(1, n.remaining / 250); }
     this.damageNumbers = this.damageNumbers.filter(n => { if (n.remaining > 0) return true; n.text.destroy(); return false; });
@@ -330,7 +345,7 @@ export class PixiRenderer implements IRenderer {
 
     this.performanceText.visible = this.performanceEnabled; this.performanceText.text = `${dt > 0 ? Math.round(1000 / dt) : 0} FPS | ${this.visibleChunks}/${this.chunks.size} chunks`; this.performanceText.position.set(20, this.app.screen.height - 24);
     const screenScale = this.hudScale * Math.max(1, Math.min(2, this.app.screen.height / 1080));
-    this.minimap.visible = this.hudVisible && this.minimap.currentMode !== 'hidden'; this.minimap.layout(this.app.screen.width, this.app.screen.height, screenScale); this.minimap.setView(rect); this.minimap.update(snapshot);
+    this.minimap.visible = this.hudVisible && this.minimap.currentMode !== 'hidden' && !(snapshot.encounters?.boss && this.app.screen.width < 650); this.minimap.layout(this.app.screen.width, this.app.screen.height, screenScale); this.minimap.setView(rect); this.minimap.update(snapshot);
     if (this.hud) { this.hud.layout(this.app.screen.width, this.app.screen.height, screenScale, readSafeAreaInsets(), this.minimap.visible && this.minimap.currentMode === 'radar' ? this.minimap.getBounds() : null); this.hud.visible = this.hudVisible; if (this.hudData) this.hud.update(this.hudData.stats, this.hudData.inventory, this.language); }
     if (this.debugOverlay.getFlags().enabled) {
       this.debugOverlay.update({
@@ -377,7 +392,8 @@ export class PixiRenderer implements IRenderer {
   }
 
   private renderEntities(snapshot: RenderSnapshot, alpha: number, dt: number, player: RenderEntityView | undefined, fx: EffectTextures, effects: EffectsLayer): void {
-    this.waterMask.clear(); this.waterRipple.clear(); effects.ground.clear();
+    this.waterMask.clear(); this.waterRipple.clear(); this.waterFxMask.clear(); effects.ground.clear();
+    this.wading = null;
     this.animator.beginFrame();
     const alive = new Set<string>(); this.renderedEntities = snapshot.entities.length; this.placeholderSprites = 0;
     let entering = false;
@@ -391,7 +407,7 @@ export class PixiRenderer implements IRenderer {
       let visual = this.entities.get(e.id);
       const isNew = !visual;
       if (!visual) {
-        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false, shadow: null, lastAnim: e.anim, lastAnimTimeMs: e.animTimeMs, swings: 0, lastSwingAt: -Infinity };
+        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false, quietRemoval: false, shadow: null, lastAnim: e.anim, lastAnimTimeMs: e.animTimeMs, swings: 0, lastSwingAt: -Infinity };
         if (e.kind !== 'projectile') {
           visual.shadow = new Sprite(fx.glow);
           visual.shadow.anchor.set(0.5);
@@ -402,7 +418,8 @@ export class PixiRenderer implements IRenderer {
       }
       const sprite = visual.sprite;
       visual.kind = e.kind; visual.spriteKey = spriteKey;
-      const anim = this.animator.resolve(spriteKey === e.spriteKey ? e : { ...e, spriteKey }, this.paused ? 0 : dt);
+      visual.quietRemoval = e.quietRemoval === true;
+      const anim = this.animator.resolve(e.nestEmergence ? { ...e, spriteKey, anim: 'walk', moving: true, animTimeMs: e.nestEmergence.progress * 800 } : spriteKey === e.spriteKey ? e : { ...e, spriteKey }, this.paused ? 0 : dt);
       const f = resolveSpriteFrame(anim);
       const holdFrame = this.impactHoldMs > 0 && !isNew && (e.kind === 'player' || e.kind === 'enemy');
       if (!holdFrame) {
@@ -426,6 +443,12 @@ export class PixiRenderer implements IRenderer {
       sprite.anchor.set(f.anchorX, f.anchorY); sprite.scale.set(sx, sy);
       sprite.position.set(x, y);
       sprite.zIndex = y + e.lift * TILE; sprite.alpha = e.alpha;
+      if (e.kind === 'enemy') this.nestView.apply(e, sprite);
+      if (e.formation !== undefined) {
+        const progress = Math.max(1 / 16, Math.round(e.formation * 16) / 16);
+        const growth = e.spriteKey === 'ghost' ? 0.5 + progress * 0.5 : progress;
+        sprite.scale.y *= growth; sprite.y += 10 * (1 - growth);
+      }
       if (e.dead) {
         // Death shown by the simulation: fade and shrink over its death window.
         const t = Math.min(1, anim.animTimeMs / DEATH_FADE_MS);
@@ -456,7 +479,7 @@ export class PixiRenderer implements IRenderer {
         const w = Math.max(14, Math.min(46, Math.abs(sprite.width) * 0.7)) * (1 - Math.min(0.5, e.lift * 0.3));
         visual.shadow.position.set(x, groundY);
         visual.shadow.scale.set(w / 64, (w * 0.34) / 64);
-        visual.shadow.alpha = 0.42 * sprite.alpha;
+        visual.shadow.alpha = e.nestEmergence ? 0 : 0.42 * sprite.alpha;
       }
 
       // Sword slash when a swing starts (also on a re-swing mid-combo).
@@ -472,15 +495,20 @@ export class PixiRenderer implements IRenderer {
 
       if (e.kind === 'player') {
         if (e.submerged) {
+          const pose = wadingPose(x, y);
+          this.wading = pose;
+          sprite.y = pose.spriteY;
           const height = Math.abs(sprite.height);
           const top = sprite.y - f.anchorY * height;
-          const cut = Math.round(top + height * 0.65);
+          const cut = Math.round(pose.waterlineY);
           this.waterMask.rect(sprite.x - 100, top - 5, 200, cut - top + 5).fill(0xffffff);
           sprite.mask = this.waterMask;
+          for (const b of nearbyWaterBounds(snapshot.world, x, pose.waterlineY))
+            this.waterFxMask.rect(b.minX * TILE, b.minY * TILE, (b.maxX - b.minX) * TILE, (b.maxY - b.minY) * TILE).fill(0xffffff);
           this.drawWading(Math.round(sprite.x), cut, Math.max(6, Math.round(Math.abs(sprite.width) * 0.26)), e.x - e.prevX, e.y - e.prevY);
           // The ground shadow would show through the water as a dark blob.
           if (visual.shadow) visual.shadow.alpha = 0;
-          this.waterRipple.zIndex = sprite.y + 1;
+          this.waterRipple.zIndex = y + 1;
         } else sprite.mask = null;
       }
     }
@@ -489,7 +517,7 @@ export class PixiRenderer implements IRenderer {
     for (const [id, visual] of this.entities) {
       if (alive.has(id)) continue;
       const s = visual.sprite;
-      if (!this.paused && !s.destroyed) {
+      if (!this.paused && !s.destroyed && !visual.quietRemoval) {
         if (visual.kind === 'enemy' && visual.diedInView) effects.burst(s.x, s.y - 10, 0xd9d2c4, 7, s.zIndex + 1, 0.05);
         else if (visual.kind === 'enemy') effects.spawnDeath(s.texture, s.x, s.y, s.anchor.x, s.anchor.y, s.scale.x, s.scale.y, s.zIndex);
         else if (visual.kind === 'pickup') effects.burst(s.x, s.y, visual.spriteKey === 'coin' ? 0xffd84a : 0xf0f0ff, 8, s.zIndex + 1);
@@ -516,7 +544,7 @@ export class PixiRenderer implements IRenderer {
     if (state === 'open' || state === 'transitioning') label = translate(this.language, 'PORTAL OPEN');
     else {
       const coins = snapshot.entities.filter(item => item.spriteKey === 'coin').length;
-      const enemies = snapshot.entities.filter(item => item.kind === 'enemy' && item.spriteKey !== 'ghost').length;
+      const enemies = snapshot.entities.filter(item => item.kind === 'enemy' && item.spriteKey !== 'ghost').length + (snapshot.encounters?.pendingBosses ?? 0);
       const progress = `${coins} ${translate(this.language, 'Coins')} • ${enemies} ${translate(this.language, 'foes')}`;
       label = state === 'reacting' ? `${translate(this.language, 'Portal sealed')}\n${progress}` : progress;
     }
@@ -560,6 +588,7 @@ export class PixiRenderer implements IRenderer {
   /** Debug-only counters for visual regression tests. */
   getVisualDebugInfo(): VisualDebugInfo {
     return {
+      wading: this.wading,
       hud: this.hud?.getLayoutDebug() ?? null,
       placeholderSprites: this.placeholderSprites,
       portalStates: [...this.portals.values()].map(p => p.machine.state),

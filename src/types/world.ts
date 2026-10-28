@@ -1,7 +1,8 @@
 import type { EnemyType, PickupType } from './entities';
+import type { EncounterSite } from './encounters';
 
 /** Bump whenever generator output for a given seed changes. Stored in saves. */
-export const WORLD_GENERATOR_VERSION = 7;
+export const WORLD_GENERATOR_VERSION = 8;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -78,6 +79,7 @@ export interface PickupSpawn {
  * `world:tileChanged` so renderers can rebuild only the affected chunk.
  */
 export interface WorldData {
+  readonly encounterSites?: readonly EncounterSite[];
   readonly meta: WorldMeta;
   readonly tiles: Uint8Array;
   readonly props: readonly WorldProp[];

@@ -1,3 +1,4 @@
+import { surfaceAt } from '../systems/SurfaceState';
 import { Tile, TILE_PROPERTIES, isTileId } from '../types/tiles';
 import type { TileId, TileProperties } from '../types/tiles';
 import type { WorldData } from '../types/world';
@@ -56,6 +57,5 @@ export function isWalkableForMobs(grid: TileGrid, x: number, y: number): boolean
 
 /** Speed factor for the tile under a continuous position (tile units). */
 export function speedMultiplierAt(grid: TileGrid, x: number, y: number): number {
-  if (onBridgeDeck(grid, x, y)) return 1;
-  return tileProperties(getTile(grid, Math.floor(x), Math.floor(y))).speedMultiplier;
+  return surfaceAt(grid, x, y).speedMultiplier;
 }

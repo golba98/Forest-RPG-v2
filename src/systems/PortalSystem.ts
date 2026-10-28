@@ -7,8 +7,8 @@ export const PORTAL_RULES = {
   entryRadius: 0.8,
   reactionMs: 600,
 } as const;
-export function roundStatus(entities: readonly Entity[], complete = false): RoundStatus {
-  let enemiesRemaining = 0,
+export function roundStatus(entities: readonly Entity[], complete = false, pendingBosses = 0): RoundStatus {
+  let enemiesRemaining = pendingBosses,
     coinsRemaining = 0;
   for (const e of entities)
     if (e.alive) {
@@ -43,10 +43,10 @@ export class PortalSystem {
     if (previous !== state)
       this.changed?.({ portalId: portal.id, previous, state, round: this.getStatus() });
   }
-  step(p: PlayerEntity, entities: readonly Entity[], dt: number): void {
+  step(p: PlayerEntity, entities: readonly Entity[], dt: number, pendingBosses = 0): void {
     const portal = entities.find((e): e is PortalEntity => e.kind === 'portal');
     if (!portal) return;
-    this.status = roundStatus(entities, this.complete);
+    this.status = roundStatus(entities, this.complete, pendingBosses);
     if (!this.complete && this.status.complete) {
       this.complete = true;
       this.completed?.(this.getStatus());
@@ -80,10 +80,10 @@ export class PortalSystem {
     this.set(portal, 'transitioning');
     return true;
   }
-  restore(entities: readonly Entity[]): void {
+  restore(entities: readonly Entity[], pendingBosses = 0): void {
     const portal = entities.find((e): e is PortalEntity => e.kind === 'portal');
     if (!portal) return;
-    this.status = roundStatus(entities, portal.roundComplete === true);
+    this.status = roundStatus(entities, portal.roundComplete === true, pendingBosses);
     this.complete = this.status.complete;
     this.armed = true;
     this.reaction = 0;

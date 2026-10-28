@@ -1,7 +1,10 @@
+import type { Bounds } from '../../types/gameplay';
+import { intersectsReservations } from '../EncounterPlacement';
 import { GAME_CONFIG } from '../../config/GameConfig';
 import { Tile } from '../../types/tiles';
 import type { TilePoint, WorldBridge } from '../../types/world';
 import { bridgeGeometry } from '../BridgeGeometry';
+import { isRaisedSurface } from '../ElevationTopology';
 import type { Rng } from '../Rng';
 import type { GenGrid } from './GenGrid';
 
@@ -19,7 +22,7 @@ function isBank(tile: number): boolean {
 }
 
 /** Check the whole structure and its broad, level landings, not just a centreline. */
-export function validBridgeTerrain(grid: GenGrid, bridge: WorldBridge): boolean {
+export function validBridgeTerrain(grid: GenGrid, bridge: WorldBridge, allowRaisedBanks = false): boolean {
   const g = bridgeGeometry(bridge);
   if (
     [g.footprint, ...g.approaches].some(
@@ -30,7 +33,7 @@ export function validBridgeTerrain(grid: GenGrid, bridge: WorldBridge): boolean 
   for (const a of g.approaches)
     for (let y = a.minY; y < a.maxY; y++)
       for (let x = a.minX; x < a.maxX; x++)
-        if (!grid.inBounds(x, y) || !isBank(grid.get(x, y))) return false;
+        if (!grid.inBounds(x, y) || !(isBank(grid.get(x, y)) || (allowRaisedBanks && isRaisedSurface(grid.get(x, y))))) return false;
   const horizontal = bridge.orientation === 'horizontal';
   for (let a = 1; a <= bridge.span; a++)
     for (let b = 0; b < 2; b++) {
@@ -143,7 +146,7 @@ function distance(a: WorldBridge, b: WorldBridge): number {
 }
 
 /** Deterministic structures over unchanged terrain, selected before props can obstruct them. */
-export function placeBridges(grid: GenGrid, spawn: TilePoint, rng: Rng): WorldBridge[] {
+export function placeBridges(grid: GenGrid, spawn: TilePoint, rng: Rng, reservations: readonly Bounds[] = []): WorldBridge[] {
   const rules = GAME_CONFIG.world.bridges;
   const candidates: Array<{ bridge: WorldBridge; jitter: number }> = [];
   for (let y = 1; y < grid.height - 1; y++)
@@ -159,7 +162,7 @@ export function placeBridges(grid: GenGrid, spawn: TilePoint, rng: Rng): WorldBr
             span,
             variant: rng.nextInt(0, 3),
           };
-          if (validBridgeTerrain(grid, bridge))
+          if (validBridgeTerrain(grid, bridge) && ![bridgeGeometry(bridge).footprint, ...bridgeGeometry(bridge).approaches].some((b) => intersectsReservations(b, reservations)))
             candidates.push({ bridge, jitter: rng.nextFloat() });
         }
       }

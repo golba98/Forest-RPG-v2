@@ -7,9 +7,10 @@ export interface IntentInputSource {
   isActionJustPressed(action: InputAction): boolean;
 }
 
-type EdgeAction = 'attack' | 'skillQ' | 'skillE' | 'jump' | 'dash' | 'potionHealth' | 'potionSpeed';
+type EdgeAction = 'attack' | 'interact' | 'skillQ' | 'skillE' | 'jump' | 'dash' | 'potionHealth' | 'potionSpeed';
 
 const EDGE_ACTIONS: ReadonlyArray<readonly [EdgeAction, InputAction]> = [
+  ['interact', 'interact'],
   ['attack', 'attack'],
   ['skillQ', 'skillQ'],
   ['skillE', 'skillE'],
@@ -55,6 +56,7 @@ export class IntentMapper {
       moveY: axis(input.isActionActive('moveDown'), input.isActionActive('moveUp')),
       sprint: input.isActionActive('sprint'),
       attack: this.pending.has('attack'),
+      interact: this.pending.has('interact'),
       skillQ: this.pending.has('skillQ'),
       skillE: this.pending.has('skillE'),
       jump: this.pending.has('jump'),

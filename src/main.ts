@@ -34,6 +34,12 @@ const settings = new SettingsStore(localStorage);
 const synth = new SoundSynthesizer();
 const music = new MusicPlayer();
 const bus = new EventBus();
+simulation.onEncounterCue = (kind) => {
+  if (kind === 'nestWarning') synth.playNestWarning();
+  else if (kind === 'ghostForm') synth.playGhostForm();
+  else synth.playEnemySplat();
+};
+renderer.interactBinding = () => String(input.getKeybinds().interact[0] ?? 'Unbound').replace(/^Key/, '');
 registerAudioEvents(bus, synth, music);
 simulation.onCut = (x, y, propId) => {
   if (propId === undefined) renderer.invalidateTile(x, y);

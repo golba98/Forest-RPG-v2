@@ -1,3 +1,4 @@
+import { roundStatus } from '../../../src/systems/PortalSystem';
 import { expect, it } from 'vitest';
 import { Simulation } from '../../../src/simulation/Simulation';
 import { IDLE_INTENT } from '../../../src/types/entities';
@@ -48,7 +49,8 @@ it('requires both objectives, unlocks once nearby or far away, and latches', () 
     expect(portal(s).active).toBe(false);
     complete(s);
     expect(portal(s).portalState).toBe('open');
-    s.spawnEnemy('ghost', 2.5, 2.5);
+    const former = s.getEntities().find((e) => e.kind === 'enemy')!;
+    expect(roundStatus([{ ...former, enemyType: 'ghost', alive: true }]).enemiesRemaining).toBe(0);
     s.spawnEnemy('mantis', 2.5, 2.5);
     for (let i = 0; i < 10; i++) s.step(1 / 60, { ...IDLE_INTENT });
     expect(portal(s).portalState).toBe('open');

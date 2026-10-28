@@ -69,10 +69,12 @@ describe('Game lifecycle', () => {
     simulation.player.stats.xp = 12;
     simulation.player.stats.coins = 20;
     simulation.player.inventory.healthPotions = 2;
+    simulation.player.hauntedIntroComplete = true;
     game.advanceLevel();
     expect(worlds.generated[1]?.level).toBe(2);
     expect(simulation.player.stats).toMatchObject({ health: 3, level: 4, xp: 12, coins: 0 });
     expect(simulation.player.inventory.healthPotions).toBe(2);
+    expect(simulation.player.hauntedIntroComplete).toBe(true);
   });
 
   it('pauses and resumes; no simulation while paused; input disabled while paused', () => {

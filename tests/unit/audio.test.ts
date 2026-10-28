@@ -72,8 +72,10 @@ describe('SoundSynthesizer Headless Tests', () => {
     expect(synth.isMuted).toBe(false);
   });
 
-  it('executes all 10 retro sound synthesis functions safely in headless mode', () => {
+  it('executes retro combat and encounter sounds safely in headless mode', () => {
     const soundMethods: Array<{ name: SoundEffectType; fn: () => void }> = [
+      { name: 'nestWarning', fn: () => synth.playNestWarning() },
+      { name: 'ghostForm', fn: () => synth.playGhostForm() },
       { name: 'swordSwing', fn: () => synth.playSwordSwing() },
       { name: 'enemyHit', fn: () => synth.playEnemyHit() },
       { name: 'playerHurt', fn: () => synth.playPlayerHurt() },

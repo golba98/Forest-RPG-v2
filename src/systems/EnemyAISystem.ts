@@ -84,7 +84,7 @@ export class EnemyAISystem {
       let b = this.brains.get(e.id);
       if (!b) {
         b = {
-          home: { x: e.x, y: e.y },
+          home: e.encounterHome ?? { x: e.x, y: e.y },
           target: null,
           memory: 0,
           replan: 0,
@@ -104,6 +104,16 @@ export class EnemyAISystem {
         this.brains.set(e.id, b);
       }
       b.replan -= dt * 1000;
+      if (e.returningToNest && e.encounterHome) {
+        b.windup = b.lunge = b.recovery = 0; b.phase = 'none'; b.home = e.encounterHome;
+        this.setState(e, 'return', 'walk');
+        this.navigate(world, e, b, b.home, dt, 2.6, 'groundEnemy');
+        continue;
+      }
+      if (e.combatReady === false) {
+        b.windup = b.lunge = b.recovery = 0; b.phase = 'none';
+        this.setState(e, 'idle', 'idle'); continue;
+      }
       if (!e.aggressive) {
         this.setState(e, 'idle', 'idle');
         continue;
@@ -367,7 +377,7 @@ export class EnemyAISystem {
         buckets.set(key, list);
       }
     for (const e of enemies)
-      if (e.alive && e.aggressive && e.aiState !== 'attack') {
+      if (e.alive && e.combatReady !== false && e.aggressive && e.aiState !== 'attack') {
         let sx = 0,
           sy = 0;
         for (let oy = -1; oy <= 1; oy++)

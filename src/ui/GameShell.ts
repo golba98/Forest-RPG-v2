@@ -163,7 +163,7 @@ export class GameShell implements Shell {
     select(access, 'Color mode', COLOR_MODES.map(mode => [mode, mode]), this.settings.value.colorMode, v => { if (COLOR_MODES.some(mode => mode === v)) this.settings.value.colorMode = v as ColorMode; });
     select(access, 'UI scale', [['0.8','Compact'],['1','Default'],['1.2','Large']], String(this.settings.value.uiScale), v => this.settings.value.uiScale = Number(v));
     const controls = group('Controls');
-    const actions: Array<[InputAction, string]> = [['moveUp','Move up'],['moveDown','Move down'],['moveLeft','Move left'],['moveRight','Move right'],['sprint','Sprint'],['jump','Jump'],['dash','Dash'],['attack','Attack'],['skillQ','Spin'],['skillE','Magic bolt'],['potionHealth','Health potion'],['potionSpeed','Speed potion'],['pause','Pause']];
+    const actions: Array<[InputAction, string]> = [['moveUp','Move up'],['moveDown','Move down'],['moveLeft','Move left'],['moveRight','Move right'],['sprint','Sprint'],['jump','Jump'],['dash','Dash'],['attack','Attack'],['interact','Interact'],['skillQ','Spin'],['skillE','Magic bolt'],['potionHealth','Health potion'],['potionSpeed','Speed potion'],['pause','Pause']];
     for (const [action, name] of actions) {
       const label = this.settingRow(controls, name);
       const key = document.createElement('button'); key.className = 'key-binding'; key.textContent = String(this.input?.getKeybinds()[action]?.[0] ?? 'Unbound');

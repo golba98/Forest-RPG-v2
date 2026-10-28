@@ -10,6 +10,16 @@ describe('IntentMapper', () => {
     input = new InputManager();
     mapper = new IntentMapper();
   });
+  it('latches G interaction once and respects remapping without consuming attack', () => {
+    input.simulateKeyDown('KeyG');
+    expect(mapper.nextIntent(input).interact).toBe(true);
+    expect(mapper.nextIntent(input).interact).toBe(false);
+    input.simulateKeyUp('KeyG'); input.clearFrameState(); mapper.endFrame();
+    input.setKeybinds({ interact: ['KeyT'] });
+    input.simulateKeyDown('KeyT'); input.simulateKeyDown('KeyE');
+    const intent = mapper.nextIntent(input);
+    expect(intent.interact).toBe(true); expect(intent.attack).toBe(true);
+  });
 
   it('maps held movement keys to raw axes', () => {
     input.simulateKeyDown('KeyD');

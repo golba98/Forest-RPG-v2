@@ -105,6 +105,7 @@ export function rendererExtraAssets(): CatalogAsset[] {
     assets.push({ alias: decorAlias(kind), src: `assets/images/objects/decor/${kind}.png` });
   }
   for (let i = 1; i <= 4; i++) assets.push({ alias: `cloud_${i}`, src: `assets/images/objects/clouds/cloud_${i}.png` });
+  for (const layer of ['body', 'front', 'ground', 'cleared']) assets.push({ alias: `nest_${layer}`, src: `assets/images/objects/nest/nest_${layer}.png` });
   assets.push({ alias: HILL_ATLAS_ALIAS, src: HILL_ATLAS_SRC });
   return assets;
 }

@@ -65,6 +65,8 @@ export interface PlayerInventory {
 }
 
 export interface PlayerEntity extends EntityBase {
+  /** First haunted encounter completed or escaped, carried across levels. */
+  hauntedIntroComplete?: boolean;
   readonly kind: 'player';
   vx: number;
   vy: number;
@@ -85,6 +87,12 @@ export interface PlayerEntity extends EntityBase {
 }
 
 export interface EnemyEntity extends EntityBase {
+  encounterId?: string;
+  /** Derived by EncounterDirector; never trusted when restoring a save. */
+  combatReady?: boolean;
+  encounterHome?: { x: number; y: number };
+  returningToNest?: boolean;
+  despawnMs?: number;
   readonly kind: 'enemy';
   readonly enemyType: EnemyType;
   health: number;
@@ -131,6 +139,7 @@ export type Entity = PlayerEntity | EnemyEntity | ProjectileEntity | PickupEntit
  * on the step the key was pressed.
  */
 export interface PlayerIntent {
+  interact?: boolean;
   moveX: number;
   moveY: number;
   sprint: boolean;
@@ -144,6 +153,7 @@ export interface PlayerIntent {
 }
 
 export const IDLE_INTENT: Readonly<PlayerIntent> = Object.freeze({
+  interact: false,
   moveX: 0,
   moveY: 0,
   sprint: false,

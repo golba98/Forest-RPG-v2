@@ -15,7 +15,6 @@ export const GAME_CONFIG = {
     tutorialHeight: 20,
     coinsPerLevel: 20,
     enemiesByDifficulty: { easy: 6, normal: 12, hard: 24 },
-    ghostsByDifficulty: { easy: 2, normal: 4, hard: 8 },
     bridges: {
       minSpan: 1,
       maxSpan: 6,
@@ -29,7 +28,7 @@ export const GAME_CONFIG = {
 
   dayNight: {
     cycleSec: 480,
-    /** Ghosts and night visuals: timeOfDay < nightEnd || timeOfDay >= nightStart. */
+    /** New haunted encounters and night visuals: timeOfDay < nightEnd || timeOfDay >= nightStart. */
     nightStart: 0.9,
     nightEnd: 0.2,
     torchRadiusDayPx: 520,

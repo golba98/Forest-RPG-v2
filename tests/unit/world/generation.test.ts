@@ -14,7 +14,8 @@ describe('world generation', () => {
     expect(a).toEqual(generateWorld(options));
     expect(a.tiles).not.toEqual(generateWorld({ ...options, seed: 456 }).tiles);
     expect(a.enemySpawns.filter(e => e.type !== 'beetle')).toHaveLength(12);
-    expect(a.enemySpawns.filter(e => e.type === 'beetle')).toHaveLength(1);
+    expect(a.enemySpawns.filter(e => e.type === 'beetle' || e.type === 'ghost')).toHaveLength(0);
+    expect(a.encounterSites?.filter(s => s.kind === 'nest')).toHaveLength(1);
     for (let n = 0; n < 150; n++) {
       expect(a.tiles[n]).toBe(Tile.BORDER);
       expect(a.tiles[149 * 150 + n]).toBe(Tile.BORDER);

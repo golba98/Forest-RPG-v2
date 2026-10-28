@@ -34,11 +34,12 @@ export default defineConfig({
         '--enable-gpu-rasterization',
         '--no-sandbox',
         '--disable-setuid-sandbox',
+        '--mute-audio',
       ],
     },
   },
   projects: [
-    { name: 'firefox', use: { ...devices['Desktop Firefox'], launchOptions: { args: [] } } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'], launchOptions: { args: [], firefoxUserPrefs: { 'media.volume_scale': '0.0' } } } },
     {
       name: 'chromium',
       use: {

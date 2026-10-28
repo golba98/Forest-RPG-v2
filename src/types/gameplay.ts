@@ -19,7 +19,7 @@ export interface Collider extends Bounds {
   readonly ownerId: string;
   readonly shape: 'aabb';
   readonly classification: 'solid' | 'trigger';
-  readonly source: 'terrain' | 'object' | 'boundary' | 'portal' | 'cliff' | 'bridge';
+  readonly source: 'terrain' | 'object' | 'boundary' | 'portal' | 'cliff' | 'bridge' | 'nest';
 }
 export interface RoundStatus {
   readonly complete: boolean;
@@ -54,6 +54,7 @@ export interface NavigationDebug {
   readonly unreachable: boolean;
 }
 export interface GameplayDebug {
+  readonly encounters?: { readonly sites: readonly import('./encounters').EncounterSite[] } & import('./encounters').EncounterState;
   readonly seed: number;
   readonly playerFootprint: Bounds;
   readonly tile: TilePoint;

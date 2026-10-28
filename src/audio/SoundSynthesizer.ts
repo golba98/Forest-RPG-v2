@@ -20,6 +20,8 @@ export class SoundSynthesizer implements ISoundSynthesizer {
    * Diagnostic telemetry counters for test assertion in headless / test environments.
    */
   public readonly callCounts: Record<SoundEffectType, number> = {
+    nestWarning: 0,
+    ghostForm: 0,
     swordSwing: 0,
     enemyHit: 0,
     playerHurt: 0,
@@ -202,6 +204,33 @@ export class SoundSynthesizer implements ISoundSynthesizer {
   /**
    * SFX 1: Sword Swing — Bandpass noise sweep 2200Hz -> 400Hz over 80ms.
    */
+  public playNestWarning(): void {
+    this.callCounts.nestWarning++;
+    const ready = this.getReadyContext();
+    if (!ready) return;
+    const { ctx, sfxGain } = ready, t = ctx.currentTime;
+    const source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
+    source.buffer = this.getSharedNoiseBuffer(ctx); filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(180, t); filter.frequency.exponentialRampToValueAtTime(45, t + 1.8);
+    gain.gain.setValueAtTime(0.0001, t); gain.gain.linearRampToValueAtTime(0.3, t + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+    source.connect(filter); filter.connect(gain); gain.connect(sfxGain);
+    source.start(t); source.stop(t + 1.81);
+    source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
+  }
+  public playGhostForm(): void {
+    this.callCounts.ghostForm++;
+    const ready = this.getReadyContext();
+    if (!ready) return;
+    const { ctx, sfxGain } = ready, t = ctx.currentTime;
+    const source = ctx.createOscillator(), gain = ctx.createGain();
+    source.type = 'sine'; source.frequency.setValueAtTime(260, t);
+    source.frequency.exponentialRampToValueAtTime(780, t + 0.85);
+    gain.gain.setValueAtTime(0.0001, t); gain.gain.linearRampToValueAtTime(0.09, t + 0.35);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1);
+    source.connect(gain); gain.connect(sfxGain); source.start(t); source.stop(t + 1.01);
+    source.onended = () => { source.disconnect(); gain.disconnect(); };
+  }
   public playSwordSwing(): void {
     this.callCounts.swordSwing++;
     const ready = this.getReadyContext();

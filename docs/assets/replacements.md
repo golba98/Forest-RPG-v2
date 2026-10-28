@@ -11,3 +11,11 @@
 - **`rock_boulder.png`** has binary alpha. The green tufts at its base are painted art, not a background left over from bad transparency.
 - **`objects/clouds/cloud_{1..4}.png`** are kept. They render as soft-focus sky clouds with ground shadows.
 - **The coin spin (`coin_anim.png`)** is a legitimate yellow element and is unchanged.
+
+## Woodland boss nest (2026-10-29)
+
+`public/assets/images/objects/nest/nest_{body,front,ground,cleared}.png` are purpose-made PNG assets generated using the built-in image-generation tool, then pixel-prepared with `node scripts/prepare-nest-assets.mjs`. No new third-party artwork was downloaded; no third-party attribution/licence applies to these additions. The existing bug sprite sheets are unchanged.
+
+The original generated transparent image is retained at `docs/assets/source/bug-nest-generated.png`. Production layers use aligned 96×80 native pixels, binary alpha, 32-colour palettes and nearest sampling. Mouth sprite anchor: (48,52), rendered 10 pixels above the logical enemy anchor to account for the unchanged beetle sheet's transparent lower padding. Ground roots/litter are below actors; the stump and front rim sort among actors. Cleared art adds subdued green growth. The stump now has a player-only stepped base collider covering the trunk, hollow and substantial roots. Enemy traversal and emergence remain unchanged; upper projections and transparent padding are excluded.
+
+Generation brief: single isolated low decaying woodland stump insect dwelling on true transparency; top-down three-quarter RPG perspective; broken bark, dark hollow entrance facing viewer, exposed roots, olive moss, sparse ochre leaf litter; warm upper-left lighting and navy-brown shadows; crisp 1–2 pixel clusters and earthy palette; designed for a 96×80 native sprite, broad opening for the existing 45-pixel-wide beetle; no bugs, text, blur, gradients, ground rectangle or scenery.

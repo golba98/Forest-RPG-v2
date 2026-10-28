@@ -35,8 +35,10 @@ async function fixture(page: Page, combat = false): Promise<void> {
         }
       for (let x = 1; x < 23; x++) tiles[15 * 24 + x] = 11;
       tiles[15 * 24 + 5] = 7;
+      delete data.runtime.encounters;
       data.world = {
         ...data.world,
+        encounterSites: [],
         meta: { ...data.world.meta, width: 24, height: 24, isTutorial: false, seed: 123 },
         tiles,
         bridges: [],
@@ -206,7 +208,8 @@ test('seed regeneration replaces collision diagnostics and preserves lower terra
     const state = await page.evaluate(() => window.__GAME__!.getState());
     expect(state.world.seed).toBe(seed);
     expect(await page.evaluate(() => window.__GAME__!.getGameplayDebug()!.seed)).toBe(seed);
-    expect(state.world.activeEnemiesCount).toBe(13);
+    expect(state.world.activeEnemiesCount).toBe(12);
+    expect(await page.evaluate(() => window.__GAME__!.getGameplayDebug()!.encounters!.bosses.filter(b => b.phase === 'dormant').length)).toBe(1);
     await page.evaluate(() => {
       window.__GAME__!.saveGame('seed');
       window.__GAME__!.loadGame('seed');
