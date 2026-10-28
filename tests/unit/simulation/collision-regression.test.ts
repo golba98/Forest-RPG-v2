@@ -1,3 +1,4 @@
+import { entityFootprint } from '../../../src/systems/EntityFootprint';
 import { describe, expect, it } from 'vitest';
 import { Simulation } from '../../../src/simulation/Simulation';
 import { IDLE_INTENT } from '../../../src/types/entities';
@@ -30,10 +31,14 @@ describe('authoritative collision', () => {
         s.setPlayerPosition(4.5 - dx * 1.2, 4.5 - dy * 1.2);
         for (let i = 0; i < fps; i++) {
           s.step(1 / fps, { ...IDLE_INTENT, moveX: dx, moveY: dy, sprint: true });
-          expect(canOccupy(world, s.player.x, s.player.y, 0.3)).toBe(true);
+          expect(canOccupy(world, s.player.x, s.player.y, entityFootprint(s.player))).toBe(true);
         }
-        expect(dx === 0 || Math.sign(s.player.x - 4.5) !== Math.sign(dx)).toBe(true);
-        expect(dy === 0 || Math.sign(s.player.y - 4.5) !== Math.sign(dy)).toBe(true);
+        // Rounded corners permit legitimate sliding around an isolated cell.
+        // Every intermediate footprint above must still remain outside solids.
+        if (!dx || !dy) {
+          expect(dx === 0 || Math.sign(s.player.x - 4.5) !== Math.sign(dx)).toBe(true);
+          expect(dy === 0 || Math.sign(s.player.y - 4.5) !== Math.sign(dy)).toBe(true);
+        }
       });
   it('lets a jump carry the player over a cliff edge onto the hill top', () => {
     const w = makeWorld();
@@ -48,7 +53,7 @@ describe('authoritative collision', () => {
     for (let i = 0; i < 40; i++) s.step(1 / 60, { ...IDLE_INTENT, moveX: 1 });
     expect(s.player.isJumping).toBe(false);
     expect(s.player.x).toBeGreaterThan(5.3);
-    expect(canOccupy(w, s.player.x, s.player.y, 0.3)).toBe(true);
+    expect(canOccupy(w, s.player.x, s.player.y, entityFootprint(s.player))).toBe(true);
   });
   it('treats hill tops and stairs as walkable ground', () => {
     const w = makeWorld();
@@ -63,7 +68,10 @@ describe('authoritative collision', () => {
     expect(canOccupy(w, 6.5, 2.5, 0.3, 'groundEnemy')).toBe(true);
   });
   it('stops a player walking south into a tree at the top of its canopy', () => {
-    const w = { ...makeWorld(), props: [{ id: 1, kind: 'tree' as const, tileX: 4, tileY: 5, solid: true }] };
+    const w = {
+      ...makeWorld(),
+      props: [{ id: 1, kind: 'tree' as const, tileX: 4, tileY: 5, solid: true }],
+    };
     const s = new Simulation();
     s.loadWorld(w);
     s.setPlayerPosition(4.5, 1.5);
@@ -79,7 +87,7 @@ describe('authoritative collision', () => {
     s.setPlayerPosition(4.7, 4.5);
     expect(canOccupy(w, 4.7, 4.5, 0.3)).toBe(true);
     for (let i = 0; i < 30; i++) s.step(1 / 60, { ...IDLE_INTENT, moveX: 1, moveY: -1 });
-    expect(s.player.x).toBeCloseTo(4.7);
+    expect(s.player.x).toBeCloseTo(4.78);
     expect(s.player.y).toBeLessThan(4.5);
   });
   it('prevents diagonal corner cutting and huge-delta tunnelling', () => {
@@ -90,9 +98,9 @@ describe('authoritative collision', () => {
     s.loadWorld(w);
     s.setPlayerPosition(3.5, 3.5);
     moveWithCollision(w, s.player, 100, 100);
-    expect(s.player.x).toBeCloseTo(3.7);
-    expect(s.player.y).toBeCloseTo(3.7);
-    expect(canOccupy(w, s.player.x, s.player.y, 0.3)).toBe(true);
+    expect(s.player.x).toBeCloseTo(3.78);
+    expect(s.player.y).toBeCloseTo(3.6875);
+    expect(canOccupy(w, s.player.x, s.player.y, entityFootprint(s.player))).toBe(true);
   });
   it('uses tree bodies and solid boulders independently of legacy decoration flags', () => {
     const w = {
@@ -112,7 +120,7 @@ describe('authoritative collision', () => {
       s.loadWorld(w);
       s.setPlayerPosition(5.5 - dx * 1.2, 3.7 - dy * 1.2);
       moveWithCollision(w, s.player, dx * 2, dy * 2);
-      expect(canOccupy(w, s.player.x, s.player.y, 0.3)).toBe(true);
+      expect(canOccupy(w, s.player.x, s.player.y, entityFootprint(s.player))).toBe(true);
     }
     w.props.splice(1, 1);
     invalidatePropIndex(w);
@@ -142,7 +150,7 @@ describe('authoritative collision', () => {
       results.push([s.player.x, s.player.y]);
     }
     for (const result of results) {
-      expect(result[0]).toBeCloseTo(4.7);
+      expect(result[0]).toBeCloseTo(4.78);
       expect(result[1]).toBeCloseTo(5.5);
     }
   });
@@ -170,7 +178,7 @@ it('keeps swept motion outside solids over seeded arbitrary angles and frame spi
         dy = (rng.nextFloat() - 0.5) * 16;
       moveWithCollision(w, s.player, dx, dy, profile);
       expect(
-        canOccupy(w, s.player.x, s.player.y, 0.3, profile),
+        canOccupy(w, s.player.x, s.player.y, entityFootprint(s.player), profile),
         `${profile} step ${i}: ${s.player.x},${s.player.y}, input ${dx},${dy}`,
       ).toBe(true);
     }

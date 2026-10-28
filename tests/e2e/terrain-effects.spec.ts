@@ -12,8 +12,10 @@ test('walking stops at a cliff edge, a jump climbs it, and water immersion displ
   await page.waitForFunction(() => !!window.__GAME__);
   const loaded = await page.evaluate(() => {
     const tiles = Array<number>(64).fill(1);
-    tiles[4 * 8 + 5] = 19;
-    tiles[4 * 8 + 6] = 21;
+    for (let y = 3; y <= 5; y++) {
+      tiles[y * 8 + 5] = 19;
+      tiles[y * 8 + 6] = 21;
+    }
     tiles[5 * 8 + 4] = 11;
     return window.__GAME__!.loadLegacySave({
       logicalW: 8,
@@ -32,7 +34,9 @@ test('walking stops at a cliff edge, a jump climbs it, and water immersion displ
   await page.keyboard.down('KeyD');
   await page.waitForTimeout(400);
   await page.keyboard.up('KeyD');
-  expect(await page.evaluate(() => window.__GAME__!.getState().player.x)).toBeLessThanOrEqual(4.71);
+  expect(await page.evaluate(() => window.__GAME__!.getState().player.x)).toBeLessThanOrEqual(
+    4.781,
+  );
   // Jumping carries the player over the edge onto the hill top (PLATEAU at x=6).
   await page.keyboard.down('KeyD');
   await page.keyboard.down('Space');

@@ -3,6 +3,12 @@ import type { TilePoint } from './world';
 
 export type PortalState = 'locked' | 'reacting' | 'open' | 'transitioning';
 export type TraversalProfile = 'player' | 'groundEnemy' | 'ghost' | 'jumping';
+export interface CollisionFootprint {
+  readonly halfWidth: number;
+  readonly halfHeight: number;
+  readonly offsetX: number;
+  readonly offsetY: number;
+}
 export interface Bounds {
   readonly minX: number;
   readonly minY: number;
@@ -13,7 +19,7 @@ export interface Collider extends Bounds {
   readonly ownerId: string;
   readonly shape: 'aabb';
   readonly classification: 'solid' | 'trigger';
-  readonly source: 'terrain' | 'object' | 'boundary' | 'portal';
+  readonly source: 'terrain' | 'object' | 'boundary' | 'portal' | 'cliff';
 }
 export interface RoundStatus {
   readonly complete: boolean;
@@ -30,6 +36,7 @@ export interface TerrainInfo {
   readonly tileId: TileId;
   readonly category: 'ground' | 'hill' | 'water' | 'solid' | 'crossing';
   readonly elevation: number;
+  /** Contains standing surface; clearance still comes from physical geometry. */
   readonly walkable: boolean;
   /** N,NE,E,SE,S,SW,W,NW bit order. */
   readonly hillNeighbors: number;
@@ -48,6 +55,7 @@ export interface NavigationDebug {
 }
 export interface GameplayDebug {
   readonly seed: number;
+  readonly playerFootprint: Bounds;
   readonly tile: TilePoint;
   readonly terrain: TerrainInfo;
   readonly colliders: readonly Collider[];

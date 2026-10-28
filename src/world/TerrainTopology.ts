@@ -1,3 +1,4 @@
+import { isRaisedSurface } from './HillCollisionGeometry';
 import { Tile, isHillTile, TILE_PROPERTIES, type TileId } from '../types/tiles';
 import type { TerrainInfo } from '../types/gameplay';
 import type { WorldData } from '../types/world';
@@ -58,7 +59,7 @@ export function describeTerrain(
             ? 'solid'
             : 'ground',
     elevation: hill ? 1 : 0,
-    walkable: !(TILE_PROPERTIES[tileId]?.solid ?? true),
+    walkable: isRaisedSurface(tileId) || !(TILE_PROPERTIES[tileId]?.solid ?? true),
     hillNeighbors,
     exposedEdges,
     convexCorners,

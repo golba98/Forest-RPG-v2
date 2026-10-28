@@ -1,3 +1,5 @@
+import { entityFootprint, resolveFootprint } from '../systems/EntityFootprint';
+import { isRaisedSurface } from '../world/HillCollisionGeometry';
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { TILE_PROPERTIES, type TileId } from '../types/tiles';
 import type { Entity } from '../types/entities';
@@ -21,6 +23,7 @@ export const DEFAULT_DEBUG_FLAGS: VisualDebugFlags = { enabled: false, colliders
 
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
+  readonly hud?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number; readonly scale: number; readonly heartCount: number; readonly visible: boolean } | null;
   readonly placeholderSprites: number;
   readonly portalStates: readonly string[];
   readonly portalViews: number;
@@ -137,7 +140,7 @@ export class DebugOverlay {
     if (this.flags.colliders) {
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
         const tile = world.tiles[y * width + x] as TileId;
-        if (TILE_PROPERTIES[tile]?.solid ?? true) g.rect(x * TILE, y * TILE, TILE, TILE);
+        if (!isRaisedSurface(tile) && (TILE_PROPERTIES[tile]?.solid ?? true)) g.rect(x * TILE, y * TILE, TILE, TILE);
       }
       g.fill({ color: 0xff3040, alpha: 0.22 });
       if (ctx.colliders) {
@@ -151,8 +154,8 @@ export class DebugOverlay {
       g.stroke({ width: 1.5, color: 0xff9a2e, alpha: 0.95 });
       for (const e of ctx.entities) {
         if (!e.alive) continue;
-        const h = e.halfSize * TILE;
-        g.rect(e.x * TILE - h, e.y * TILE - h, h * 2, h * 2);
+        const f = resolveFootprint(entityFootprint(e));
+        g.rect((e.x + f.offsetX - f.halfWidth) * TILE, (e.y + f.offsetY - f.halfHeight) * TILE, f.halfWidth * 2 * TILE, f.halfHeight * 2 * TILE);
         g.circle(e.x * TILE, e.y * TILE, 1.5);
       }
       g.stroke({ width: 1, color: 0x45f0ff, alpha: 0.95 });

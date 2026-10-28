@@ -35,7 +35,10 @@ describe('final terrain topology', () => {
       // cramped start island and wait well away from it.
       for (const e of w.enemySpawns)
         if (!ground[e.y * w.meta.width + e.x])
-          expect(Math.hypot(e.x - w.spawn.x, e.y - w.spawn.y), `ground route seed ${seed}`).toBeGreaterThanOrEqual(6);
+          expect(
+            Math.hypot(e.x - w.spawn.x, e.y - w.spawn.y),
+            `ground route seed ${seed}`,
+          ).toBeGreaterThanOrEqual(6);
       for (let y = 0; y < w.meta.height; y++)
         for (let x = 0; x < w.meta.width; x++) {
           const id = w.tiles[y * w.meta.width + x]!;
@@ -44,8 +47,8 @@ describe('final terrain topology', () => {
             throw Error(`disconnected seed ${seed}: ${x},${y}`);
           const t = describeTerrain(w, x, y);
           if (isHillTerrain(id)) {
-            // Edges are cliffs; hill tops and cut stairs are walkable ground.
-            expect(t.walkable).toBe(id === Tile.PLATEAU || id === Tile.STAIRS);
+            // Raised rim cells contain a walkable surface; face geometry bounds it.
+            expect(t.walkable).toBe(id !== Tile.CLIFF);
             const cardinal = [
               [0, -1],
               [1, 0],
