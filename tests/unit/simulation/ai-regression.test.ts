@@ -41,11 +41,11 @@ it('detects only visible ground targets and chases them', () => {
   expect(e.aiState).not.toBe('idle');
   expect(e.x).toBeLessThan(6.5);
 });
-it('routes around a hill after losing sight and never enters it', () => {
+it('routes around a cliff edge after losing sight and never enters it', () => {
   const s = setup(),
     e = enemy(s, 'mantis', 5.5, 4.5);
   step(s, 1);
-  s.world.tiles[4 * 20 + 4] = Tile.PLATEAU;
+  s.world.tiles[4 * 20 + 4] = Tile.HILL_N;
   s.setPlayerPosition(3.5, 4.5);
   let detoured = false;
   for (let i = 0; i < 120; i++) {

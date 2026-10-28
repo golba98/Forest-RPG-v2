@@ -1,7 +1,7 @@
 import { Tile } from '../types/tiles';
 import type { PropKind } from '../types/world';
 import { decorAlias } from './assetCatalog';
-import { HILL_ATLAS_ALIAS, NB, hillFrame, hillShadowEastFrame, hillShadowFrame, isElevatedTile, reduceMask, type AtlasRect } from './hillAutotile';
+import { HILL_ATLAS_ALIAS, NB, hillFrame, hillShadowEastFrame, hillShadowFrame, hillStairsFrame, isElevatedTile, reduceMask, type AtlasRect } from './hillAutotile';
 
 /**
  * Ground-only terrain descriptions. Trees and standing props are rendered
@@ -116,6 +116,7 @@ export function getTileArt(tileId: number, x: number, y: number, elevation = 0):
     const h = hashTile(x, y);
     const interior = reduceMask(elevation) === 255;
     const layers = [grass(), fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillFrame(elevation, h) }, interior ? toneTint(x, y, 0.14) : WHITE)];
+    if (tileId === Tile.STAIRS) layers.push(fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillStairsFrame(elevation) }));
     // Sparse decor on hill tops (visual only; the plateau is solid either way).
     if (interior && (h >>> 12) % 100 < 7) {
       const kind = PLATEAU_DECOR[(h >>> 4) % PLATEAU_DECOR.length] ?? 'rock_pebble';

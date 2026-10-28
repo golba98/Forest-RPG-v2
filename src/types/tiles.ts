@@ -26,6 +26,8 @@ export const Tile = {
   HILL_NW: 20,
   PLATEAU: 21,
   MUD: 22,
+  /** Stone steps cut into a hill edge: walkable link between ground and hill top. */
+  STAIRS: 23,
 } as const;
 
 export type TileId = (typeof Tile)[keyof typeof Tile];
@@ -48,10 +50,14 @@ export interface TileProperties {
   readonly speedMultiplier: number;
   /** Melee swings convert this tile to GRASS (with a loot roll). */
   readonly cuttable: boolean;
+  /** Solid to walking, but a jump carries the player over it (hill cliff edges). */
+  readonly jumpable: boolean;
 }
 
-const OPEN: TileProperties = { solid: false, blocksMobs: false, speedMultiplier: 1, cuttable: false };
-const WALL: TileProperties = { solid: true, blocksMobs: true, speedMultiplier: 1, cuttable: false };
+const OPEN: TileProperties = { solid: false, blocksMobs: false, speedMultiplier: 1, cuttable: false, jumpable: false };
+const WALL: TileProperties = { solid: true, blocksMobs: true, speedMultiplier: 1, cuttable: false, jumpable: false };
+/** Hill edges: walls when walking; jump up onto a hill or drop off it. */
+const CLIFF_EDGE: TileProperties = { ...WALL, jumpable: true };
 
 export const TILE_PROPERTIES: Readonly<Record<TileId, TileProperties>> = {
   [Tile.GRASS]: OPEN,
@@ -62,18 +68,20 @@ export const TILE_PROPERTIES: Readonly<Record<TileId, TileProperties>> = {
   [Tile.FLOWERS]: { ...OPEN, cuttable: true },
   [Tile.CAVE]: WALL,
   // Legacy RIVER_SPEED_MULTIPLIER 1.5 lengthened step time; as a speed factor that is 1/1.5.
-  [Tile.RIVER]: { solid: false, blocksMobs: true, speedMultiplier: 1 / 1.5, cuttable: false },
+  [Tile.RIVER]: { solid: false, blocksMobs: true, speedMultiplier: 1 / 1.5, cuttable: false, jumpable: false },
   [Tile.BORDER]: WALL,
-  [Tile.HILL_N]: WALL,
-  [Tile.HILL_NE]: WALL,
-  [Tile.HILL_E]: WALL,
-  [Tile.HILL_SE]: WALL,
-  [Tile.HILL_S]: WALL,
-  [Tile.HILL_SW]: WALL,
-  [Tile.HILL_W]: WALL,
-  [Tile.HILL_NW]: WALL,
-  [Tile.PLATEAU]: WALL,
+  [Tile.HILL_N]: CLIFF_EDGE,
+  [Tile.HILL_NE]: CLIFF_EDGE,
+  [Tile.HILL_E]: CLIFF_EDGE,
+  [Tile.HILL_SE]: CLIFF_EDGE,
+  [Tile.HILL_S]: CLIFF_EDGE,
+  [Tile.HILL_SW]: CLIFF_EDGE,
+  [Tile.HILL_W]: CLIFF_EDGE,
+  [Tile.HILL_NW]: CLIFF_EDGE,
+  // Hill tops are walkable ground, reached by STAIRS or by jumping a cliff edge.
+  [Tile.PLATEAU]: OPEN,
   [Tile.MUD]: { ...OPEN, speedMultiplier: 0.72 },
+  [Tile.STAIRS]: OPEN,
 };
 
 const TILE_IDS = new Set<number>(Object.values(Tile));

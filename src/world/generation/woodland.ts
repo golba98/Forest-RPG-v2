@@ -24,7 +24,7 @@ export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint): WorldP
   for (const p of rng.shuffle(candidates)) {
     let near = grid
       .neighbors8(p.x, p.y)
-      .some((n) => grid.get(n.x, n.y) === Tile.RAMP || grid.get(n.x, n.y) === Tile.LOG);
+      .some((n) => grid.get(n.x, n.y) === Tile.RAMP || grid.get(n.x, n.y) === Tile.LOG || grid.get(n.x, n.y) === Tile.STAIRS);
     for (let dy = -2; dy <= 2; dy++)
       for (let dx = -2; dx <= 2; dx++) {
         if (dx * dx + dy * dy < 5 && occupied.has((p.y + dy) * grid.width + p.x + dx)) near = true;

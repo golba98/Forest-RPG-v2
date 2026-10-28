@@ -4,7 +4,7 @@ import type { WorldData } from '../types/world';
 export type CollisionWorld = Pick<WorldData, 'tiles' | 'props'> & {
   readonly meta: Pick<WorldData['meta'], 'width' | 'height'>;
 };
-import { TILE_PROPERTIES, type TileId } from '../types/tiles';
+import { TILE_PROPERTIES, type TileId, type TileProperties } from '../types/tiles';
 import { propFootprint } from '../world/ObjectSemantics';
 
 export const CONTACT_EPSILON = 1e-9;
@@ -39,6 +39,12 @@ function indexedProps(world: CollisionWorld): Map<number, Collider[]> {
 }
 export function invalidatePropIndex(world: CollisionWorld): void {
   indexes.delete(world);
+}
+/** Whether terrain with these properties blocks an entity moving with `profile`. */
+function blocksTile(properties: TileProperties | undefined, profile: TraversalProfile): boolean {
+  if (!properties) return true;
+  if (properties.solid) return !(profile === 'jumping' && properties.jumpable);
+  return profile === 'groundEnemy' && properties.blocksMobs;
 }
 function overlaps(a: Bounds, b: Bounds): boolean {
   return (
@@ -91,7 +97,7 @@ export function queryColliders(
       x++
     ) {
       const properties = TILE_PROPERTIES[world.tiles[y * width + x] as TileId];
-      if (!properties || properties.solid || (profile === 'groundEnemy' && properties.blocksMobs))
+      if (blocksTile(properties, profile))
         colliders.push(make(`tile:${x},${y}`, 'terrain', x, y, x + 1, y + 1));
       for (const c of index.get(y * width + x) ?? []) {
         if (profile === 'jumping' && !c.ownerId.endsWith(':tree')) continue;
@@ -197,8 +203,7 @@ export function moveWithCollision(
       if (c.source === 'terrain') {
         const blocks = (x: number, y: number) => {
           if (x < 0 || y < 0 || x >= world.meta.width || y >= world.meta.height) return true;
-          const p = TILE_PROPERTIES[world.tiles[y * world.meta.width + x] as TileId];
-          return !p || p.solid || (profile === 'groundEnemy' && p.blocksMobs);
+          return blocksTile(TILE_PROPERTIES[world.tiles[y * world.meta.width + x] as TileId], profile);
         };
         if (hit.nx && blocks(c.minX - Math.sign(dx), c.minY)) hit.nx = false;
         if (hit.ny && blocks(c.minX, c.minY - Math.sign(dy))) hit.ny = false;

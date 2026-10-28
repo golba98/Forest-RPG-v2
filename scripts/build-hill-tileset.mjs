@@ -2,8 +2,9 @@
  * scripts/build-hill-tileset.mjs
  *
  * Generates the project-owned hill/cliff autotile atlas:
- *   public/assets/images/terrain/hills/cliff_tileset.png
- *   public/assets/images/terrain/hills/cliff_tileset.json
+ *   public/assets/images/terrain/hills/cliff_tileset.png   (served texture)
+ *   src/rendering/generated/cliff_tileset.json             (frame rects, bundled;
+ *     Vite's dev server refuses JS imports from public/)
  *
  * Pixel art is drawn procedurally (deterministic, no external art) using the
  * palette of the legacy hill rim (hill_north.png) and the grass tile. One 32px
@@ -24,6 +25,7 @@ import sharp from 'sharp';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'public/assets/images/terrain/hills');
+const JSON_OUT = path.join(ROOT, 'src/rendering/generated/cliff_tileset.json');
 
 const T = 32;
 const GUTTER = 2;
@@ -59,6 +61,8 @@ const C = {
   topSpeck: [0xbc, 0xd4, 0x5e],
   moss: [0x6b, 0x84, 0x39],
 };
+
+const STONE = { nosing: [0xf0, 0xe2, 0xb4], tread: [0xcc, 0xb4, 0x84], riser: [0x7e, 0x68, 0x4a] };
 
 const RIM = 6; // east/west rim thickness
 const RIM_N = 4; // north rim thickness (seen edge-on)
@@ -213,6 +217,39 @@ function paintDetail(px, seed) {
   }
 }
 
+/**
+ * Stone steps cut into a hill edge, as an overlay on the edge's autotile
+ * frame. `dir` is the side facing low ground: steps run from the plateau
+ * (lit, top) down to that side (shaded), with cliff cheeks on both sides.
+ */
+function drawStairs(dir) {
+  const px = new Uint8ClampedArray(T * T * 4);
+  const vertical = dir === 's' || dir === 'n';
+  const lo = 2, hi = 29; // across the stair (full tile minus the cliff cheeks)
+  const start = dir === 's' ? 9 : 0, end = dir === 's' ? 31 : dir === 'n' ? 14 : dir === 'w' ? 14 : 31;
+  const from = dir === 'e' ? 17 : start;
+  const to = dir === 'e' ? 31 : end;
+  const steps = 4;
+  for (let a = from; a <= to; a++) for (let b = lo; b <= hi; b++) {
+    const x = vertical ? b : a, y = vertical ? a : b;
+    // Distance down the flight: 0 at the plateau, 1 at the ground.
+    const along = dir === 's' || dir === 'e' ? (a - from) / (to - from) : (to - a) / (to - from);
+    const k = along * steps;
+    const inStep = k - Math.floor(k);
+    let c;
+    // Worn pale stone, distinct from the orange cliff rock so the way up is easy to spot.
+    if (b === lo || b === hi) c = C.outline;
+    else if (b === lo + 1 || b === hi - 1) c = C.mid;
+    else if (inStep < 0.22) c = STONE.nosing; // lit nosing
+    else if (inStep > 0.76) c = STONE.riser; // riser shadow
+    else c = hash(x, y, 23) > 0.88 ? STONE.riser : STONE.tread;
+    if (along > 0.92 && b > lo + 1 && b < hi - 1) c = STONE.riser; // last step meets the ground
+    const i = (y * T + x) * 4;
+    px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; px[i + 3] = 255;
+  }
+  return px;
+}
+
 function drawShadowEast() {
   const px = new Uint8ClampedArray(T * T * 4);
   const alpha = [0.34, 0.24, 0.15, 0.08, 0.03];
@@ -242,6 +279,7 @@ for (let v = 1; v < INTERIOR_VARIANTS; v++) {
 }
 frames.push({ key: 'shadow_s', px: drawShadow() });
 frames.push({ key: 'shadow_e', px: drawShadowEast() });
+for (const dir of ['s', 'n', 'e', 'w']) frames.push({ key: `stairs_${dir}`, px: drawStairs(dir) });
 
 const rows = Math.ceil(frames.length / COLUMNS);
 const W_PX = COLUMNS * PITCH;
@@ -265,5 +303,6 @@ fs.mkdirSync(OUT_DIR, { recursive: true });
 await sharp(Buffer.from(atlas.buffer), { raw: { width: W_PX, height: H_PX, channels: 4 } })
   .png({ compressionLevel: 9 })
   .toFile(path.join(OUT_DIR, 'cliff_tileset.png'));
-fs.writeFileSync(path.join(OUT_DIR, 'cliff_tileset.json'), `${JSON.stringify(json, null, 2)}\n`);
+fs.mkdirSync(path.dirname(JSON_OUT), { recursive: true });
+fs.writeFileSync(JSON_OUT, `${JSON.stringify(json, null, 2)}\n`);
 console.log(`[build-hill-tileset] ${frames.length} frames (${MASKS.length} masks) → ${W_PX}x${H_PX}`);

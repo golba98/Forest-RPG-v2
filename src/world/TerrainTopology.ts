@@ -3,7 +3,7 @@ import type { TerrainInfo } from '../types/gameplay';
 import type { WorldData } from '../types/world';
 
 export function isHillTerrain(id: number): boolean {
-  return isHillTile(id as TileId) || id === Tile.PLATEAU || id === Tile.CLIFF;
+  return isHillTile(id as TileId) || id === Tile.PLATEAU || id === Tile.CLIFF || id === Tile.STAIRS;
 }
 const NEIGHBORS = [
   [0, -1],
@@ -45,7 +45,7 @@ export function describeTerrain(
       if (a && b && !n(i * 2 + 1)) concaveCorners |= 1 << i;
     }
   }
-  const crossing = tileId === Tile.RAMP || tileId === Tile.LOG;
+  const crossing = tileId === Tile.RAMP || tileId === Tile.LOG || tileId === Tile.STAIRS;
   return {
     tileId,
     category: hill

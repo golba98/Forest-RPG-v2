@@ -8,12 +8,12 @@ const WIND_PX_PER_MS = 0.011;
 const SHADOW_OFFSET_X = 70;
 const SHADOW_OFFSET_Y = 160;
 const FADE_MS = 6000;
-const CLOUD_ALPHA = 0.5;
-const SHADOW_ALPHA = 0.28;
+const CLOUD_ALPHA = 0.62;
+const SHADOW_ALPHA = 0.2;
 
 interface Formation {
-  readonly cloud: Container;
-  readonly shadow: Container;
+  readonly cloud: Sprite;
+  readonly shadow: Sprite;
   x: number;
   readonly y: number;
   age: number;
@@ -36,8 +36,9 @@ function mulberry32(seed: number): () => number {
 /**
  * Natural, high-altitude cloud cover with matching ground shadows.
  *
- * Each cloud is a formation of soft radial puffs (no hard pixel outline),
- * 14–28 tiles across. Formations drift in on the wind, fade in, live for a
+ * Each cloud is a pixel-art cumulus (white top, shaded underside) drawn
+ * 14–24 tiles across, matching the game's pixel style; soft radial puffs read
+ * as a glowing fog blob with smeared stacked shadows. Formations drift in on the wind, fade in, live for a
  * while and fade out; the amount of cover drifts slowly over time and thickens
  * in rain. Both layers are clipped to the world.
  */
@@ -50,7 +51,7 @@ export class SkyLayer {
   private readonly cloudMask = new Graphics();
   private items: Formation[] = [];
   private rand: () => number = mulberry32(1);
-  private puff: Texture | null = null;
+  private shapes: readonly Texture[] = [];
   private worldWidth = 0;
   private worldHeight = 0;
   private time = 0;
@@ -63,9 +64,9 @@ export class SkyLayer {
     this.clouds.mask = this.cloudMask;
   }
 
-  setWorld(widthTiles: number, heightTiles: number, seed: number, puff: Texture, spawnX: number, spawnY: number): void {
+  setWorld(widthTiles: number, heightTiles: number, seed: number, shapes: readonly Texture[], spawnX: number, spawnY: number): void {
     this.clear();
-    this.puff = puff;
+    this.shapes = shapes;
     this.rand = mulberry32(seed ^ 0x5eed);
     this.worldWidth = widthTiles * TILE;
     this.worldHeight = heightTiles * TILE;
@@ -90,29 +91,20 @@ export class SkyLayer {
   }
 
   private spawn(x: number, ageFraction: number, atY?: number): void {
-    const puff = this.puff;
-    if (!puff) return;
     const r = this.rand;
-    const cloud = new Container();
-    const shadow = new Container();
-    const width = (14 + r() * 14) * TILE;
-    const puffs = 6 + Math.floor(r() * 6);
-    for (let i = 0; i < puffs; i++) {
-      // Puffs bunch toward the middle, flatter vertically: cumulus seen from above.
-      const px = (r() + r() - 1) * width * 0.42;
-      const py = (r() + r() - 1) * width * 0.16;
-      const size = (0.35 + r() * 0.45) * width;
-      for (const [layer, tint, alpha] of [[cloud, 0xffffff, 0.75 + r() * 0.25], [shadow, 0x0b160c, 1]] as const) {
-        const s = new Sprite(puff);
-        s.anchor.set(0.5);
-        s.position.set(px, py);
-        s.width = size;
-        s.height = size * (0.62 + r() * 0.2);
-        s.tint = tint;
-        s.alpha = alpha;
-        layer.addChild(s);
-      }
-    }
+    const texture = this.shapes[Math.floor(r() * this.shapes.length)];
+    if (!texture) return;
+    // One crisp pixel-art cumulus, scaled up: 14–24 tiles wide.
+    const scale = ((14 + r() * 10) * TILE) / texture.width;
+    const flip = r() < 0.5 ? -1 : 1;
+    const cloud = new Sprite(texture);
+    cloud.anchor.set(0.5);
+    cloud.scale.set(scale * flip, scale);
+    // The shadow is the same silhouette, flat and dark, so it never stacks into smears.
+    const shadow = new Sprite(texture);
+    shadow.anchor.set(0.5);
+    shadow.scale.set(scale * flip, scale * 0.85);
+    shadow.tint = 0x000000;
     const life = 70000 + r() * 90000;
     const y = atY ?? r() * this.worldHeight;
     this.shadows.addChild(shadow);
@@ -147,8 +139,8 @@ export class SkyLayer {
       f.shadow.position.set(f.x + SHADOW_OFFSET_X, f.y + SHADOW_OFFSET_Y);
       f.cloud.position.set(f.x + (f.x - cameraX) * PARALLAX, f.y + (f.y - cameraY) * PARALLAX);
       if (f.age >= f.life || f.x > this.worldWidth + 30 * TILE) {
-        f.cloud.destroy({ children: true });
-        f.shadow.destroy({ children: true });
+        f.cloud.destroy();
+        f.shadow.destroy();
         this.items.splice(i, 1);
       }
     }
@@ -156,8 +148,8 @@ export class SkyLayer {
 
   clear(): void {
     for (const f of this.items) {
-      f.cloud.destroy({ children: true });
-      f.shadow.destroy({ children: true });
+      f.cloud.destroy();
+      f.shadow.destroy();
     }
     this.items = [];
   }

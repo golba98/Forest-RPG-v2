@@ -26,7 +26,12 @@ async function fixture(page: Page, combat = false): Promise<void> {
         tiles[n * 24] = 12;
         tiles[n * 24 + 23] = 12;
       }
-      for (let y = 8; y <= 12; y++) for (let x = 10; x <= 14; x++) tiles[y * 24 + x] = 21;
+      // A 5×5 hill: cliff edges (HILL_*) around a walkable top (PLATEAU).
+      for (let y = 8; y <= 12; y++)
+        for (let x = 10; x <= 14; x++) {
+          const n = y === 8, so = y === 12, w = x === 10, e = x === 14;
+          tiles[y * 24 + x] = n && w ? 20 : n && e ? 14 : so && w ? 18 : so && e ? 16 : n ? 13 : so ? 17 : w ? 19 : e ? 15 : 21;
+        }
       for (let x = 1; x < 23; x++) tiles[15 * 24 + x] = 11;
       tiles[15 * 24 + 5] = 7;
       data.world = {
@@ -95,7 +100,7 @@ function intersects(
   );
 }
 
-test('tree approaches, diagonal rocks, every sprint hill diagonal, and bridge crossing', async ({
+test('tree approaches, diagonal rocks, every sprint cliff-edge diagonal, and bridge crossing', async ({
   page,
 }, info) => {
   await fixture(page);
