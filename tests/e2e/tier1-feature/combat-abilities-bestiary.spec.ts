@@ -86,12 +86,36 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
   });
 
   test('T1.3.5 — Solid wall crush execution: knocking regular mob into solid obstacle instakills with SPLAT', async () => {
+    // Use known geometry: random procedural tiles at (2,2) may be hills.
+    await driver.page.evaluate(() => {
+      const tiles = Array<number>(144).fill(1);
+      for (let i = 0; i < 12; i++) {
+        tiles[i] = 12;
+        tiles[132 + i] = 12;
+        tiles[i * 12] = 12;
+        tiles[i * 12 + 11] = 12;
+      }
+      tiles[10 * 12 + 10] = 103;
+      window.__GAME__!.loadLegacySave({
+        logicalW: 12,
+        logicalH: 12,
+        cellSize: 32,
+        mapStates: tiles,
+        terrainLayer: tiles.map((t) => (t === 103 ? 1 : t)),
+        treeObjects: [],
+        playerPosition: { x: 2, y: 2 },
+        portalPos: { x: 9, y: 9 },
+        enemies: [],
+      });
+    });
     // Spawn mantis between player and solid cliff
     await driver.executeDebugCommand('/kill all');
     await driver.executeDebugCommand('/tp 2.5 2.5');
     await driver.pressKey('KeyA', 40);
     await driver.executeDebugCommand('/spawn mantis -1 0');
-    const target = (await driver.getState()).enemies.find(e => e.type === 'mantis' && e.health > 0);
+    const target = (await driver.getState()).enemies.find(
+      (e) => e.type === 'mantis' && e.health > 0,
+    );
     expect(target).toBeDefined();
 
     // Attack toward mantis pushing it against solid wall at x: 0
