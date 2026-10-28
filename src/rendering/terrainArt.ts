@@ -1,7 +1,7 @@
 import { Tile } from '../types/tiles';
 import type { PropKind } from '../types/world';
 import { decorAlias } from './assetCatalog';
-import { HILL_ATLAS_ALIAS, NB, hillFrame, hillShadowFrame, isElevatedTile, type AtlasRect } from './hillAutotile';
+import { HILL_ATLAS_ALIAS, NB, hillFrame, hillShadowEastFrame, hillShadowFrame, isElevatedTile, reduceMask, type AtlasRect } from './hillAutotile';
 
 /**
  * Ground-only terrain descriptions. Trees and standing props are rendered
@@ -88,17 +88,47 @@ function grass(tint = WHITE): TileArtLayer {
   return fill(GRASS_ALIAS, FULL, tint);
 }
 
+const TONE_CELL = 7;
+const PLATEAU_DECOR: readonly PropKind[] = ['bush_small', 'flower_yellow', 'flower_pink', 'rock_pebble', 'flower_clump', 'rock_boulder'];
+
+/**
+ * Large-scale tone variation (bilinear value noise on a 7-tile lattice) as a
+ * grey tint, so wide fields and hill tops are not one flat colour.
+ */
+export function toneTint(x: number, y: number, depth = 0.12): number {
+  const gx = x / TONE_CELL, gy = y / TONE_CELL;
+  const x0 = Math.floor(gx), y0 = Math.floor(gy);
+  const fx = gx - x0, fy = gy - y0;
+  const v = (ix: number, iy: number) => (hashTile(ix * 7 + 3, iy * 13 + 5) % 1000) / 999;
+  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const top = v(x0, y0) + (v(x0 + 1, y0) - v(x0, y0)) * sx;
+  const bottom = v(x0, y0 + 1) + (v(x0 + 1, y0 + 1) - v(x0, y0 + 1)) * sx;
+  const k = Math.round(255 * (1 - depth * (top + (bottom - top) * sy)));
+  return (k << 16) | (k << 8) | k;
+}
+
 /**
  * Layers (bottom → top) for the terrain tile at (x, y). `elevation` is the
  * tile's 8-neighbour elevated-cell mask (hillAutotile.elevationMask).
  */
 export function getTileArt(tileId: number, x: number, y: number, elevation = 0): TileArtLayer[] {
   if (isElevatedTile(tileId)) {
-    return [grass(), fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillFrame(elevation, hashTile(x, y) % 3) })];
+    const h = hashTile(x, y);
+    const interior = reduceMask(elevation) === 255;
+    const layers = [grass(), fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillFrame(elevation, h) }, interior ? toneTint(x, y, 0.14) : WHITE)];
+    // Sparse decor on hill tops (visual only; the plateau is solid either way).
+    if (interior && (h >>> 12) % 100 < 7) {
+      const kind = PLATEAU_DECOR[(h >>> 4) % PLATEAU_DECOR.length] ?? 'rock_pebble';
+      layers.push(contain(decorAlias(kind), 0.9, 0.9, 'center', WHITE, ((h >>> 20) % 9) - 4, ((h >>> 24) % 7) - 3));
+    }
+    return layers;
   }
   const layers = getGroundArt(tileId, x, y);
-  // Ground directly below a cliff face gets a soft contact shadow (visual only).
+  const base = layers[0];
+  if (base?.alias === GRASS_ALIAS && base.tint === WHITE) layers[0] = grass(toneTint(x, y));
+  // Sun from the north-west: low ground south and east of a hill is shaded (visual only).
   if (elevation & NB.N) layers.push(fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillShadowFrame() }));
+  if (elevation & NB.W) layers.push(fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillShadowEastFrame() }));
   return layers;
 }
 

@@ -43,7 +43,8 @@ interface HillAtlasJson {
 
 const HILL_ATLAS: HillAtlasJson = atlas;
 const INTERIOR = 255;
-const INTERIOR_KEYS = ['mask_255', 'plateau_1', 'plateau_2'] as const;
+/** Plain interior first, then painted-detail variants; plain tiles dominate so detail stays sparse. */
+const INTERIOR_KEYS = ['mask_255', 'mask_255', 'plateau_1', 'mask_255', 'plateau_2', 'plateau_3', 'mask_255', 'plateau_4', 'plateau_5'] as const;
 
 /** Raised terrain drawn with the cliff tileset. */
 export function isElevatedTile(tile: number): boolean {
@@ -85,6 +86,11 @@ export function hillFrame(mask: number, variant = 0): AtlasRect {
 /** Soft contact shadow drawn on low ground directly south of a cliff face. */
 export function hillShadowFrame(): AtlasRect {
   return frameOrThrow('shadow_s');
+}
+
+/** Cast shadow on low ground directly east of a hill (sun from the north-west). */
+export function hillShadowEastFrame(): AtlasRect {
+  return frameOrThrow('shadow_e');
 }
 
 export function hillAtlasMasks(): readonly number[] {

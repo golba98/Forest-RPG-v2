@@ -142,7 +142,7 @@ export function buildVisualManifest(): VisualAssetEntry[] {
     fullTile('terrain:bridge', 'tile_bridge', 'assets/images/terrain/bridge.png', 64, 64),
     fullTile('terrain:mud', 'tile_mud', 'assets/images/terrain/mud.png', 1254, 1254),
     {
-      ...fullTile('terrain:hill-cliff', HILL_ATLAS_ALIAS, HILL_ATLAS_SRC, 360, 180),
+      ...fullTile('terrain:hill-cliff', HILL_ATLAS_ALIAS, HILL_ATLAS_SRC, 360, 216),
       frame: { w: 32, h: 32 },
       solidFootprint: 'whole tile for every HILL_* and PLATEAU cell (TILE_PROPERTIES); jumping may cross',
     },

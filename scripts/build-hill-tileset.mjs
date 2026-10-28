@@ -8,7 +8,7 @@
  * Pixel art is drawn procedurally (deterministic, no external art) using the
  * palette of the legacy hill rim (hill_north.png) and the grass tile. One 32px
  * frame exists per reduced 8-neighbour "blob" mask (47), plus plateau-interior
- * variants and a ground contact shadow. Frames sit on a 36px pitch with a 2px
+ * variants (with painted tufts, pebbles and flowers) and ground shadows. Frames sit on a 36px pitch with a 2px
  * extruded gutter so nearest sampling never bleeds into a neighbour frame.
  *
  * The mask reduction and frame order must match src/rendering/hillAutotile.ts
@@ -29,7 +29,7 @@ const T = 32;
 const GUTTER = 2;
 const PITCH = T + GUTTER * 2;
 const COLUMNS = 10;
-const INTERIOR_VARIANTS = 3;
+const INTERIOR_VARIANTS = 6;
 
 const N = 1, NE = 2, E = 4, SE = 8, S = 16, SW = 32, W = 64, NW = 128;
 
@@ -183,6 +183,46 @@ function drawTile(m, seed) {
   return px;
 }
 
+/**
+ * Sparse painted detail for plateau interiors (variant > 0): grass tufts,
+ * pebbles and tiny flowers, so large hill tops are not a flat field.
+ */
+function paintDetail(px, seed) {
+  const set = (x, y, c) => {
+    if (x < 0 || y < 0 || x >= T || y >= T) return;
+    const i = (y * T + x) * 4;
+    px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; px[i + 3] = 255;
+  };
+  const r = (k) => hash(seed, k, 17);
+  const tufts = 2 + Math.floor(r(1) * 3);
+  for (let t = 0; t < tufts; t++) {
+    const x = 3 + Math.floor(r(10 + t) * 26), y = 6 + Math.floor(r(20 + t) * 22);
+    // Three-blade tuft: dark base, lit tips.
+    set(x, y, C.topDark); set(x - 1, y, C.topDark); set(x + 1, y, C.topDark);
+    set(x - 1, y - 1, C.topLight); set(x + 1, y - 1, C.topLight); set(x, y - 2, C.topSpeck); set(x, y - 1, C.top);
+  }
+  if (r(2) > 0.45) {
+    const x = 4 + Math.floor(r(30) * 24), y = 8 + Math.floor(r(31) * 20);
+    set(x, y, [0x8a, 0x86, 0x78]); set(x + 1, y, [0x6e, 0x6a, 0x5e]); set(x, y - 1, [0xb4, 0xb0, 0xa0]); set(x + 1, y - 1, [0x8a, 0x86, 0x78]);
+    set(x, y + 1, C.topDark); set(x + 1, y + 1, C.topDark);
+  }
+  if (r(3) > 0.55) {
+    const x = 4 + Math.floor(r(40) * 24), y = 8 + Math.floor(r(41) * 20);
+    const petal = r(42) > 0.5 ? [0xf0, 0xd8, 0x5a] : [0xe8, 0x9c, 0xc4];
+    set(x, y, petal); set(x - 1, y, petal); set(x + 1, y, petal); set(x, y - 1, petal); set(x, y + 1, C.topDark);
+  }
+}
+
+function drawShadowEast() {
+  const px = new Uint8ClampedArray(T * T * 4);
+  const alpha = [0.34, 0.24, 0.15, 0.08, 0.03];
+  for (let y = 0; y < T; y++) for (let x = 0; x < alpha.length; x++) {
+    const i = (y * T + x) * 4;
+    px[i] = 12; px[i + 1] = 22; px[i + 2] = 10; px[i + 3] = Math.round(alpha[x] * 255);
+  }
+  return px;
+}
+
 function drawShadow() {
   const px = new Uint8ClampedArray(T * T * 4);
   const alpha = [0.42, 0.32, 0.22, 0.14, 0.08, 0.04];
@@ -195,8 +235,13 @@ function drawShadow() {
 
 const frames = [];
 for (const m of MASKS) frames.push({ key: `mask_${m}`, px: drawTile(m, 1) });
-for (let v = 1; v < INTERIOR_VARIANTS; v++) frames.push({ key: `plateau_${v}`, px: drawTile(255, 1 + v * 31) });
+for (let v = 1; v < INTERIOR_VARIANTS; v++) {
+  const px = drawTile(255, 1 + v * 31);
+  paintDetail(px, v * 7919);
+  frames.push({ key: `plateau_${v}`, px });
+}
 frames.push({ key: 'shadow_s', px: drawShadow() });
+frames.push({ key: 'shadow_e', px: drawShadowEast() });
 
 const rows = Math.ceil(frames.length / COLUMNS);
 const W_PX = COLUMNS * PITCH;
