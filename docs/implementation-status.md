@@ -30,3 +30,13 @@ Trees now use the original 64×64 world-pixel overlays, sorted with characters b
 The main menu now uses the original background video, button art and pixel font, with a static fallback. Initial fixed-step encounters implement melee hit timing, combo damage, Q spin, R projectiles, basic chasing/contact damage, invulnerability, pickups, XP and portal completion. This is not the full original bestiary: ranged maggot AI, boss lunge/pathfinding, ghost spawn lifecycle, loot, wall crush, tutorial progression, stat allocation, full HUD, persistence and complete audio/combat feedback remain outstanding.
 
 Validation: typecheck and lint pass; 187 unit/integration tests pass. Five targeted Chromium tests cover movement, camera, pause, resize, regeneration, settings, real melee input and a menu screenshot. Screenshots were inspected locally; complete cross-resolution, seam-isolation and Firefox acceptance remain outstanding. No frame-time or memory benchmarks were performed.
+
+## Woodland, clouds, menus and onboarding revision
+
+The forest generator now emits spaced tree props in forest regions, with trunk collision and traversable gaps. Enclosed hill interiors remain blocked after connectivity validation. The generator version is 2. The spawn river safety conversion is capped at three tiles to avoid the oversized wooden ribbons exposed by visual inspection; this deliberately improves the original's much larger safe radius.
+
+World-space cloud sprites use the four copied cloud images, start populated near spawn, pause with gameplay and have an independent toggle. The main menu uses an unboxed full-screen composition. Settings has grouped display, gameplay, audio, accessibility and remapping controls. Automatic onboarding uses versioned local storage, migrates original completion flags, remembers skipping, and can be disabled or replayed. The training glade has contextual movement/sprint/combat/coin/portal steps and transitions to a normal world on completion.
+
+Verification: 189 unit/integration tests and seven targeted Chromium tests pass; typecheck, lint and production build pass. Menu and settings screenshots were inspected. Three-seed connectivity checks pass with the new tree props. Full multi-resolution and Firefox acceptance has not been performed.
+
+This revision remains partial: full graphical HUD, stars/fireflies/weather quality, sensitivity, color modes, translations, complete remapping conflict handling, bestiary behavior, persistence and the rest of the original mission remain outstanding. The settings UI exposes implemented controls only. No performance claim is made.

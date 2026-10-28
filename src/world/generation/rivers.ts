@@ -295,7 +295,7 @@ function pickEdgePoint(w: number, h: number, rng: Rng): TilePoint {
  * walkable LOG tiles, and trees anywhere inside the clear area become grass.
  */
 export function applySpawnSafeArea(grid: GenGrid, clear: ClearArea, spawn: TilePoint): void {
-  const safeRadius = Math.max(2, Math.floor(Math.min(clear.endX - clear.startX, clear.endY - clear.startY) / 6));
+  const safeRadius = Math.min(3, Math.max(2, Math.floor(Math.min(clear.endX - clear.startX, clear.endY - clear.startY) / 6)));
   for (let dy = -safeRadius; dy <= safeRadius; dy++) {
     for (let dx = -safeRadius; dx <= safeRadius; dx++) {
       const x = spawn.x + dx;

@@ -1,16 +1,20 @@
+import './theme.css';
+import type { InputManager } from '../core/input/InputManager';
+import type { InputAction } from '../core/input/types';
 import type { Game, GameShell as Shell, SceneState } from '../game/Game';
+import { OnboardingStore } from '../persistence/OnboardingStore';
 import type { SettingsStore } from '../persistence/SettingsStore';
 
 export class GameShell implements Shell {
   game!: Game;
+  input?: InputManager;
+  readonly onboarding = new OnboardingStore(localStorage);
   private video = document.createElement('video');
   private panel = document.createElement('section');
+  private cancelCapture: (() => void) | null = null;
   private previousFocus: HTMLElement | null = null;
   constructor(private settings: SettingsStore, private applySettings: () => void) {
-    const style = document.createElement('style');
-    style.textContent = `#game-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#07140cc9;z-index:10;color:#eee;font:18px monospace}#game-overlay[hidden]{display:none}#game-overlay>div{background:#142b1e;border:3px solid #85aa68;padding:32px;min-width:290px;max-height:85vh;overflow:auto}#game-overlay button,#game-overlay select{display:block;width:100%;padding:12px;margin:10px 0;background:#284833;color:#fff;border:2px solid #85aa68;font:inherit;cursor:pointer}#game-overlay :focus-visible{outline:3px solid #f4da75}#game-overlay label{display:block;margin:12px 0}#game-overlay input{margin-left:12px}`;
-    style.textContent += `@font-face{font-family:ForestPixel;src:url('/assets/fonts/pixel_font.ttf')}#game-overlay{background:#08150e url('/assets/images/background/menu_bg.png') center/cover no-repeat;font-family:ForestPixel,monospace}#game-overlay>div{background:linear-gradient(#07150ed9,#07150eeb);border:1px solid #ba9a58;padding:40px 56px;box-shadow:0 20px 80px #000b;min-width:340px;text-align:center}#game-overlay h1{color:#f3d78e;font-size:42px;text-shadow:3px 4px #071509;margin:0 0 28px}#game-overlay button{background:#315233 url('/assets/images/ui/button_bg.png') center/100% 100%;border:0;min-height:56px;text-shadow:2px 2px #000;transition:filter .15s}#game-overlay button:hover{filter:brightness(1.25)}#game-overlay p{max-width:340px;font:14px/1.7 monospace;color:#d4d9c3}@media(max-width:600px){#game-overlay>div{padding:24px;min-width:0;width:85vw}#game-overlay h1{font-size:30px}}`;
-    document.head.append(style); this.panel.id = 'game-overlay'; this.panel.hidden = true;
+    this.panel.id = 'game-overlay'; this.panel.hidden = true;
     this.panel.setAttribute('role', 'dialog'); this.panel.setAttribute('aria-modal', 'true'); this.panel.setAttribute('aria-label', 'Forest RPG menu');
     this.video.src = '/assets/video/menu_vid.webm'; this.video.poster = '/assets/images/background/menu_bg.png';
     this.video.muted = true; this.video.loop = true; this.video.playsInline = true;
@@ -31,6 +35,7 @@ export class GameShell implements Shell {
   }
   onLoadingFailed(error: Error): void { const el = document.querySelector('#loading-screen'); if (el) el.textContent = `Unable to start: ${error.message}`; }
   onSceneChanged(scene: SceneState): void {
+    this.cancelCapture?.(); this.cancelCapture = null;
     if (scene === 'loading' || scene === 'error') return;
     document.querySelector('#loading-screen')?.classList.add('hidden');
     this.panel.hidden = scene === 'playing';
@@ -39,36 +44,71 @@ export class GameShell implements Shell {
     else this.video.pause();
     if (scene === 'playing') { this.previousFocus?.focus(); return; }
     this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.panel.dataset.screen = scene;
     this.panel.replaceChildren(); const box = document.createElement('div'); this.panel.append(box);
     const title = document.createElement('h1'); title.textContent = scene === 'menu' ? 'Forest RPG V2' : scene === 'paused' ? 'Paused' : scene === 'victory' ? 'Victory' : 'Game Over'; box.append(title);
     const button = (label: string, id: string, action: () => void) => {
       const el = document.createElement('button'); el.textContent = label; el.dataset.testid = id; el.onclick = action; box.append(el);
     };
     if (scene === 'paused') button('Resume', 'resume-button', () => this.game.resume());
-    else { button('New Game', 'new-game-button', () => this.game.startNewGame()); button('Tutorial', 'tutorial-button', () => this.game.startNewGame({ tutorial: true })); }
+    else { button('Play', 'new-game-button', () => this.play()); button('Tutorial', 'tutorial-button', () => this.game.startNewGame({ tutorial: true })); }
     button('Settings', 'settings-button', () => this.showSettings(scene));
     if (scene !== 'menu') button('Main Menu', 'main-menu-button', () => this.game.returnToMenu());
-    const help = document.createElement('p'); help.textContent = 'WASD / arrows: move · Shift: sprint · Esc: pause'; box.append(help);
     this.panel.querySelector('button')?.focus();
   }
-  private showSettings(scene: SceneState): void {
+  private play(): void {
+    if (!this.settings.value.tutorials || this.onboarding.value.seen || this.onboarding.value.complete) {
+      this.game.startNewGame({ difficulty: this.settings.value.difficulty }); return;
+    }
+    this.panel.dataset.screen = 'welcome';
     const box = this.panel.firstElementChild; if (!box) return; box.replaceChildren();
+    const h = document.createElement('h1'); h.textContent = 'Welcome to the forest'; box.append(h);
+    const p = document.createElement('p'); p.textContent = 'Learn to explore, fight and open the portal in a short training glade.'; box.append(p);
+    const start = document.createElement('button'); start.textContent = 'Start tutorial'; start.onclick = () => { this.onboarding.value.seen = true; this.onboarding.save(); this.game.startNewGame({ tutorial: true }); }; box.append(start);
+    const skip = document.createElement('button'); skip.textContent = 'Skip for now'; skip.onclick = () => { this.onboarding.value.seen = true; this.onboarding.save(); this.game.startNewGame({ difficulty: this.settings.value.difficulty }); }; box.append(skip);
+    const label = document.createElement('label'); label.textContent = 'Don’t show automatically again'; const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.onchange = () => { this.settings.value.tutorials = !checkbox.checked; this.persist(); }; label.append(checkbox); box.append(label); start.focus();
+  }
+  private showSettings(scene: SceneState): void {
+    const box = this.panel.firstElementChild; if (!box) return; box.replaceChildren(); this.panel.dataset.screen = 'settings';
     const heading = document.createElement('h1'); heading.textContent = 'Settings'; box.append(heading);
-    for (const key of ['masterVolume', 'musicVolume', 'sfxVolume'] as const) {
-      const label = document.createElement('label'); label.textContent = key;
-      const slider = document.createElement('input'); slider.type = 'range'; slider.min = '0'; slider.max = '1'; slider.step = '0.05'; slider.value = String(this.settings.value[key]);
-      slider.oninput = () => { this.settings.value[key] = Number(slider.value); this.persist(); }; label.append(slider); box.append(label);
+    const body = document.createElement('div'); body.className = 'settings-body'; box.append(body);
+    const group = (name: string) => { const section = document.createElement('fieldset'); const legend = document.createElement('legend'); legend.textContent = name; section.append(legend); body.append(section); return section; };
+    const display = group('Display'), gameplay = group('Gameplay'), audio = group('Audio'), access = group('Accessibility');
+    for (const [key, text, section] of [['lighting','Lighting',display], ['clouds','Clouds',display], ['particles','Ambient particles',display], ['hud','Show HUD',gameplay], ['tutorials','Show tutorials',gameplay], ['invertY','Invert Y axis',gameplay]] as const) {
+      const label = document.createElement('label'); label.textContent = text; const control = document.createElement('input'); control.type = 'checkbox'; control.checked = this.settings.value[key]; control.onchange = () => { this.settings.value[key] = control.checked; this.persist(); }; label.append(control); section.append(label);
     }
-    const fpsLabel = document.createElement('label'); fpsLabel.textContent = 'Frame limit';
-    const select = document.createElement('select');
-    for (const fps of [60, 120, 144, 240, 0]) { const option = new Option(fps ? String(fps) : 'Unlimited', String(fps)); select.append(option); }
-    select.value = String(this.settings.value.maxFps); select.onchange = () => { this.settings.value.maxFps = Number(select.value); this.persist(); }; fpsLabel.append(select); box.append(fpsLabel);
-    for (const key of ['lighting', 'particles', 'hud'] as const) {
-      const label = document.createElement('label'); label.textContent = key; const input = document.createElement('input'); input.type = 'checkbox'; input.checked = this.settings.value[key];
-      input.onchange = () => { this.settings.value[key] = input.checked; this.persist(); }; label.append(input); box.append(label);
+    for (const [key, text] of [['masterVolume','Master volume'], ['musicVolume','Music volume'], ['sfxVolume','Effects volume']] as const) {
+      const label = document.createElement('label'); label.textContent = text; const control = document.createElement('input'); control.type = 'range'; control.min = '0'; control.max = '1'; control.step = '.05'; control.value = String(this.settings.value[key]); const output = document.createElement('output'); output.textContent = `${Math.round(Number(control.value) * 100)}%`; control.oninput = () => { this.settings.value[key] = Number(control.value); output.textContent = `${Math.round(Number(control.value) * 100)}%`; this.persist(); }; label.append(control, output); audio.append(label);
     }
-    const fullscreen = document.createElement('button'); fullscreen.textContent = 'Toggle fullscreen'; fullscreen.onclick = () => { void this.game.toggleFullscreen(); }; box.append(fullscreen);
+    const select = (section: HTMLElement, text: string, choices: Array<[string,string]>, current: string, change: (v: string) => void) => {
+      const label = document.createElement('label'); label.textContent = text; const control = document.createElement('select'); for (const [value, title] of choices) control.append(new Option(title, value)); control.value = current; control.onchange = () => { change(control.value); this.persist(); }; label.append(control); section.append(label);
+    };
+    select(display, 'Frame limit', [60,120,144,170,240,0].map(n => [String(n), n ? `${n} FPS` : 'Unlimited']), String(this.settings.value.maxFps), v => this.settings.value.maxFps = Number(v));
+    select(gameplay, 'Difficulty (next world)', [['easy','Easy'],['normal','Normal'],['hard','Hard']], this.settings.value.difficulty, v => { if (v === 'easy' || v === 'normal' || v === 'hard') this.settings.value.difficulty = v; });
+    select(access, 'UI scale', [['0.8','Compact'],['1','Default'],['1.2','Large']], String(this.settings.value.uiScale), v => this.settings.value.uiScale = Number(v));
+    const controls = group('Controls');
+    const actions: Array<[InputAction, string]> = [['moveUp','Move up'],['moveDown','Move down'],['moveLeft','Move left'],['moveRight','Move right'],['sprint','Sprint'],['attack','Attack'],['skillQ','Spin'],['skillE','Magic bolt'],['potionHealth','Health potion'],['potionSpeed','Speed potion'],['pause','Pause']];
+    for (const [action, name] of actions) {
+      const label = document.createElement('label'); label.textContent = name;
+      const key = document.createElement('button'); key.textContent = String(this.input?.getKeybinds()[action]?.[0] ?? 'Unbound');
+      key.onclick = () => {
+        this.cancelCapture?.();
+        key.textContent = 'Press a key…';
+        const capture = (event: KeyboardEvent) => {
+          event.preventDefault(); event.stopImmediatePropagation();
+          window.removeEventListener('keydown', capture, true);
+          if (event.code !== 'Escape') { this.input?.setKeybinds({ [action]: [event.code] }); this.input?.saveToStorage(); }
+          key.textContent = String(this.input?.getKeybinds()[action]?.[0] ?? 'Unbound');
+        };
+        this.cancelCapture = () => { window.removeEventListener('keydown', capture, true); key.textContent = String(this.input?.getKeybinds()[action]?.[0] ?? 'Unbound'); };
+        window.addEventListener('keydown', capture, true);
+      }; label.append(key); controls.append(label);
+    }
+    const restore = document.createElement('button'); restore.textContent = 'Reset controls'; restore.onclick = () => { this.input?.resetToDefaults(); this.input?.saveToStorage(); this.showSettings(scene); }; controls.append(restore);
+    const replay = document.createElement('button'); replay.textContent = 'Replay tutorial'; replay.onclick = () => this.game.startNewGame({ tutorial: true }); gameplay.append(replay);
+    const fullscreen = document.createElement('button'); fullscreen.textContent = 'Toggle fullscreen'; fullscreen.onclick = () => { void this.game.toggleFullscreen(); }; display.append(fullscreen);
+    const reset = document.createElement('button'); reset.textContent = 'Reset settings'; reset.onclick = () => { this.settings.reset(); this.applySettings(); this.showSettings(scene); }; box.append(reset);
     const back = document.createElement('button'); back.textContent = 'Back'; back.onclick = () => this.onSceneChanged(scene); box.append(back); this.panel.querySelector('input')?.focus();
   }
-  private persist(): void { this.settings.save(); this.applySettings(); }
+  private persist(): void { const saved = this.settings.save(); this.applySettings(); if (!saved) { const notice = document.createElement('p'); notice.setAttribute('role', 'status'); notice.textContent = 'Preferences apply for this session but could not be saved.'; this.panel.firstElementChild?.append(notice); } }
 }

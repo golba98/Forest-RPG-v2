@@ -66,6 +66,7 @@ export function playerSheetAlias(anim: PlayerSheetAnim, dir: Direction): string 
 }
 
 export function decorAlias(kind: PropKind): string {
+  if (kind === 'tree') return 'tile_tree';
   return `decor_${kind}`;
 }
 
@@ -88,5 +89,6 @@ export function rendererExtraAssets(): CatalogAsset[] {
   for (const kind of DECOR_KINDS) {
     assets.push({ alias: decorAlias(kind), src: `assets/images/objects/decor/${kind}.png` });
   }
+  for (let i = 1; i <= 4; i++) assets.push({ alias: `cloud_${i}`, src: `assets/images/objects/clouds/cloud_${i}.png` });
   return assets;
 }

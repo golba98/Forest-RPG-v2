@@ -1,0 +1,16 @@
+@font-face{font-family:ForestPixel;src:url('/assets/fonts/pixel_font.ttf');font-display:swap}
+#game-overlay{position:fixed;inset:0;z-index:10;display:grid;place-items:center;color:#f7edcf;font:18px ForestPixel,monospace;background:linear-gradient(#07140b22,#07140b99)}
+#game-overlay[hidden]{display:none}#game-overlay>div{width:min(440px,85vw);text-align:center;max-height:90vh;overflow:auto;padding:24px}
+#game-overlay h1{font-size:clamp(32px,4vw,64px);color:#ffe4a1;text-shadow:3px 5px #102616;margin:0 0 40px}
+#game-overlay button{display:block;width:100%;min-height:64px;margin:16px 0;background:#233b23 url('/assets/images/ui/button_bg.png') center/100% 100%;color:#fff3d5;border:0;font:inherit;text-shadow:2px 2px #000;cursor:pointer}
+#game-overlay button:hover{filter:brightness(1.2)}#game-overlay :focus-visible{outline:3px solid #ffdf8e;outline-offset:4px}
+#game-overlay[data-screen=menu]>div{overflow:visible}#game-overlay[data-screen=menu] h1{white-space:nowrap;transform:translateX(-15%);width:143%;margin-bottom:64px}
+#game-overlay[data-screen=settings]{background:#112118 url('/assets/images/background/settings_bg.png') center/cover!important}
+#game-overlay[data-screen=settings]>div{width:min(1100px,90vw);background:#0b1916ed;border:2px solid #b89b5a;text-align:left;padding:30px}
+#game-overlay[data-screen=settings] h1{font-size:36px;margin-bottom:28px}#game-overlay[data-screen=settings] button{min-height:44px;margin:12px 0}
+.settings-body{display:grid;grid-template-columns:1fr 1fr;gap:22px}#game-overlay fieldset{min-width:0;border:1px solid #7c8357;padding:20px}#game-overlay legend{color:#e4c67d;padding:0 8px}
+#game-overlay label{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:18px 0;font:16px/1.4 monospace}#game-overlay input[type=range]{width:40%;accent-color:#d2b36c}#game-overlay input[type=checkbox]{width:20px;height:20px;accent-color:#66834b}
+#game-overlay select{max-width:55%;font:15px monospace;background:#23362e;border:1px solid #93815b;color:#fff4db;padding:8px}#game-overlay p{font:17px/1.7 monospace}
+@media(max-width:700px){.settings-body{grid-template-columns:1fr}#game-overlay[data-screen=menu] h1{white-space:normal;transform:none;width:auto}}
+#game-overlay>div{zoom:var(--ui-scale,1)}
+#loading-screen.hidden{display:none}#tutorial-banner{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);padding:16px 24px;background:#10251ee8;border:1px solid #c6a969;color:#f3e8c6;font:16px/1.5 monospace;max-width:80vw;z-index:5}#tutorial-banner[hidden]{display:none}

@@ -4,10 +4,13 @@ import type { RenderSnapshot } from '../types/render';
 import type { ISimulation } from '../types/simulation';
 import type { WorldData } from '../types/world';
 import { generateTutorialWorld } from '../world/TutorialMap';
+import { TutorialSystem } from '../systems/TutorialSystem';
 import { EncounterSystem } from '../systems/EncounterSystem';
 import { movePlayer } from '../systems/MovementSystem';
 
 export class Simulation implements ISimulation {
+  tutorial = new TutorialSystem();
+  invertY = false;
   world!: WorldData;
   player!: PlayerEntity;
   worldVersion = 0;
@@ -21,7 +24,7 @@ export class Simulation implements ISimulation {
     return { id: `${kind}-${this.sequence++}`, kind, x, y, prevX: x, prevY: y, halfSize: 0.3, facing: 'S', anim: 'idle', animTimeMs: 0, alive: true };
   }
   loadWorld(world: WorldData): void {
-    this.encounters = new EncounterSystem();
+    this.encounters = new EncounterSystem(); this.tutorial = new TutorialSystem();
     this.world = world; this.worldVersion++; this.elapsedMs = 0; this.time = 0.3; this.entities = [];
     this.player = { ...this.base('player', world.spawn.x + 0.5, world.spawn.y + 0.5), kind: 'player', vx: 0, vy: 0,
       stats: { health: 7, maxHealth: 7, mana: 100, maxMana: 100, stamina: 100, maxStamina: 100, level: 1, xp: 0, xpToNextLevel: 100, statPoints: 0, baseDamage: 1, coins: 0 },
@@ -37,8 +40,9 @@ export class Simulation implements ISimulation {
   }
   step(dt: number, intent: PlayerIntent): void {
     this.elapsedMs += dt * 1000; this.time = (this.time + dt / C.dayNight.cycleSec) % 1;
-    movePlayer(this.world, this.player, intent, dt);
+    movePlayer(this.world, this.player, this.invertY ? { ...intent, moveY: -intent.moveY } : intent, dt);
     this.encounters.step(this.world, this.player, this.entities, intent, dt);
+    if (this.world.meta.isTutorial) this.tutorial.update(this.player, this.entities, intent);
     this.entities = this.entities.filter(e => e.kind !== 'projectile' || e.alive);
     for (const e of this.entities) if (e !== this.player) e.animTimeMs += dt * 1000;
   }

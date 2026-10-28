@@ -1,4 +1,7 @@
+import { placeWoodland } from './generation/woodland';
 import { GAME_CONFIG } from '../config/GameConfig';
+import { floodFill } from './pathfinding';
+import { tileProperties } from './TileMap';
 import { Tile } from '../types/tiles';
 import { WORLD_GENERATOR_VERSION } from '../types/world';
 import type { TilePoint, WorldData, WorldGenOptions } from '../types/world';
@@ -83,10 +86,19 @@ function tryGenerate(opts: WorldGenOptions, width: number, height: number, attem
   // Part 4 — anything the player cannot reach becomes forest.
   pruneUnreachable(grid, spawn);
 
+  const trees = placeWoodland(grid, stream('woodland'));
+
+  const trunkCells = new Set(trees.map(t => t.tileY * width + t.tileX));
+  const reached = floodFill(grid, spawn, (x, y) => !tileProperties(grid.get(x, y)).solid && !trunkCells.has(y * width + x));
+  for (let i = 0; i < grid.tiles.length; i++) {
+    if (!tileProperties(grid.tiles[i] ?? 0).solid && !reached[i] && !trunkCells.has(i)) grid.tiles[i] = Tile.FOREST;
+  }
+
   // Part 5 — portal, props, enemies and coins.
   const portal = findPortalTile(grid, spawn);
   if (!portal) return null;
-  const props = placeProps(grid, spawn, portal, stream('props'), true);
+  const decorations = placeProps(grid, spawn, portal, stream('props'), false);
+  const props = [...trees, ...decorations].map((p, id) => ({ ...p, id }));
   const enemyCount = GAME_CONFIG.world.enemiesByDifficulty[opts.difficulty];
   const plan = planSpawns(grid, spawn, portal, props, enemyCount, GAME_CONFIG.world.coinsPerLevel, stream('spawns'));
   if (!plan) return null;

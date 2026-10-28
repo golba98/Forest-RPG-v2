@@ -8,9 +8,14 @@ import { getTileArt, getPropArt, type TileArtLayer } from './terrainArt';
 import { resolveSpriteFrame } from '../animation/resolveSpriteFrame';
 
 export class PixiRenderer implements IRenderer {
+  cloudsEnabled = true;
+  paused = false;
+  private clouds: Sprite[] = [];
+  private sky = new Container();
   lightingEnabled = true;
   particlesEnabled = true;
   hudVisible = true;
+  hudScale = 1;
   hudText = '';
   private hud = new Text({ text: '', style: { fontFamily: 'monospace', fontSize: 18, fill: 0xffffff, stroke: { color: 0x102018, width: 4 } } });
   private ambient = new Graphics();
@@ -32,6 +37,7 @@ export class PixiRenderer implements IRenderer {
     TextureSource.defaultOptions.scaleMode = 'nearest';
     await this.app.init({ ...options, autoStart: false, sharedTicker: false, autoDensity: true, roundPixels: true, background: '#172c19' });
     this.app.stop(); this.app.stage.addChild(this.root); this.root.addChild(this.terrain, this.actors); this.actors.sortableChildren = true;
+    this.root.addChild(this.sky);
     this.app.stage.addChild(this.ambient, this.leaves, this.hud); this.hud.position.set(20, 20);
     this.resize(options.width, options.height, options.resolution);
   }
@@ -54,16 +60,27 @@ export class PixiRenderer implements IRenderer {
     this.sprites.clear();
     for (const sprite of this.objects) sprite.destroy();
     this.objects = []; this.world = world;
+    for (const cloud of this.clouds) cloud.destroy();
+    this.clouds = [];
+    for (let i = 0; i < 45; i++) {
+      const cloud = new Sprite(this.textures.get(`cloud_${i % 4 + 1}`));
+      cloud.scale.set(2 + i % 4); cloud.alpha = 0.16;
+      cloud.position.set((i * 739 % (world.meta.width * 32)), (i * 491 % (world.meta.height * 32)));
+      if (i < 6) cloud.position.set(world.spawn.x * 32 - 600 + i * 240, world.spawn.y * 32 - 500 + (i % 3) * 300);
+      this.sky.addChild(cloud); this.clouds.push(cloud);
+    }
     for (let y = 0; y < world.meta.height; y++) for (let x = 0; x < world.meta.width; x++) {
       const tile = world.tiles[y * world.meta.width + x];
       if (tile !== Tile.FOREST && tile !== Tile.BORDER) continue;
+      if (tile === Tile.FOREST && (x % 2 !== 0 || y % 2 !== 0)) continue;
       const tree = new Sprite(this.textures.get('tile_tree'));
       tree.anchor.set(0.5, 1); tree.width = 64; tree.height = 64;
       tree.position.set((x + 0.5) * 32, (y + 1) * 32); tree.zIndex = tree.y;
       this.actors.addChild(tree); this.objects.push(tree);
     }
     for (const p of world.props) {
-      const sprite = this.art(getPropArt(p.kind));
+      const sprite = p.kind === 'tree' ? new Sprite(this.textures.get('tile_tree')) : this.art(getPropArt(p.kind));
+      if (p.kind === 'tree') { sprite.anchor.set(0.5, 1); sprite.width = 64; sprite.height = 64; sprite.position.set(16, 32); }
       sprite.x += p.tileX * 32; sprite.y += p.tileY * 32; sprite.zIndex = (p.tileY + 1) * 32;
       this.actors.addChild(sprite); this.objects.push(sprite);
     }
@@ -96,6 +113,11 @@ export class PixiRenderer implements IRenderer {
       if (chunk.visible) this.visibleChunks++;
     }
     for (const sprite of this.objects) sprite.visible = sprite.x + 64 > rect.x && sprite.x - 64 < rect.x + rect.width && sprite.y > rect.y && sprite.y - 64 < rect.y + rect.height;
+    this.sky.visible = this.cloudsEnabled;
+    if (!this.paused) for (const cloud of this.clouds) {
+      cloud.x += dt * 0.02;
+      if (cloud.x > snapshot.world.meta.width * 32 + cloud.width) cloud.x = -cloud.width;
+    }
     const alive = new Set<string>(); this.renderedEntities = snapshot.entities.length;
     for (const e of snapshot.entities) {
       alive.add(e.id);
@@ -119,7 +141,7 @@ export class PixiRenderer implements IRenderer {
       const y = ((i * 113 + this.visualTime * 0.04) % (this.app.screen.height + 20)) - 10;
       this.leaves.ellipse(x, y, 3, 1).fill({ color: 0xb5a644, alpha: 0.5 });
     }
-    this.hud.visible = this.hudVisible; this.hud.text = this.hudText;
+    this.hud.scale.set(this.hudScale); this.hud.visible = this.hudVisible; this.hud.text = this.hudText;
     this.app.render();
   }
   resize(width: number, height: number, resolution: number): void { this.app.renderer.resolution = resolution; this.app.renderer.resize(width, height); this.camera.setViewport(width, height, resolution); }
