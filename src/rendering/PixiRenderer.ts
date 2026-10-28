@@ -1,4 +1,4 @@
-import { Application, Container, Sprite, Texture, TextureSource } from 'pixi.js';
+import { Application, Container, Graphics, Text, Sprite, Texture, TextureSource } from 'pixi.js';
 import type { IRenderer, RendererInitOptions, RenderSnapshot } from '../types/render';
 import type { WorldData } from '../types/world';
 import { Camera } from './Camera';
@@ -7,6 +7,14 @@ import { getTileArt, getPropArt, type TileArtLayer } from './terrainArt';
 import { resolveSpriteFrame } from '../animation/resolveSpriteFrame';
 
 export class PixiRenderer implements IRenderer {
+  lightingEnabled = true;
+  particlesEnabled = true;
+  hudVisible = true;
+  hudText = '';
+  private hud = new Text({ text: '', style: { fontFamily: 'monospace', fontSize: 18, fill: 0xffffff, stroke: { color: 0x102018, width: 4 } } });
+  private ambient = new Graphics();
+  private leaves = new Graphics();
+  private visualTime = 0;
   private app = new Application();
   private textures = new TextureStore();
   private camera = new Camera();
@@ -22,6 +30,7 @@ export class PixiRenderer implements IRenderer {
     TextureSource.defaultOptions.scaleMode = 'nearest';
     await this.app.init({ ...options, autoStart: false, sharedTicker: false, autoDensity: true, roundPixels: true, background: '#172c19' });
     this.app.stop(); this.app.stage.addChild(this.root); this.root.addChild(this.terrain, this.actors); this.actors.sortableChildren = true;
+    this.app.stage.addChild(this.ambient, this.leaves, this.hud); this.hud.position.set(20, 20);
     this.resize(options.width, options.height, options.resolution);
   }
   async loadAssets(progress?: (p: number) => void): Promise<void> { await this.textures.load(progress); }
@@ -83,6 +92,16 @@ export class PixiRenderer implements IRenderer {
       sprite.zIndex = sprite.y + e.lift * 32; sprite.alpha = e.alpha;
     }
     for (const [id, sprite] of this.sprites) if (!alive.has(id)) { sprite.destroy(); this.sprites.delete(id); }
+    this.ambient.clear();
+    if (this.lightingEnabled) this.ambient.rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0x071129, alpha: snapshot.environment.darkness });
+    this.visualTime += dt;
+    this.leaves.clear();
+    if (this.particlesEnabled) for (let i = 0; i < 24; i++) {
+      const x = ((i * 197 + this.visualTime * 0.025) % (this.app.screen.width + 20)) - 10;
+      const y = ((i * 113 + this.visualTime * 0.04) % (this.app.screen.height + 20)) - 10;
+      this.leaves.ellipse(x, y, 3, 1).fill({ color: 0xb5a644, alpha: 0.5 });
+    }
+    this.hud.visible = this.hudVisible; this.hud.text = this.hudText;
     this.app.render();
   }
   resize(width: number, height: number, resolution: number): void { this.app.renderer.resolution = resolution; this.app.renderer.resize(width, height); this.camera.setViewport(width, height, resolution); }
