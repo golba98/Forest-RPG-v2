@@ -1,3 +1,4 @@
+import { canOccupy } from '../systems/CollisionSystem';
 import { placeMud } from './generation/mud';
 import { placeWoodland } from './generation/woodland';
 import { GAME_CONFIG } from '../config/GameConfig';
@@ -9,7 +10,7 @@ import type { TilePoint, WorldData, WorldGenOptions } from '../types/world';
 import { applyBorderRing, computeClearArea, fillBaseTerrain } from './generation/baseTerrain';
 import { placeBridges } from './generation/bridges';
 import { GenGrid } from './generation/GenGrid';
-import { generateHills } from './generation/hills';
+import { generateHills, refreshHillEdges } from './generation/hills';
 import {
   findPortalTile,
   placeProps,
@@ -45,19 +46,34 @@ const SPAWN_BRANCH_CHANCE = 0.55;
 export function generateWorld(opts: WorldGenOptions): WorldData {
   const width = opts.width ?? GAME_CONFIG.world.width;
   const height = opts.height ?? GAME_CONFIG.world.height;
-  if (!Number.isInteger(width) || !Number.isInteger(height) || width < MIN_WORLD_SIZE || height < MIN_WORLD_SIZE) {
-    throw new RangeError(`generateWorld: size must be integers >= ${MIN_WORLD_SIZE}, got ${width}x${height}`);
+  if (
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width < MIN_WORLD_SIZE ||
+    height < MIN_WORLD_SIZE
+  ) {
+    throw new RangeError(
+      `generateWorld: size must be integers >= ${MIN_WORLD_SIZE}, got ${width}x${height}`,
+    );
   }
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const world = tryGenerate(opts, width, height, attempt);
     if (world) return world;
   }
-  throw new Error(`generateWorld: no valid layout for seed ${opts.seed} after ${MAX_ATTEMPTS} attempts`);
+  throw new Error(
+    `generateWorld: no valid layout for seed ${opts.seed} after ${MAX_ATTEMPTS} attempts`,
+  );
 }
 
-function tryGenerate(opts: WorldGenOptions, width: number, height: number, attempt: number): WorldData | null {
-  const baseSeed = attempt === 0 ? opts.seed >>> 0 : Rng.derive(opts.seed, `attempt-${attempt}`).nextUint32();
+function tryGenerate(
+  opts: WorldGenOptions,
+  width: number,
+  height: number,
+  attempt: number,
+): WorldData | null {
+  const baseSeed =
+    attempt === 0 ? opts.seed >>> 0 : Rng.derive(opts.seed, `attempt-${attempt}`).nextUint32();
   const stream = (stage: string): Rng => Rng.derive(baseSeed, stage);
 
   const grid = new GenGrid(width, height, Tile.GRASS);
@@ -83,6 +99,7 @@ function tryGenerate(opts: WorldGenOptions, width: number, height: number, attem
   // Part 3 — hills (then re-open the spawn clearing they may cover).
   generateHills(grid, stream('hills'), noise);
   restoreSpawnClearing(grid, spawn);
+  refreshHillEdges(grid);
 
   // Part 4 — anything the player cannot reach becomes forest.
   pruneUnreachable(grid, spawn);
@@ -90,19 +107,41 @@ function tryGenerate(opts: WorldGenOptions, width: number, height: number, attem
   const trees = placeWoodland(grid, stream('woodland'), spawn);
   placeMud(grid, spawn, stream('mud'));
 
-  const trunkCells = new Set(trees.map(t => t.tileY * width + t.tileX));
-  const reached = floodFill(grid, spawn, (x, y) => !tileProperties(grid.get(x, y)).solid && !trunkCells.has(y * width + x));
+  const trunkCells = new Set(trees.map((t) => t.tileY * width + t.tileX));
+  const reached = floodFill(
+    grid,
+    spawn,
+    (x, y) => !tileProperties(grid.get(x, y)).solid && !trunkCells.has(y * width + x),
+  );
   for (let i = 0; i < grid.tiles.length; i++) {
-    if (!tileProperties(grid.tiles[i] ?? 0).solid && !reached[i] && !trunkCells.has(i)) grid.tiles[i] = Tile.FOREST;
+    if (!tileProperties(grid.tiles[i] ?? 0).solid && !reached[i] && !trunkCells.has(i))
+      grid.tiles[i] = Tile.FOREST;
   }
 
   // Part 5 — portal, props, enemies and coins.
   const portal = findPortalTile(grid, spawn, trees);
   if (!portal) return null;
-  const decorations = placeProps(grid, spawn, portal, stream('props'), false);
+  const decorations = placeProps(grid, spawn, portal, stream('props'), true, trees);
   const props = [...trees, ...decorations].map((p, id) => ({ ...p, id }));
+  const collisionWorld = { meta: { width, height }, tiles: grid.tiles, props };
+  const finalReached = floodFill(grid, spawn, (x, y) =>
+    canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3),
+  );
+  for (let y = 1; y < height - 1; y++)
+    for (let x = 1; x < width - 1; x++)
+      if (canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3) && !finalReached[y * width + x])
+        grid.set(x, y, Tile.FOREST);
+  refreshHillEdges(grid);
   const enemyCount = GAME_CONFIG.world.enemiesByDifficulty[opts.difficulty];
-  const plan = planSpawns(grid, spawn, portal, props, enemyCount, GAME_CONFIG.world.coinsPerLevel, stream('spawns'));
+  const plan = planSpawns(
+    grid,
+    spawn,
+    portal,
+    props,
+    enemyCount,
+    GAME_CONFIG.world.coinsPerLevel,
+    stream('spawns'),
+  );
   if (!plan) return null;
 
   return {

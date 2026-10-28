@@ -1,7 +1,7 @@
 import type { EnemyType, PickupType } from './entities';
 
 /** Bump whenever generator output for a given seed changes. Stored in saves. */
-export const WORLD_GENERATOR_VERSION = 3;
+export const WORLD_GENERATOR_VERSION = 4;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -36,7 +36,7 @@ export type PropKind =
   | 'rock_pebble'
   | 'hole';
 
-/** Static decorative object placed on a tile (trees are FOREST tiles, not props). */
+/** Static world object anchored to a tile; semantics define physical footprints. */
 export interface WorldProp {
   readonly id: number;
   readonly kind: PropKind;

@@ -59,6 +59,9 @@ export interface RenderEntityView {
   readonly moving?: boolean;
   /** Optional: the entity is dead but still shown for its death animation. */
   readonly dead?: boolean;
+  readonly roundComplete?: boolean;
+  readonly entryEligible?: boolean;
+  readonly aiState?: import('./entities').EnemyAIState;
 }
 
 export interface LightSource {

@@ -166,6 +166,7 @@ export interface LegacySettingsPayload {
 
 export interface GameDiagnosticsGateway {
   getState(): GameSnapshot;
+  getGameplayDebug(): import('./gameplay').GameplayDebug | null;
   stepSimulation(fixedDeltaSec?: number): void;
   pauseSimulation(): void;
   resumeSimulation(): void;

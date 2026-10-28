@@ -62,7 +62,7 @@ export function floodFill(size: GridSize, from: TilePoint, passable: Passable): 
 }
 
 /**
- * Breadth-first shortest path on an 8-connected grid without corner cutting
+ * Bounded A* shortest path on an 8-connected grid without corner cutting
  * (a diagonal step requires both adjacent cardinal tiles to be passable).
  *
  * Returns the tiles to walk through, excluding `from` and including `to`
@@ -74,53 +74,93 @@ export function findPath(
   from: TilePoint,
   to: TilePoint,
   passable: Passable,
-  maxNodes: number
+  maxNodes: number,
 ): TilePoint[] | null {
   const { width } = size;
   if (!inGrid(size, from.x, from.y) || !inGrid(size, to.x, to.y)) return null;
+  if (!passable(from.x, from.y) || !passable(to.x, to.y)) return null;
   if (from.x === to.x && from.y === to.y) return [];
-  if (!passable(to.x, to.y)) return null;
-
-  const start = from.y * width + from.x;
-  const goal = to.y * width + to.x;
-  const parent = new Map<number, number>([[start, -1]]);
-  const queue: number[] = [start];
-  let head = 0;
-  let expanded = 0;
-
-  const tryVisit = (nIdx: number, current: number): boolean => {
-    if (parent.has(nIdx)) return false;
-    parent.set(nIdx, current);
-    if (nIdx === goal) return true;
-    queue.push(nIdx);
-    return false;
+  const start = from.y * width + from.x,
+    goal = to.y * width + to.x;
+  const parent = new Map<number, number>([[start, -1]]),
+    costs = new Map<number, number>([[start, 0]]);
+  const closed = new Set<number>();
+  const heap: Array<{ index: number; score: number }> = [];
+  const heuristic = (x: number, y: number) => {
+    const dx = Math.abs(to.x - x),
+      dy = Math.abs(to.y - y);
+    return Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy);
   };
-
-  while (head < queue.length && expanded < maxNodes) {
-    const current = queue[head++] ?? start;
-    expanded++;
-    const x = current % width;
-    const y = (current - x) / width;
-
-    for (const [dx, dy] of CARDINAL) {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (!inGrid(size, nx, ny) || !passable(nx, ny)) continue;
-      if (tryVisit(ny * width + nx, current)) return reconstruct(parent, goal, width);
+  const push = (index: number, score: number): void => {
+    const item = { index, score };
+    heap.push(item);
+    let child = heap.length - 1;
+    while (child > 0) {
+      const p = (child - 1) >> 1,
+        parentItem = heap[p];
+      if (!parentItem || parentItem.score <= score) break;
+      heap[child] = parentItem;
+      child = p;
     }
-    for (const [dx, dy] of DIAGONAL) {
-      const nx = x + dx;
-      const ny = y + dy;
+    heap[child] = item;
+  };
+  const pop = (): number => {
+    const first = heap[0],
+      last = heap.pop();
+    if (!first || !last) throw new Error('Empty navigation heap');
+    if (heap.length) {
+      let parentIndex = 0;
+      while (true) {
+        let child = parentIndex * 2 + 1;
+        const left = heap[child];
+        if (!left) break;
+        const right = heap[child + 1];
+        if (right && right.score < left.score) child++;
+        const childItem = heap[child];
+        if (!childItem || last.score <= childItem.score) break;
+        heap[parentIndex] = childItem;
+        parentIndex = child;
+      }
+      heap[parentIndex] = last;
+    }
+    return first.index;
+  };
+  push(start, heuristic(from.x, from.y));
+  let expanded = 0;
+  while (heap.length && expanded < maxNodes) {
+    const current = pop();
+    if (closed.has(current)) continue;
+    if (current === goal) return reconstruct(parent, goal, width);
+    closed.add(current);
+    expanded++;
+    const x = current % width,
+      y = Math.floor(current / width);
+    for (const [dx, dy] of [...CARDINAL, ...DIAGONAL]) {
+      const nx = x + dx,
+        ny = y + dy;
       if (!inGrid(size, nx, ny) || !passable(nx, ny)) continue;
-      if (!passable(x + dx, y) || !passable(x, y + dy)) continue;
-      if (tryVisit(ny * width + nx, current)) return reconstruct(parent, goal, width);
+      if (dx && dy && (!passable(x + dx, y) || !passable(x, y + dy))) continue;
+      const index = ny * width + nx;
+      if (closed.has(index)) continue;
+      const cost = (costs.get(current) ?? 0) + (dx && dy ? Math.SQRT2 : 1);
+      if (cost >= (costs.get(index) ?? Infinity)) continue;
+      costs.set(index, cost);
+      parent.set(index, current);
+      push(index, cost + heuristic(nx, ny));
     }
   }
   return null;
 }
 
 function inGrid(size: GridSize, x: number, y: number): boolean {
-  return x >= 0 && y >= 0 && x < size.width && y < size.height;
+  return (
+    Number.isInteger(x) &&
+    Number.isInteger(y) &&
+    x >= 0 &&
+    y >= 0 &&
+    x < size.width &&
+    y < size.height
+  );
 }
 
 function reconstruct(parent: Map<number, number>, goal: number, width: number): TilePoint[] {
