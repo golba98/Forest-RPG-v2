@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { Simulation } from '../../../src/simulation/Simulation';
 import { IDLE_INTENT } from '../../../src/types/entities';
 import { moveWithCollision } from '../../../src/systems/CollisionSystem';
@@ -90,4 +90,33 @@ it('returns to safe ground if a jump ends on a solid prop', async () => {
   for (let i = 0; i < 20; i++) s.step(1 / 60, { ...IDLE_INTENT });
   expect(s.player.isJumping).toBe(false);
   expect(s.player.x).toBeCloseTo(4.5);
+});
+
+describe('jump distance', () => {
+  async function jumpDistance(intent: Partial<import('../../../src/types/entities').PlayerIntent>, setup?: (s: Simulation) => void) {
+    const { makeWorld } = await import('../game/fakes');
+    const world = { ...makeWorld(), meta: { ...makeWorld().meta, width: 20, height: 8 }, tiles: new Uint8Array(160).fill(1) };
+    const s = new Simulation();
+    s.loadWorld(world);
+    s.setPlayerPosition(2.5, 4.5);
+    setup?.(s);
+    s.step(1 / 60, { ...IDLE_INTENT, ...intent, moveX: 1, jump: true });
+    // Airborne travel only: the landing step itself moves at ground speed.
+    let landedAt = s.player.x;
+    while (s.player.isJumping) {
+      landedAt = s.player.x;
+      s.step(1 / 60, { ...IDLE_INTENT, ...intent, moveX: 1 });
+    }
+    return landedAt - 2.5;
+  }
+  it('covers about two tiles when walking', async () => {
+    const d = await jumpDistance({});
+    expect(d).toBeGreaterThanOrEqual(1.7);
+    expect(d).toBeLessThanOrEqual(2.1);
+  });
+  it('caps sprint, dash and speed-potion jumps', async () => {
+    expect(await jumpDistance({ sprint: true })).toBeLessThanOrEqual(2.2);
+    expect(await jumpDistance({ sprint: true, dash: true })).toBeLessThanOrEqual(2.2);
+    expect(await jumpDistance({}, (s) => { s.player.speedBuffMs = 5000; })).toBeLessThanOrEqual(2.2);
+  });
 });

@@ -55,6 +55,10 @@ export const GAME_CONFIG = {
     attackStaminaCost: 12,
     jumpDurationMs: 500,
     jumpPeakTiles: 1.5,
+    /** Horizontal speed while airborne, as a fraction of ground speed (walk-jump ≈ 1.9 tiles). */
+    jumpAirSpeedFactor: 0.6,
+    /** Airborne speed cap (tiles/s) so sprint, dash and potions cannot stretch a jump past ≈ 2.1 tiles. */
+    jumpMaxAirSpeed: 4.2,
     dashDurationMs: 200,
     dashCooldownMs: 1000,
     speedPotionDurationMs: 8000,
