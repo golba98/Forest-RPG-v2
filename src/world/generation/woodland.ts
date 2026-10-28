@@ -24,7 +24,12 @@ export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint): WorldP
   for (const p of rng.shuffle(candidates)) {
     let near = grid
       .neighbors8(p.x, p.y)
-      .some((n) => grid.get(n.x, n.y) === Tile.RAMP || grid.get(n.x, n.y) === Tile.LOG || grid.get(n.x, n.y) === Tile.STAIRS);
+      .some((n) => grid.get(n.x, n.y) === Tile.RAMP || grid.get(n.x, n.y) === Tile.LOG);
+    // A tree's body covers its trunk tile and the canopy row above, so keep
+    // trees two tiles clear of stairs or they block the landing.
+    for (let dy = -2; dy <= 2 && !near; dy++)
+      for (let dx = -2; dx <= 2; dx++)
+        if (grid.inBounds(p.x + dx, p.y + dy) && grid.get(p.x + dx, p.y + dy) === Tile.STAIRS) near = true;
     for (let dy = -2; dy <= 2; dy++)
       for (let dx = -2; dx <= 2; dx++) {
         if (dx * dx + dy * dy < 5 && occupied.has((p.y + dy) * grid.width + p.x + dx)) near = true;

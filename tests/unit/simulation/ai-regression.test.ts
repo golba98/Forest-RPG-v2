@@ -119,11 +119,13 @@ it('separates overlapping enemies and drops navigation on death/world replacemen
   expect(ai.debug()).toHaveLength(0);
 });
 
-it('connects an enemy standing beside a trunk to a clear navigation node', () => {
+it('connects an enemy standing beside a tree to a clear navigation node', () => {
   const s = setup();
   s.loadWorld({ ...s.world, props: [{ id: 1, kind: 'tree', tileX: 6, tileY: 4, solid: true }] });
   s.setPlayerPosition(2.5, 4.1);
-  const e = enemy(s, 'mantis', 6.9, 4.1);
+  // Just above the tree body (trunk + lower canopy spans y 3.4–5): its own
+  // tile centre is blocked, but it can see the player.
+  const e = enemy(s, 'mantis', 6.9, 3.0);
   step(s, 1);
   expect(canOccupy(s.world, 6.5, 4.5, 0.3, 'groundEnemy')).toBe(false);
   s.world.tiles[4 * 20 + 4] = Tile.CLIFF;

@@ -8,8 +8,10 @@ const WIND_PX_PER_MS = 0.011;
 const SHADOW_OFFSET_X = 70;
 const SHADOW_OFFSET_Y = 160;
 const FADE_MS = 6000;
-const CLOUD_ALPHA = 0.62;
-const SHADOW_ALPHA = 0.2;
+const CLOUD_ALPHA = 0.8;
+const SHADOW_ALPHA = 0.18;
+/** Clouds thin out over the player (screen centre) so they never hide the action. */
+const OVER_PLAYER_ALPHA = 0.45;
 
 interface Formation {
   readonly cloud: Sprite;
@@ -37,8 +39,9 @@ function mulberry32(seed: number): () => number {
  * Natural, high-altitude cloud cover with matching ground shadows.
  *
  * Each cloud is a pixel-art cumulus (white top, shaded underside) drawn
- * 14–24 tiles across, matching the game's pixel style; soft radial puffs read
- * as a glowing fog blob with smeared stacked shadows. Formations drift in on the wind, fade in, live for a
+ * 12–18 tiles across, matching the game's pixel style, and thins out while it
+ * passes over the player. Soft radial puffs read as a glowing fog blob with
+ * smeared stacked shadows. Formations drift in on the wind, fade in, live for a
  * while and fade out; the amount of cover drifts slowly over time and thickens
  * in rain. Both layers are clipped to the world.
  */
@@ -85,7 +88,7 @@ export class SkyLayer {
   /** Cover drifts between light and broken over ~4 minutes; rain thickens it. */
   private targetCount(rain: boolean): number {
     const area = (this.worldWidth * this.worldHeight) / (TILE * TILE);
-    const base = area / 800;
+    const base = area / 1000;
     const cover = 0.6 + 0.4 * Math.sin(this.time / 38000);
     return Math.max(2, Math.round(base * cover * (rain ? 1.8 : 1)));
   }
@@ -95,7 +98,7 @@ export class SkyLayer {
     const texture = this.shapes[Math.floor(r() * this.shapes.length)];
     if (!texture) return;
     // One crisp pixel-art cumulus, scaled up: 14–24 tiles wide.
-    const scale = ((14 + r() * 10) * TILE) / texture.width;
+    const scale = ((12 + r() * 6) * TILE) / texture.width;
     const flip = r() < 0.5 ? -1 : 1;
     const cloud = new Sprite(texture);
     cloud.anchor.set(0.5);
@@ -103,7 +106,7 @@ export class SkyLayer {
     // The shadow is the same silhouette, flat and dark, so it never stacks into smears.
     const shadow = new Sprite(texture);
     shadow.anchor.set(0.5);
-    shadow.scale.set(scale * flip, scale * 0.85);
+    shadow.scale.set(scale * flip, scale * 0.8);
     shadow.tint = 0x000000;
     const life = 70000 + r() * 90000;
     const y = atY ?? r() * this.worldHeight;
@@ -134,7 +137,10 @@ export class SkyLayer {
       const fadeIn = Math.min(1, f.age / FADE_MS);
       const fadeOut = Math.min(1, Math.max(0, (f.life - f.age) / FADE_MS));
       const k = Math.min(fadeIn, fadeOut) * (rain ? 1.15 : 1);
-      f.cloud.alpha = CLOUD_ALPHA * k;
+      // Distance from the camera centre (the player) in cloud half-widths.
+      const cx = f.x + (f.x - cameraX) * PARALLAX, cy = f.y + (f.y - cameraY) * PARALLAX;
+      const near = Math.min(1, Math.hypot(cx - cameraX, (cy - cameraY) * 1.6) / (Math.abs(f.cloud.width) * 0.55));
+      f.cloud.alpha = (OVER_PLAYER_ALPHA + (CLOUD_ALPHA - OVER_PLAYER_ALPHA) * near * near) * k;
       f.shadow.alpha = SHADOW_ALPHA * k;
       f.shadow.position.set(f.x + SHADOW_OFFSET_X, f.y + SHADOW_OFFSET_Y);
       f.cloud.position.set(f.x + (f.x - cameraX) * PARALLAX, f.y + (f.y - cameraY) * PARALLAX);
