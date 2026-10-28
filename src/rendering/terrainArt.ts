@@ -1,11 +1,13 @@
 import { Tile } from '../types/tiles';
 import type { PropKind } from '../types/world';
 import { decorAlias } from './assetCatalog';
+import { HILL_ATLAS_ALIAS, NB, hillFrame, hillShadowFrame, isElevatedTile, type AtlasRect } from './hillAutotile';
 
 /**
  * Ground-only terrain descriptions. Trees and standing props are rendered
- * separately in foot-depth order. Water, bridges and hills use the original
- * game's full-image-per-tile mapping.
+ * separately in foot-depth order. Water and bridges use the original game's
+ * full-image-per-tile mapping; hills are autotiled from elevation topology
+ * (see hillAutotile.ts).
  */
 
 /** Which part of the source texture a layer uses. */
@@ -20,7 +22,9 @@ export type TileArtSource =
       readonly frameY: number;
       readonly frameW: number;
       readonly frameH: number;
-    };
+    }
+  /** Explicit source rectangle (padded atlases). */
+  | { readonly type: 'rect'; readonly rect: AtlasRect };
 
 export interface TileArtLayer {
   readonly alias: string;
@@ -84,13 +88,24 @@ function grass(tint = WHITE): TileArtLayer {
   return fill(GRASS_ALIAS, FULL, tint);
 }
 
-/** Layers (bottom → top) for the terrain tile at (x, y). */
-export function getTileArt(tileId: number, x: number, y: number): TileArtLayer[] {
+/**
+ * Layers (bottom → top) for the terrain tile at (x, y). `elevation` is the
+ * tile's 8-neighbour elevated-cell mask (hillAutotile.elevationMask).
+ */
+export function getTileArt(tileId: number, x: number, y: number, elevation = 0): TileArtLayer[] {
+  if (isElevatedTile(tileId)) {
+    return [grass(), fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillFrame(elevation, hashTile(x, y) % 3) })];
+  }
+  const layers = getGroundArt(tileId, x, y);
+  // Ground directly below a cliff face gets a soft contact shadow (visual only).
+  if (elevation & NB.N) layers.push(fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillShadowFrame() }));
+  return layers;
+}
+
+function getGroundArt(tileId: number, x: number, y: number): TileArtLayer[] {
   switch (tileId) {
     case Tile.MUD:
       return [fill('tile_mud')];
-    case Tile.PLATEAU:
-      return [grass(0xeff3d8)];
     case Tile.GRASS:
       return [grass()];
     case Tile.FLOWERS: {
@@ -110,22 +125,6 @@ export function getTileArt(tileId: number, x: number, y: number): TileArtLayer[]
       return [grass()];
     case Tile.BORDER:
       return [grass()];
-    case Tile.HILL_N:
-      return [grass(), fill('hill_n')];
-    case Tile.HILL_S:
-      return [grass(), fill('hill_s')];
-    case Tile.HILL_E:
-      return [grass(), fill('hill_e')];
-    case Tile.HILL_W:
-      return [grass(), fill('hill_w')];
-    case Tile.HILL_NE:
-      return [grass(), fill('hill_ne')];
-    case Tile.HILL_NW:
-      return [grass(), fill('hill_nw')];
-    case Tile.HILL_SE:
-      return [grass(), fill('hill_se')];
-    case Tile.HILL_SW:
-      return [grass(), fill('hill_sw')];
     case Tile.CLIFF:
       return [grass(0x9c8a68), contain(decorAlias('rock_boulder'), 1, 1, 'center', 0xc8b8a0)];
     case Tile.CAVE:
