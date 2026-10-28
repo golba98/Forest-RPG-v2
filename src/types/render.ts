@@ -1,4 +1,4 @@
-import type { AnimState, Direction, EntityKind } from './entities';
+import type { AnimState, Direction, EntityKind, ProjectileType } from './entities';
 import type { WorldData } from './world';
 
 export type WeatherKind = 'clear' | 'leaves' | 'rain' | 'storm';
@@ -42,10 +42,23 @@ export interface RenderEntityView {
    */
   readonly portalState?: PortalVisualState;
   /**
-   * Optional simulation time (ms) at which `anim` last changed. When absent the
-   * renderer restarts its own clip clock whenever `anim` changes.
+   * Optional value of `animTimeMs` at the moment `anim` last changed; the clip
+   * plays at `animTimeMs - animStartedAtMs`. When absent the renderer restarts
+   * its own clip clock whenever `anim` changes.
    */
   readonly animStartedAtMs?: number;
+  /**
+   * Projectile art key. The snapshot currently sets `spriteKey: 'projectile'`
+   * for every projectile, so the renderer uses this field (already present via
+   * the entity spread) to pick acid vs magic-bolt art.
+   */
+  readonly projectileType?: ProjectileType;
+  /** Optional enemy attack phase; `windup` drives the renderer's telegraph. */
+  readonly attackPhase?: 'none' | 'windup' | 'strike' | 'recover';
+  /** Optional: false while an enemy is stationary (walk frames are then suppressed). */
+  readonly moving?: boolean;
+  /** Optional: the entity is dead but still shown for its death animation. */
+  readonly dead?: boolean;
 }
 
 export interface LightSource {
