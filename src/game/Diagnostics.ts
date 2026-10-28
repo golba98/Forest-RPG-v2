@@ -43,7 +43,7 @@ export function createDiagnostics(
   game: Game,
   simulation: ISimulation,
   renderer: IRenderer,
-  hooks: DiagnosticsHooks = {}
+  hooks: DiagnosticsHooks = {},
 ): GameDiagnosticsGateway {
   const getState = (): GameSnapshot => {
     const loop = game.getLoopStats();
@@ -82,7 +82,8 @@ export function createDiagnostics(
       isPortalActive: portal?.kind === 'portal' ? portal.active : false,
       portalPos: { x: world.portal.x, y: world.portal.y },
       activeEnemiesCount: enemies.filter((e) => e.health > 0).length,
-      coinCount: entities.filter((e) => e.kind === 'pickup' && e.pickupType === 'coin' && e.alive).length,
+      coinCount: entities.filter((e) => e.kind === 'pickup' && e.pickupType === 'coin' && e.alive)
+        .length,
       daylightCycleRatio: env.timeOfDay,
       weather: env.darkness > 0.6 ? 'night' : env.weather,
       ambientDarknessAlpha: env.darkness,
@@ -154,6 +155,7 @@ export function createDiagnostics(
 
   return {
     getState,
+    getGameplayDebug: () => simulation.getGameplayDebug?.() ?? null,
     stepSimulation: (fixedDeltaSec) => game.stepOnce(fixedDeltaSec),
     pauseSimulation: () => game.pause(),
     resumeSimulation: () => game.resume(),

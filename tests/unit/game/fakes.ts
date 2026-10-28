@@ -105,6 +105,9 @@ export class FakeSimulation implements ISimulation {
     this.steps.push(intent);
     this.elapsedMs += dtSec * 1000;
   }
+  claimPortalTransition(): boolean {
+    return false;
+  }
   getEntities(): readonly Entity[] {
     return [this.player];
   }
