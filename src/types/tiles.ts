@@ -24,6 +24,8 @@ export const Tile = {
   HILL_SW: 18,
   HILL_W: 19,
   HILL_NW: 20,
+  PLATEAU: 21,
+  MUD: 22,
 } as const;
 
 export type TileId = (typeof Tile)[keyof typeof Tile];
@@ -70,6 +72,8 @@ export const TILE_PROPERTIES: Readonly<Record<TileId, TileProperties>> = {
   [Tile.HILL_SW]: WALL,
   [Tile.HILL_W]: WALL,
   [Tile.HILL_NW]: WALL,
+  [Tile.PLATEAU]: WALL,
+  [Tile.MUD]: { ...OPEN, speedMultiplier: 0.72 },
 };
 
 const TILE_IDS = new Set<number>(Object.values(Tile));

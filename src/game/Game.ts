@@ -26,6 +26,7 @@ export interface GameShell {
   onSceneChanged?(scene: SceneState, previous: SceneState): void;
   /** Called once per rendered frame after the world has been drawn. */
   onFrame?(frameDeltaMs: number): void;
+  onTutorialComplete?(): void;
   /** System keys not handled by the game itself (terminal, character menu, minimap). */
   onSystemAction?(action: InputAction): void;
 }
@@ -134,16 +135,30 @@ export class Game {
           level: options.level ?? 1,
           difficulty: this.difficulty,
         });
-    this.loadWorld(world);
+    this.loadWorld(world, 'new');
   }
 
   /** Loads an already-built world (new game, next level, or restored save). */
-  public loadWorld(world: WorldData): void {
+  public loadWorld(world: WorldData, mode: 'new' | 'loaded' = 'loaded'): void {
     this.deps.simulation.loadWorld(world);
     this.deps.renderer.setWorld(world);
     this.intents.reset();
     if (this.loop.isPaused) this.loop.resume();
     this.setScene('playing');
+    this.deps.bus.emit('game:started', { seed: world.meta.seed, mode });
+  }
+
+  /** Advance the current run without resetting player progression. */
+  public advanceLevel(): void {
+    const old = this.deps.simulation.player;
+    const stats = { ...old.stats, coins: 0 };
+    const inventory = { ...old.inventory };
+    const speedBuffMs = old.speedBuffMs;
+    const level = this.deps.simulation.world.meta.level + 1;
+    this.startNewGame({ level, difficulty: this.difficulty, seed: randomSeed() });
+    Object.assign(this.deps.simulation.player.stats, stats);
+    Object.assign(this.deps.simulation.player.inventory, inventory);
+    this.deps.simulation.player.speedBuffMs = speedBuffMs;
   }
 
   /** P key: a fresh procedural world at the current level. */
@@ -232,7 +247,16 @@ export class Game {
   private fixedUpdate(dtSec: number): void {
     if (this.scene !== 'playing') return;
     const intent = this.intents.nextIntent(this.deps.input);
-    this.deps.simulation.step(dtSec * this.timeScale, intent);
+    const sim = this.deps.simulation;
+    sim.step(dtSec * this.timeScale, intent);
+    if (sim.player.stats.health <= 0) { this.endRun('gameover'); return; }
+    const portal = sim.getEntities().find(e => e.kind === 'portal' && e.active);
+    if (portal && Math.hypot(portal.x - sim.player.x, portal.y - sim.player.y) < 0.8) {
+      if (sim.world.meta.isTutorial) {
+        this.deps.shell?.onTutorialComplete?.();
+        this.startNewGame({ difficulty: this.difficulty });
+      } else this.advanceLevel();
+    }
   }
 
   private renderFrame(alpha: number, frameDeltaMs: number): void {

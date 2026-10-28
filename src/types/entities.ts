@@ -68,7 +68,7 @@ export interface PlayerEntity extends EntityBase {
   isDashing: boolean;
   /** Remaining invulnerability after taking damage (ms). */
   hurtTimerMs: number;
-  /** 0, 1, 2 — index of the next melee hit in the combo chain. */
+  /** Number of completed hits in the current chain (0, 1 or 2); resets after the finisher. */
   comboCount: number;
   speedBuffMs: number;
 }

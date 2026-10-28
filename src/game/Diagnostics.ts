@@ -73,6 +73,7 @@ export function createDiagnostics(
 
     const portal = entities.find((e) => e.kind === 'portal');
     const worldState: WorldState = {
+      level: world.meta.level,
       width: world.meta.width,
       height: world.meta.height,
       cellSize: 32,

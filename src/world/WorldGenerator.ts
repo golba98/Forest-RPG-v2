@@ -1,3 +1,4 @@
+import { placeMud } from './generation/mud';
 import { placeWoodland } from './generation/woodland';
 import { GAME_CONFIG } from '../config/GameConfig';
 import { floodFill } from './pathfinding';
@@ -86,7 +87,8 @@ function tryGenerate(opts: WorldGenOptions, width: number, height: number, attem
   // Part 4 — anything the player cannot reach becomes forest.
   pruneUnreachable(grid, spawn);
 
-  const trees = placeWoodland(grid, stream('woodland'));
+  const trees = placeWoodland(grid, stream('woodland'), spawn);
+  placeMud(grid, spawn, stream('mud'));
 
   const trunkCells = new Set(trees.map(t => t.tileY * width + t.tileX));
   const reached = floodFill(grid, spawn, (x, y) => !tileProperties(grid.get(x, y)).solid && !trunkCells.has(y * width + x));
@@ -95,7 +97,7 @@ function tryGenerate(opts: WorldGenOptions, width: number, height: number, attem
   }
 
   // Part 5 — portal, props, enemies and coins.
-  const portal = findPortalTile(grid, spawn);
+  const portal = findPortalTile(grid, spawn, trees);
   if (!portal) return null;
   const decorations = placeProps(grid, spawn, portal, stream('props'), false);
   const props = [...trees, ...decorations].map((p, id) => ({ ...p, id }));

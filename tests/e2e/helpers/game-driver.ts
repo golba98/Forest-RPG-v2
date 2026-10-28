@@ -41,7 +41,7 @@ export class GameDriver {
       }, options.storageItems);
     }
 
-    const params = new URLSearchParams({ debug: '1' });
+    const params = new URLSearchParams({ debug: '1', autostart: '1' });
     if (options.seed !== undefined) params.set('seed', options.seed.toString());
     if (options.tutorial !== undefined) params.set('tutorial', options.tutorial ? '1' : '0');
     if (options.difficulty) params.set('difficulty', options.difficulty);
@@ -120,23 +120,23 @@ export class GameDriver {
    * Dispatches directional movement for a given step count.
    */
   async moveDirection(dir: Direction, steps = 1, sprint = false): Promise<void> {
-    const keyMap: Record<Direction, string> = {
-      N: 'KeyW',
-      S: 'KeyS',
-      W: 'KeyA',
-      E: 'KeyD',
-      NE: 'ArrowUp',
-      NW: 'ArrowUp',
-      SE: 'ArrowDown',
-      SW: 'ArrowDown',
+    const keyMap: Record<Direction, string[]> = {
+      N: ['KeyW'],
+      S: ['KeyS'],
+      W: ['KeyA'],
+      E: ['KeyD'],
+      NE: ['KeyW', 'KeyD'],
+      NW: ['KeyW', 'KeyA'],
+      SE: ['KeyS', 'KeyD'],
+      SW: ['KeyS', 'KeyA'],
     };
 
-    const key = keyMap[dir] || 'KeyW';
+    const keys = keyMap[dir];
     for (let i = 0; i < steps; i++) {
       if (sprint) {
-        await this.holdKeys(['ShiftLeft', key], 80);
+        await this.holdKeys(['ShiftLeft', ...keys], 80);
       } else {
-        await this.pressKey(key, 100);
+        await this.holdKeys([...keys], 100);
       }
       await this.page.waitForTimeout(60);
     }
@@ -156,10 +156,10 @@ export class GameDriver {
   }
 
   /**
-   * Executes a skill (Key Q: AoE Spin Attack, Key E: Magic Projectile).
+   * Executes a skill (Key Q: AoE Spin Attack, Key R: Magic Projectile).
    */
   async castSkill(skill: 'Q' | 'E'): Promise<void> {
-    await this.pressKey(`Key${skill}`);
+    await this.pressKey(skill === 'E' ? 'KeyR' : 'KeyQ');
   }
 
   /**

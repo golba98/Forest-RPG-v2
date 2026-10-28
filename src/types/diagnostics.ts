@@ -79,6 +79,7 @@ export interface EngineState {
 }
 
 export interface WorldState {
+  level: number;
   width: number;
   height: number;
   cellSize: number;

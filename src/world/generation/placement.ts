@@ -59,7 +59,7 @@ export function pruneUnreachable(grid: GenGrid, spawn: TilePoint): void {
 }
 
 /** Nearest GRASS tile to the map centre (square spiral) further than the clear radius from spawn. */
-export function findPortalTile(grid: GenGrid, spawn: TilePoint): TilePoint | null {
+export function findPortalTile(grid: GenGrid, spawn: TilePoint, blocked: readonly WorldProp[] = []): TilePoint | null {
   const midX = Math.floor(grid.width / 2);
   const midY = Math.floor(grid.height / 2);
   const maxR = Math.max(grid.width, grid.height);
@@ -70,6 +70,7 @@ export function findPortalTile(grid: GenGrid, spawn: TilePoint): TilePoint | nul
         const x = midX + dx;
         const y = midY + dy;
         if (!grid.inBounds(x, y) || grid.get(x, y) !== Tile.GRASS) continue;
+        if (blocked.some(p => p.solid && p.tileX === x && p.tileY === y)) continue;
         if (Math.hypot(x - spawn.x, y - spawn.y) > SPAWN_CLEAR_RADIUS) return { x, y };
       }
     }

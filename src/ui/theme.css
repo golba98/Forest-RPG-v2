@@ -14,3 +14,33 @@
 @media(max-width:700px){.settings-body{grid-template-columns:1fr}#game-overlay[data-screen=menu] h1{white-space:normal;transform:none;width:auto}}
 #game-overlay>div{zoom:var(--ui-scale,1)}
 #loading-screen.hidden{display:none}#tutorial-banner{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);padding:16px 24px;background:#10251ee8;border:1px solid #c6a969;color:#f3e8c6;font:16px/1.5 monospace;max-width:80vw;z-index:5}#tutorial-banner[hidden]{display:none}
+/* Settings are framed over the forest scene, with fixed navigation and footer. */
+#game-overlay[data-screen=settings]{background:rgba(7,22,13,.72)!important}
+#game-overlay[data-screen=settings]>div{width:min(1080px,94vw);height:min(700px,88vh);max-height:88vh;padding:0;display:flex;flex-direction:column;overflow:hidden;background:#e7dfc8;color:#283925;border:5px solid #635039;box-shadow:0 20px 75px #07160fc9;text-align:left}
+#game-overlay[data-screen=settings] h1{font-family:Georgia,serif;letter-spacing:.03em;font-size:clamp(28px,3vw,38px);font-weight:700;text-shadow:none;color:#293d28;margin:0;padding:24px 30px;border-bottom:1px solid #b4ad8d}
+.settings-layout{display:flex;flex:1;min-height:0}.settings-nav{width:205px;flex:none;padding:16px 12px;background:#314b35;overflow:auto}
+#game-overlay .settings-nav .settings-tab{min-height:0;margin:3px 0;text-align:left;background:none;color:#e6ead4;border:0;padding:14px 16px;font:600 16px Georgia,serif;text-shadow:none}
+#game-overlay .settings-nav .settings-tab[aria-pressed=true]{background:#e7dfc8;color:#29412d}
+.settings-body{display:block;flex:1;min-width:0;overflow:auto;padding:26px 38px;background:#e7dfc8}.settings-body fieldset[hidden]{display:none}#game-overlay .settings-body fieldset{border:0;padding:0;margin:0}
+#game-overlay .settings-body legend{font:700 26px Georgia,serif;color:#344e34;padding:0;margin-bottom:12px}
+#game-overlay[data-screen=settings] label{font:16px/1.45 Georgia,serif;color:#26392a;padding:12px 0;margin:0;border-bottom:1px solid #c6bea5}
+#game-overlay[data-screen=settings] select{font:16px Georgia,serif;color:#233b28;background:#f6f2e6;border:1px solid #9a9c7b;max-width:55%}
+#game-overlay[data-screen=settings] input[type=range]{accent-color:#547147}#game-overlay[data-screen=settings] input[type=checkbox]{accent-color:#547147}
+#game-overlay[data-screen=settings] .settings-body button{width:auto;min-width:150px;min-height:42px;font:600 15px Georgia,serif;margin:8px 0}
+.settings-footer{display:flex;gap:12px;justify-content:flex-end;padding:12px 28px;border-top:1px solid #b4ad8d;background:#d8d1b8}
+#game-overlay[data-screen=settings] .settings-footer button{width:140px;min-height:42px;margin:0;font:600 15px Georgia,serif}
+@media(max-width:700px){#game-overlay[data-screen=settings]>div{height:90vh;max-height:90vh}.settings-layout{flex-direction:column}.settings-nav{width:100%;display:flex;overflow-x:auto;padding:6px}.settings-nav .settings-tab{white-space:nowrap}.settings-body{padding:20px}}
+#debug-terminal{position:fixed;z-index:30;inset:12% 14%;display:flex;flex-direction:column;background:#0a1512f5;border:2px solid #a48a55;padding:18px;color:#e0efcb;box-shadow:0 12px 50px #0009;font:16px monospace}#debug-terminal[hidden]{display:none}#debug-terminal pre{flex:1;overflow:auto;white-space:pre-wrap}#debug-terminal input{background:#192e22;color:white;border:1px solid #7f9b6e;padding:12px;font:inherit}
+#game-overlay[data-screen=settings] label{padding:8px 0;min-height:44px}
+.settings-body{scrollbar-width:thin;scrollbar-color:#82916c #dcd3bd}
+#game-overlay[data-screen=menu]{background:linear-gradient(90deg,rgba(7,26,17,.92),rgba(7,26,17,.42) 55%,rgba(7,26,17,.12))!important;place-items:center start}
+#game-overlay[data-screen=menu]>div{margin-left:clamp(28px,10vw,190px);width:min(440px,80vw);text-align:left;padding:24px 0}
+#game-overlay[data-screen=menu] h1{font:700 clamp(42px,5vw,72px)/1.05 Georgia,serif;letter-spacing:-.025em;text-shadow:0 3px 0 #25321c,0 8px 26px #07170ddd;color:#f9e5b8;white-space:normal;transform:none;width:auto;margin:0 0 12px}
+#game-overlay[data-screen=menu] .menu-subtitle{font:italic 18px/1.5 Georgia,serif;color:#d7dfba;letter-spacing:.03em;margin:0 0 44px}
+#game-overlay[data-screen=menu] button{width:min(320px,100%);min-height:54px;margin:12px 0;padding:12px 20px;text-align:left;background:linear-gradient(#57754b,#355338);border:1px solid #9bb57a;border-bottom:3px solid #263e2c;color:#fcf5dc;font:700 19px Georgia,serif;text-shadow:0 2px 2px #1b3125;box-shadow:0 4px 16px #05150b55}
+#game-overlay[data-screen=menu] button:hover{background:linear-gradient(#749562,#486c42)}
+#game-overlay[data-screen=settings] .settings-body button,#game-overlay[data-screen=settings] .settings-footer button{background:#38563b;border:1px solid #6f8660;color:#fff6de;text-shadow:none}
+#game-overlay[data-screen=settings] .settings-body button:hover,#game-overlay[data-screen=settings] .settings-footer button:hover{background:#4a6b49}
+@media(max-width:700px){#game-overlay[data-screen=menu]{place-items:center}#game-overlay[data-screen=menu]>div{margin-left:0}}
+#game-overlay[data-screen=menu][data-video=fallback]{background:linear-gradient(90deg,#071a11d9,#071a1155 65%,#071a111c),url('/assets/images/background/woodland_menu.webp') center/cover!important}
+#game-overlay[data-screen=settings][data-video=fallback]{background:linear-gradient(#07160bc9,#07160bc9),url('/assets/images/background/woodland_menu.webp') center/cover!important}

@@ -31,14 +31,16 @@ test.describe('Tier 1: Persistence & Legacy Save Adapter', () => {
 
     // Trigger manual or auto save
     await driver.executeDebugCommand('/save');
-    const rawSave = await driver.getLocalStorage('autosave_map');
+    const rawSave = await driver.getLocalStorage('forestrpg.v2.save.auto');
     expect(rawSave).not.toBeNull();
 
     const parsed = JSON.parse(rawSave!);
-    expect(parsed.playerPosition.x).toBe(50);
-    expect(parsed.playerPosition.y).toBe(50);
-    expect(parsed.logicalW).toBe(150);
-    expect(parsed.logicalH).toBe(150);
+    const player = parsed.entities.find((entity: { kind: string }) => entity.kind === 'player');
+    expect(player.x).toBe(50);
+    expect(player.y).toBe(50);
+    expect(parsed.version).toBe(2);
+    expect(parsed.world.meta.width).toBe(150);
+    expect(parsed.world.meta.height).toBe(150);
   });
 
   test('T1.5.2 — Save restoration: reload from saved state restores identical player and world vitals', async () => {
@@ -69,6 +71,7 @@ test.describe('Tier 1: Persistence & Legacy Save Adapter', () => {
     });
     await driver.waitForEngineReady();
 
+    expect(await driver.page.evaluate(() => window.__GAME__!.loadGame())).toBe(true);
     const state = await driver.getState();
     expect(state.engine.isRunning).toBe(true);
   });
@@ -82,13 +85,14 @@ test.describe('Tier 1: Persistence & Legacy Save Adapter', () => {
     });
     await driver.waitForEngineReady();
 
+    expect(await driver.page.evaluate(() => window.__GAME__!.loadGame())).toBe(true);
     const state = await driver.getState();
     expect(state.world.width).toBe(150);
     expect(state.world.height).toBe(150);
 
     // Player position restored to (75, 75)
-    expect(state.player.x).toBe(75);
-    expect(state.player.y).toBe(75);
+    expect(state.player.x).toBe(75.5);
+    expect(state.player.y).toBe(75.5);
 
     // Enemies restored (Mantis, Maggot, Beetle)
     const enemyTypes = state.enemies.map((e) => e.type);

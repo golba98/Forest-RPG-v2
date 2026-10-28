@@ -87,6 +87,10 @@ function grass(tint = WHITE): TileArtLayer {
 /** Layers (bottom → top) for the terrain tile at (x, y). */
 export function getTileArt(tileId: number, x: number, y: number): TileArtLayer[] {
   switch (tileId) {
+    case Tile.MUD:
+      return [fill('tile_mud')];
+    case Tile.PLATEAU:
+      return [grass(0xeff3d8)];
     case Tile.GRASS:
       return [grass()];
     case Tile.FLOWERS: {

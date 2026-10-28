@@ -22,6 +22,8 @@ export interface RenderEntityView {
   readonly animTimeMs: number;
   /** Vertical lift in tiles (jump arc), drawn as upward offset without changing depth. */
   readonly lift: number;
+  /** Player is standing in water, not on a bridge or airborne. */
+  readonly submerged?: boolean;
   /** 0..1 */
   readonly alpha: number;
   /** True while the entity should flash after being hit. */

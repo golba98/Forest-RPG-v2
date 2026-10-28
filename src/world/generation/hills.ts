@@ -43,7 +43,7 @@ export function generateHills(grid: GenGrid, rng: Rng, noise: PerlinNoise): void
     for (let x = 1; x < w - 1; x++) {
       if (hill[y * w + x] !== 1) continue;
       const tile = hillEdgeTile(hill, w, h, x, y);
-      if (tile !== null) grid.set(x, y, tile);
+      grid.set(x, y, tile ?? Tile.PLATEAU);
     }
   }
 }

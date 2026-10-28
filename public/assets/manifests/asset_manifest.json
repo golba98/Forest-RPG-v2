@@ -75,6 +75,10 @@
         {
           "alias": "hill_w",
           "src": "assets/images/terrain/hills/hill_west.png"
+        },
+        {
+          "alias": "tile_mud",
+          "src": "assets/images/terrain/mud.png"
         }
       ]
     },
@@ -152,6 +156,10 @@
         {
           "alias": "portal_inactive",
           "src": "assets/images/objects/portal_inactive.png"
+        },
+        {
+          "alias": "portal_forest",
+          "src": "assets/images/objects/portal_forest.png"
         }
       ]
     }

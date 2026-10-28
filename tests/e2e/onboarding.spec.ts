@@ -9,6 +9,7 @@ test('first-time welcome is remembered after skipping', async ({ page }) => {
 });
 test('settings exposes tutorial preferences and controls', async ({ page }) => {
   await page.goto('/?debug=1'); await page.getByTestId('settings-button').click();
+  await page.getByRole('button', { name: 'Gameplay', exact: true }).click();
   await expect(page.getByLabel('Show tutorials')).toBeChecked();
   await page.getByLabel('Show tutorials').uncheck();
   await page.waitForTimeout(500);

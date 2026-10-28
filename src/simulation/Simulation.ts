@@ -1,3 +1,5 @@
+import { Rng } from '../world/Rng';
+import { Tile } from '../types/tiles';
 import { GAME_CONFIG as C } from '../config/GameConfig';
 import type { Entity, EntityBase, EnemyType, PlayerEntity, PlayerIntent } from '../types/entities';
 import type { RenderSnapshot } from '../types/render';
@@ -5,12 +7,13 @@ import type { ISimulation } from '../types/simulation';
 import type { WorldData } from '../types/world';
 import { generateTutorialWorld } from '../world/TutorialMap';
 import { TutorialSystem } from '../systems/TutorialSystem';
-import { EncounterSystem } from '../systems/EncounterSystem';
+import { EncounterSystem, type CombatFeedback }  from '../systems/EncounterSystem';
 import { movePlayer } from '../systems/MovementSystem';
 
 export class Simulation implements ISimulation {
   tutorial = new TutorialSystem();
   invertY = false;
+  sensitivity = 5;
   world!: WorldData;
   player!: PlayerEntity;
   worldVersion = 0;
@@ -18,13 +21,17 @@ export class Simulation implements ISimulation {
   private time = 0.3;
   private entities: Entity[] = [];
   private sequence = 0;
-  private encounters = new EncounterSystem();
+  private ghostNightSpawned = false;
+  onFeedback: ((kind: CombatFeedback, player: PlayerEntity, enemy?: import('../types/entities').EnemyEntity) => void) | null = null;
+  onHit: ((enemy: import('../types/entities').EnemyEntity, damage: number) => void) | null = null;
+  onCut: ((x: number, y: number, propId?: number) => void) | null = null;
+  private encounters = new EncounterSystem((enemy, damage) => this.onHit?.(enemy, damage), undefined, (kind, player, enemy) => this.onFeedback?.(kind, player, enemy));
   constructor() { this.loadWorld(generateTutorialWorld()); }
   private base(kind: EntityBase['kind'], x: number, y: number): EntityBase {
     return { id: `${kind}-${this.sequence++}`, kind, x, y, prevX: x, prevY: y, halfSize: 0.3, facing: 'S', anim: 'idle', animTimeMs: 0, alive: true };
   }
   loadWorld(world: WorldData): void {
-    this.encounters = new EncounterSystem(); this.tutorial = new TutorialSystem();
+    this.encounters = new EncounterSystem((enemy, damage) => this.onHit?.(enemy, damage), new Rng(world.meta.seed), (kind, player, enemy) => this.onFeedback?.(kind, player, enemy), (x, y, propId) => this.onCut?.(x, y, propId)); this.tutorial = new TutorialSystem(); this.ghostNightSpawned = false;
     this.world = world; this.worldVersion++; this.elapsedMs = 0; this.time = 0.3; this.entities = [];
     this.player = { ...this.base('player', world.spawn.x + 0.5, world.spawn.y + 0.5), kind: 'player', vx: 0, vy: 0,
       stats: { health: 7, maxHealth: 7, mana: 100, maxMana: 100, stamina: 100, maxStamina: 100, level: 1, xp: 0, xpToNextLevel: 100, statPoints: 0, baseDamage: 1, coins: 0 },
@@ -40,16 +47,49 @@ export class Simulation implements ISimulation {
   }
   step(dt: number, intent: PlayerIntent): void {
     this.elapsedMs += dt * 1000; this.time = (this.time + dt / C.dayNight.cycleSec) % 1;
-    movePlayer(this.world, this.player, this.invertY ? { ...intent, moveY: -intent.moveY } : intent, dt);
+    const night = this.time >= C.dayNight.nightStart || this.time < C.dayNight.nightEnd;
+    if (night && !this.ghostNightSpawned && !this.world.meta.isTutorial) {
+      this.ghostNightSpawned = true;
+      const count = C.world.ghostsByDifficulty[this.world.meta.difficulty];
+      for (let i = 0; i < count; i++) {
+        const angle = i * Math.PI * 2 / count;
+        this.spawnEnemy('ghost', Math.max(0.5, Math.min(this.world.meta.width - 0.5, this.player.x + Math.cos(angle) * 8)), Math.max(0.5, Math.min(this.world.meta.height - 0.5, this.player.y + Math.sin(angle) * 8)));
+      }
+    } else if (!night) {
+      this.ghostNightSpawned = false;
+      for (const e of this.entities) if (e.kind === 'enemy' && e.enemyType === 'ghost') e.alive = false;
+    }
+    movePlayer(this.world, this.player, this.invertY ? { ...intent, moveY: -intent.moveY } : intent, dt, this.sensitivity);
     this.encounters.step(this.world, this.player, this.entities, intent, dt);
     if (this.world.meta.isTutorial) this.tutorial.update(this.player, this.entities, intent);
-    this.entities = this.entities.filter(e => e.kind !== 'projectile' || e.alive);
+    this.entities = this.entities.filter(e => e.alive || (e.kind !== 'projectile' && !(e.kind === 'enemy' && e.enemyType === 'ghost')));
     for (const e of this.entities) if (e !== this.player) e.animTimeMs += dt * 1000;
+  }
+  allocateStat(stat: 'health' | 'damage' | 'mana' | 'stamina'): boolean {
+    const s = this.player.stats;
+    if (s.statPoints <= 0 || (stat === 'health' && s.maxHealth >= C.player.maxHealthCap)) return false;
+    s.statPoints--;
+    if (stat === 'health') { s.maxHealth += C.progression.statHealth; s.health = Math.min(s.maxHealth, s.health + C.progression.statHealth); }
+    else if (stat === 'damage') s.baseDamage += C.progression.statDamage;
+    else if (stat === 'mana') { s.maxMana += C.progression.statMana; s.mana += C.progression.statMana; }
+    else { s.maxStamina += C.progression.statStamina; s.stamina += C.progression.statStamina; }
+    return true;
+  }
+  getRuntimeState(): { rngState: number; ghostNightSpawned: boolean } { return { rngState: this.encounters.getRandomState(), ghostNightSpawned: this.ghostNightSpawned }; }
+  restoreEntities(entities: Entity[], time: number, elapsedMs: number, tutorialStage: number, runtime?: { rngState: number; ghostNightSpawned: boolean }): void {
+    const player = entities.find((e): e is PlayerEntity => e.kind === 'player');
+    if (!player) throw new Error('Save has no player');
+    this.entities = entities; this.player = player; this.time = time; this.elapsedMs = elapsedMs; this.tutorial.stage = tutorialStage;
+    if (runtime) { this.encounters.setRandomState(runtime.rngState); this.ghostNightSpawned = runtime.ghostNightSpawned; }
+    else this.ghostNightSpawned = (time >= C.dayNight.nightStart || time < C.dayNight.nightEnd) && !this.world.meta.isTutorial;
+    for (const entity of entities) { const match = /-(\d+)$/.exec(entity.id); if (match) this.sequence = Math.max(this.sequence, Number(match[1]) + 1); }
+    this.encounters.setSequence(this.sequence);
   }
   getEntities(): readonly Entity[] { return this.entities; }
   setPlayerPosition(x: number, y: number): void { this.player.x = this.player.prevX = x; this.player.y = this.player.prevY = y; }
   spawnEnemy(type: EnemyType, x: number, y: number): string {
-    const e = { ...this.base('enemy', x, y), kind: 'enemy' as const, enemyType: type, health: type === 'beetle' ? 15 : 3, maxHealth: type === 'beetle' ? 15 : 3, aiState: 'idle' as const, aggressive: true, hurtTimerMs: 0, attackCooldownMs: 0 };
+    const hp = type === 'beetle' ? 15 + (this.world.meta.level - 1) * 5 : type === 'maggot' ? 2 + Math.floor(this.world.meta.level / 3) : 3 + Math.floor(this.world.meta.level / 2);
+    const e = { ...this.base('enemy', x, y), kind: 'enemy' as const, enemyType: type, health: hp, maxHealth: hp, aiState: 'idle' as const, aggressive: true, hurtTimerMs: 0, attackCooldownMs: 0 };
     this.entities.push(e); return e.id;
   }
   setTimeOfDay(ratio: number): void { this.time = ((ratio % 1) + 1) % 1; }
@@ -57,7 +97,7 @@ export class Simulation implements ISimulation {
   buildRenderSnapshot(): RenderSnapshot {
     const darkness = Math.max(0, Math.cos(this.time * Math.PI * 2)) * 0.8;
     return { world: this.world, worldVersion: this.worldVersion, playerId: this.player.id,
-      entities: this.entities.filter(e => e.alive).map(e => ({ ...e, spriteKey: e.kind === 'enemy' ? e.enemyType : e.kind === 'pickup' ? e.pickupType : e.kind, lift: 0, alpha: 1, hurtFlash: (e.kind === 'player' || e.kind === 'enemy') && e.hurtTimerMs > 0 })),
-      environment: { timeOfDay: this.time, darkness, weather: 'clear', lights: [{ x: this.player.x, y: this.player.y, radiusPx: 520 - darkness / 0.8 * 290, color: 0xffdd99, intensity: 1 }] } };
+      entities: this.entities.filter(e => e.alive).map(e => ({ ...e, spriteKey: e.kind === 'enemy' ? e.enemyType : e.kind === 'pickup' ? e.pickupType : e.kind, lift: e.kind === 'player' && e.isJumping ? Math.sin(e.jumpProgress * Math.PI) * C.player.jumpPeakTiles : 0, submerged: e.kind === 'player' && !e.isJumping && this.world.tiles[Math.floor(e.y) * this.world.meta.width + Math.floor(e.x)] === Tile.RIVER, alpha: 1, hurtFlash: (e.kind === 'player' || e.kind === 'enemy') && e.hurtTimerMs > 0 })),
+      environment: { timeOfDay: this.time, darkness, weather: !this.world.meta.isTutorial && Math.floor((this.elapsedMs + (this.world.meta.seed % 19) * 1000) / 30000) % 6 === 4 ? 'rain' : 'clear', lights: [{ x: this.player.x, y: this.player.y, radiusPx: 520 - darkness / 0.8 * 290, color: 0xffdd99, intensity: 1 }] } };
   }
 }

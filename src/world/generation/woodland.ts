@@ -1,13 +1,15 @@
 import { Tile } from '../../types/tiles';
-import type { WorldProp } from '../../types/world';
+import type { TilePoint, WorldProp } from '../../types/world';
 import type { GenGrid } from './GenGrid';
 import type { Rng } from '../Rng';
 
 /** Forest regions become discrete trunks with traversable space between them. */
-export function placeWoodland(grid: GenGrid, rng: Rng): WorldProp[] {
+export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint): WorldProp[] {
   const candidates: Array<{ x: number; y: number }> = [];
   for (let y = 1; y < grid.height - 1; y++) for (let x = 1; x < grid.width - 1; x++) {
-    if (grid.get(x, y) === Tile.FOREST) { candidates.push({ x, y }); grid.set(x, y, Tile.GRASS); }
+    const tile = grid.get(x, y);
+    if (tile === Tile.FOREST) { candidates.push({ x, y }); grid.set(x, y, Tile.GRASS); }
+    else if (tile === Tile.GRASS && Math.hypot(x - spawn.x, y - spawn.y) > 5 && rng.chance(0.018)) candidates.push({ x, y });
   }
   const trees: WorldProp[] = [];
   const occupied = new Set<number>();

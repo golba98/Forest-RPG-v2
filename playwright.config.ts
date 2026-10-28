@@ -38,6 +38,7 @@ export default defineConfig({
     },
   },
   projects: [
+    { name: 'firefox', use: { ...devices['Desktop Firefox'], launchOptions: { args: [] } } },
     {
       name: 'chromium',
       use: {

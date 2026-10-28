@@ -1,7 +1,7 @@
 import type { EnemyType, PickupType } from './entities';
 
 /** Bump whenever generator output for a given seed changes. Stored in saves. */
-export const WORLD_GENERATOR_VERSION = 2;
+export const WORLD_GENERATOR_VERSION = 3;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 

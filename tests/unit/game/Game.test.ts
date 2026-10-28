@@ -62,6 +62,19 @@ describe('Game lifecycle', () => {
     expect(simulation.world.meta.isTutorial).toBe(true);
   });
 
+  it('advances a level while preserving progression and inventory', () => {
+    game.startNewGame();
+    simulation.player.stats.health = 3;
+    simulation.player.stats.level = 4;
+    simulation.player.stats.xp = 12;
+    simulation.player.stats.coins = 20;
+    simulation.player.inventory.healthPotions = 2;
+    game.advanceLevel();
+    expect(worlds.generated[1]?.level).toBe(2);
+    expect(simulation.player.stats).toMatchObject({ health: 3, level: 4, xp: 12, coins: 0 });
+    expect(simulation.player.inventory.healthPotions).toBe(2);
+  });
+
   it('pauses and resumes; no simulation while paused; input disabled while paused', () => {
     game.startNewGame();
     game.pause();
