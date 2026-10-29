@@ -1,3 +1,4 @@
+import { riverDefects } from '../../../src/world/RiverTopology';
 import { describe, expect, it, vi } from 'vitest';
 import { generateWorld } from '../../../src/world/WorldGenerator';
 import { Tile, isTileId } from '../../../src/types/tiles';
@@ -40,6 +41,7 @@ describe('final terrain topology', () => {
           expect(bridgeReservations(bridge).some(r => boundsOverlap(r, { minX: prop.tileX + p.minX, minY: prop.tileY + p.minY, maxX: prop.tileX + p.maxX, maxY: prop.tileY + p.maxY }))).toBe(false);
         }
       }
+      expect(riverDefects(w), `river seed ${seed}`).toEqual([]);
       const open = (x: number, y: number) => canOccupy(w, x + 0.5, y + 0.5, 0.3);
       const reached = floodFill(w.meta, w.spawn, open),
         ground = floodFill(w.meta, w.spawn, (x, y) =>

@@ -17,6 +17,7 @@ async function ledgeFixture(page: Page): Promise<void> {
     for (let y = 5; y <= 17; y++) for (let x = 5; x <= 17; x++) tiles[y * 24 + x] = 21;
     tiles[10 * 24 + 5] = 23;
     delete d.runtime.encounters;
+    delete d.runtime.moisture;
     d.world = {
       ...d.world,
       encounterSites: [],

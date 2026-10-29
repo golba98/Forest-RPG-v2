@@ -50,6 +50,7 @@ export interface EncounterState {
   groves: GroveEncounter[];
 }
 export interface SimulationRuntime {
+  moisture?: import('../systems/SurfaceMoisture').SavedMoisture;
   rngState: number;
   /** Accepted only as migration evidence; never used for spawning. */
   ghostNightSpawned?: boolean;

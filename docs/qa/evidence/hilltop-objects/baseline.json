@@ -1,0 +1,78 @@
+[
+  {
+    "name": "hill",
+    "start": {
+      "x": 69.5,
+      "y": 96.2875
+    },
+    "end": {
+      "x": 72.31250000000013,
+      "y": 96.2875,
+      "renderX": 72.31250000000013,
+      "renderY": 96.2875,
+      "health": 7,
+      "maxHealth": 7,
+      "mana": 100,
+      "maxMana": 100,
+      "stamina": 100,
+      "maxStamina": 100,
+      "level": 1,
+      "xp": 0,
+      "xpToNextLevel": 100,
+      "statPoints": 0,
+      "baseDamage": 1,
+      "isJumping": false,
+      "isDashing": false,
+      "isSprinting": false,
+      "jumpProgress": 0,
+      "hurtTimer": 0,
+      "comboCount": 0,
+      "direction": "E",
+      "coins": 0,
+      "potions": {
+        "health": 0,
+        "speed": 0
+      },
+      "speedBuffTimer": 0,
+      "isInvulnerable": false
+    }
+  },
+  {
+    "name": "ground",
+    "start": {
+      "x": 86.2,
+      "y": 37.4875
+    },
+    "end": {
+      "x": 86.88,
+      "y": 37.4875,
+      "renderX": 86.88,
+      "renderY": 37.4875,
+      "health": 7,
+      "maxHealth": 7,
+      "mana": 100,
+      "maxMana": 100,
+      "stamina": 100,
+      "maxStamina": 100,
+      "level": 1,
+      "xp": 0,
+      "xpToNextLevel": 100,
+      "statPoints": 0,
+      "baseDamage": 1,
+      "isJumping": false,
+      "isDashing": false,
+      "isSprinting": false,
+      "jumpProgress": 0,
+      "hurtTimer": 0,
+      "comboCount": 0,
+      "direction": "E",
+      "coins": 0,
+      "potions": {
+        "health": 0,
+        "speed": 0
+      },
+      "speedBuffTimer": 0,
+      "isInvulnerable": false
+    }
+  }
+]

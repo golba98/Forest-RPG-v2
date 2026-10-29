@@ -239,7 +239,7 @@ try {
       setFlags: (flags) => { renderer.debugOverlay.setFlags(flags); controls.sync(); },
       getFlags: () => renderer.debugOverlay.getFlags(),
       getInfo: () => renderer.getVisualDebugInfo(),
-      setWeatherPreview: (weather) => { renderer.weatherPreview = weather; },
+      setWeatherPreview: (weather) => { simulation.weatherOverride = weather; renderer.weatherPreview = weather; },
     };
   }
   loading?.classList.add('hidden');

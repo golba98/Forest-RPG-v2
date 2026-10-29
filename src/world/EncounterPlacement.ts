@@ -3,7 +3,7 @@ import type { EncounterSite } from '../types/encounters';
 import type { Bounds } from '../types/gameplay';
 import { Tile } from '../types/tiles';
 import type { Entity } from '../types/entities';
-import { WORLD_GENERATOR_VERSION, type TilePoint, type WorldData } from '../types/world';
+import type { TilePoint, WorldData } from '../types/world';
 import { boundsOverlap, bridgeReservations } from './BridgeGeometry';
 import { canOccupy } from '../systems/CollisionSystem';
 import { floodFill } from './pathfinding';
@@ -147,6 +147,9 @@ export function placeGroves(world: WorldData, nests: readonly EncounterSite[]): 
 }
 
 /** Missing definitions are derived once on existing terrain; never regenerate a loaded map. */
+// Encounter compatibility stays fixed when unrelated terrain generation advances.
+const ENCOUNTER_GENERATOR_VERSION = 8;
+
 export function prepareEncounterWorld(
   world: WorldData,
   entities: readonly Entity[] = [],
@@ -155,7 +158,7 @@ export function prepareEncounterWorld(
   const oldBoss =
     entities.find((e) => e.kind === 'enemy' && e.enemyType === 'beetle') ??
     world.enemySpawns.find((e) => e.type === 'beetle');
-  if (!oldBoss && (world.meta.width < 32 || world.meta.generatorVersion >= WORLD_GENERATOR_VERSION))
+  if (!oldBoss && (world.meta.width < 32 || world.meta.generatorVersion >= ENCOUNTER_GENERATOR_VERSION))
     return { ...world, encounterSites: [] };
   const candidates = existingCandidates(world, 4);
   const oldPoint = oldBoss

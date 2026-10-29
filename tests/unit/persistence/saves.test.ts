@@ -216,3 +216,23 @@ it('rejects a fully solid save before replacing the active run', () => {
   expect(() => saves.import(JSON.stringify(data))).toThrow('No safe position');
   expect(sim.worldVersion).toBe(version);
 });
+
+it('rejects corrupt moisture before replacing the active world', () => {
+  const version = sim.worldVersion, bad = JSON.parse(saves.export());
+  bad.runtime.moisture.puddles[0] = 256;
+  expect(() => saves.import(JSON.stringify(bad))).toThrow('Invalid surface moisture');
+  expect(sim.worldVersion).toBe(version);
+  bad.runtime.moisture.puddles = [];
+  expect(() => saves.import(JSON.stringify(bad))).toThrow('Invalid surface moisture');
+});
+it('round-trips accumulated puddles and accepts older saves without moisture', () => {
+  game.loadWorld(bridgeFixture().world);
+  sim.moisture.step(30000, true);
+  const before = sim.moisture.save(); saves.save('wet-ground');
+  sim.moisture.step(200000, false); saves.load('wet-ground');
+  expect(sim.moisture.save()).toEqual(before);
+  const old = JSON.parse(saves.export()); delete old.runtime.moisture;
+  saves.import(JSON.stringify(old));
+  expect(Math.max(...sim.moisture.wetness)).toBe(0);
+  expect(Math.max(...sim.moisture.puddles)).toBe(0);
+});

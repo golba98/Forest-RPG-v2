@@ -36,6 +36,7 @@ async function fixture(page: Page, combat = false): Promise<void> {
       for (let x = 1; x < 23; x++) tiles[15 * 24 + x] = 11;
       tiles[15 * 24 + 5] = 7;
       delete data.runtime.encounters;
+    delete data.runtime.moisture;
       data.world = {
         ...data.world,
         encounterSites: [],

@@ -19,6 +19,7 @@ async function load(page: Page, world: WorldData) {
         g.saveGame('shoreline-fixture');
         const save = JSON.parse(localStorage.getItem('forestrpg.v2.save.shoreline-fixture')!);
         delete save.runtime.encounters;
+    delete save.runtime.moisture;
     save.world = w;
         save.entities = save.entities.filter(
           (e: { kind: string }) => e.kind === 'player' || e.kind === 'portal',

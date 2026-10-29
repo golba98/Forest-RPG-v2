@@ -54,7 +54,7 @@ export function restoreSpawnClearing(grid: GenGrid, spawn: TilePoint): void {
     for (let dx = -SPAWN_CLEAR_RADIUS; dx <= SPAWN_CLEAR_RADIUS; dx++) {
       const x = spawn.x + dx;
       const y = spawn.y + dy;
-      if (grid.inBounds(x, y)) grid.set(x, y, Tile.GRASS);
+      if (grid.inBounds(x, y) && grid.get(x, y) !== Tile.RIVER) grid.set(x, y, Tile.GRASS);
     }
   }
 }
@@ -65,7 +65,7 @@ export function pruneUnreachable(grid: GenGrid, spawn: TilePoint): void {
   // cut regions off here; the post-woodland pass prunes what is truly unreachable.
   const reached = floodFill(grid, spawn, (x, y) => isOpen(grid, x, y) || (grid.inBounds(x, y) && grid.get(x, y) === Tile.FOREST));
   for (let i = 0; i < grid.tiles.length; i++) {
-    if (reached[i] !== 1 && !tileProperties(grid.tiles[i] ?? 0).solid) grid.tiles[i] = Tile.FOREST;
+    if (grid.tiles[i] !== Tile.RIVER && reached[i] !== 1 && !tileProperties(grid.tiles[i] ?? 0).solid) grid.tiles[i] = Tile.FOREST;
   }
 }
 

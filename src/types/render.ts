@@ -89,6 +89,8 @@ export interface EnvironmentView {
 }
 
 export interface RenderSnapshot {
+  readonly moisture?: import('../systems/SurfaceMoisture').MoistureView;
+  readonly elapsedMs?: number;
   readonly encounters?: import('./encounters').EncounterPresentation;
   readonly world: WorldData;
   /** Increments whenever `world` is replaced (new level, load, regeneration). */

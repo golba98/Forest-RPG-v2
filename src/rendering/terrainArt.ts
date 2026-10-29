@@ -1,7 +1,10 @@
+import { hashTile } from '../world/TileHash';
+export { hashTile } from '../world/TileHash';
+import { plateauDecoration, hilltopSpritePlacement } from '../world/HilltopDecoration';
 import { Tile } from '../types/tiles';
-import type { PropKind } from '../types/world';
+import type { PropKind, WorldProp } from '../types/world';
 import { decorAlias } from './assetCatalog';
-import { waterBaseAlias, waterEdgeAlias, waterEdges } from './waterArt';
+import { waterBaseAlias, waterEdgeAlias, waterEdges, bankAlias, mudAlias } from './waterArt';
 import { HILL_ATLAS_ALIAS, NB, hillFrame, hillShadowEastFrame, hillShadowFrame, hillStairsFrame, isElevatedTile, reduceMask, type AtlasRect } from './hillAutotile';
 
 /**
@@ -51,14 +54,6 @@ const FULL: TileArtSource = { type: 'full' };
 
 const FLOWER_VARIANTS: readonly PropKind[] = ['flower_pink', 'flower_yellow', 'flower_clump'];
 
-/** Deterministic 32-bit hash of a tile coordinate. */
-export function hashTile(x: number, y: number): number {
-  let h = Math.imul(x | 0, 0x27d4eb2d) ^ Math.imul(y | 0, 0x165667b1);
-  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  return (h ^ (h >>> 16)) >>> 0;
-}
-
 function fill(alias: string, source: TileArtSource = FULL, tint = WHITE): TileArtLayer {
   return {
     alias,
@@ -90,7 +85,6 @@ function grass(tint = WHITE): TileArtLayer {
 }
 
 const TONE_CELL = 7;
-const PLATEAU_DECOR: readonly PropKind[] = ['bush_small', 'flower_yellow', 'flower_pink', 'rock_pebble', 'flower_clump', 'rock_boulder'];
 
 /**
  * Large-scale tone variation (bilinear value noise on a 7-tile lattice) as a
@@ -119,11 +113,10 @@ export function getTileArt(tileId: number, x: number, y: number, elevation = 0, 
     const interior = reduceMask(elevation) === 255;
     const layers = [grass(), fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillFrame(elevation, h) }, interior ? toneTint(x, y, 0.14) : WHITE)];
     if (tileId === Tile.STAIRS) layers.push(fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillStairsFrame(elevation) }));
-    // Sparse decor on hill tops (visual only; the plateau is solid either way).
-    if (interior && (h >>> 12) % 100 < 7) {
-      const kind = PLATEAU_DECOR[(h >>> 4) % PLATEAU_DECOR.length] ?? 'rock_pebble';
-      layers.push(contain(decorAlias(kind), 0.9, 0.9, 'center', WHITE, ((h >>> 20) % 9) - 4, ((h >>> 24) % 7) - 3));
-    }
+    const decor = plateauDecoration(tileId, x, y, elevation);
+    // Solid decor is an authoritative world prop, never part of a terrain cache.
+    if (decor && decor.kind !== 'rock_boulder')
+      layers.push(contain(decorAlias(decor.kind), 0.9, 0.9, 'center', WHITE, decor.offsetX, decor.offsetY));
     return layers;
   }
   if (tileId === Tile.RIVER) {
@@ -131,7 +124,8 @@ export function getTileArt(tileId: number, x: number, y: number, elevation = 0, 
     // Gentle tone tint breaks up the repeating swell; shoreline overlays sit on top.
     return [fill(waterBaseAlias(h), FULL, toneTint(x, y, 0.18)), ...waterEdges(shore).map((edge) => fill(waterEdgeAlias(edge)))];
   }
-  const layers = getGroundArt(tileId, x, y);
+  const layers = tileId === Tile.MUD ? [grass(), fill(mudAlias(shore))] : getGroundArt(tileId, x, y);
+  if (shore && [Tile.GRASS, Tile.FLOWERS].includes(tileId as 1 | 9)) layers.push(fill(bankAlias(shore)));
   const base = layers[0];
   if (base?.alias === GRASS_ALIAS && base.tint === WHITE) layers[0] = grass(toneTint(x, y));
   // Sun from the north-west: low ground south and east of a hill is shaded (visual only).
@@ -175,4 +169,11 @@ function getGroundArt(tileId: number, x: number, y: number): TileArtLayer[] {
 export function getPropArt(kind: PropKind): TileArtLayer {
   const isFlower = kind === 'flower_clump' || kind === 'flower_pink' || kind === 'flower_yellow';
   return contain(decorAlias(kind), 1, isFlower ? 1 : 1.5, isFlower ? 'center' : 'bottom');
+}
+
+/** Preserve the exact legacy 32×32 boulder image, scale and pixel-snapped jitter. */
+export function getWorldPropArt(prop: WorldProp): TileArtLayer {
+  if (!prop.hilltop) return getPropArt(prop.kind);
+  const p = hilltopSpritePlacement(prop.hilltop);
+  return contain(decorAlias(prop.kind), p.scale, p.scale, 'center', WHITE, p.jitterX, p.jitterY);
 }

@@ -1,9 +1,10 @@
 import { Texture } from 'pixi.js';
 import { Tile } from '../types/tiles';
+import { channelTerrain } from '../world/RiverTopology';
 import { NB } from './hillAutotile';
 
 /**
- * Procedural pixel-art water: three seamless 32×32 body variants plus shoreline
+ * Procedural pixel-art water: four seamless 32×32 body variants plus shoreline
  * overlays (shallow band + broken foam) picked from an 8-neighbour land mask.
  * Static art is baked into terrain chunks; the shimmer lives in WaterLayer.
  */
@@ -24,7 +25,7 @@ export const WATER_PALETTE = {
 
 /** Bridges stand in water, so they never get a shoreline. */
 export function isWaterTile(tile: number): boolean {
-  return tile === Tile.RIVER || tile === Tile.RAMP || tile === Tile.LOG;
+  return channelTerrain(tile);
 }
 
 const OFFSETS: ReadonlyArray<readonly [number, number, number]> = [
@@ -167,11 +168,55 @@ const CORNERS: Record<'ne' | 'se' | 'sw' | 'nw', (x: number, y: number) => [numb
   se: (x, y) => [M - x, M - y],
 };
 
+/** Distance to a neighbouring material, including concave diagonal corners. */
+export function edgeDistance(mask: number, x: number, y: number): number {
+  let d = 64;
+  if (mask & NB.N) d = Math.min(d, y + 0.5);
+  if (mask & NB.E) d = Math.min(d, 31.5 - x);
+  if (mask & NB.S) d = Math.min(d, 31.5 - y);
+  if (mask & NB.W) d = Math.min(d, x + 0.5);
+  if (mask & NB.NE) d = Math.min(d, Math.hypot(31.5 - x, y + 0.5));
+  if (mask & NB.SE) d = Math.min(d, Math.hypot(31.5 - x, 31.5 - y));
+  if (mask & NB.SW) d = Math.min(d, Math.hypot(x + 0.5, 31.5 - y));
+  if (mask & NB.NW) d = Math.min(d, Math.hypot(x + 0.5, y + 0.5));
+  return d;
+}
+export function neighbourMaterialMask(tiles: ArrayLike<number>, width: number, height: number, x: number, y: number, mud = false): number {
+  let mask = 0;
+  for (const [dx, dy, bit] of OFFSETS) {
+    const nx = x + dx, ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+    const tile = tiles[ny * width + nx] ?? 0;
+    if (channelTerrain(tile) || mud && tile === Tile.MUD) mask |= bit;
+  }
+  return mask;
+}
+export const bankAlias = (mask: number): string => `river_bank_${mask}`;
+export const mudAlias = (mask: number): string => `soil_patch_${mask}`;
+
+
 /** Every water texture by alias. Browser-only (uses canvas). */
 export function createWaterTextures(): Map<string, Texture> {
   const out = new Map<string, Texture>();
   for (let v = 0; v < WATER_BASE_VARIANTS; v++) out.set(waterBaseAlias(v), drawBase(v));
   for (const [edge, t] of Object.entries(SIDES)) out.set(waterEdgeAlias(edge as WaterEdge), canvas((px) => drawStrip(px, t)));
   for (const [edge, t] of Object.entries(CORNERS)) out.set(waterEdgeAlias(edge as WaterEdge), canvas((px) => drawCorner(px, t)));
+  for (let mask = 0; mask < 256; mask++) {
+    out.set(bankAlias(mask), canvas(px => {
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+        const d = edgeDistance(mask, x, y), r = h2(x, y);
+        if (d < 1.2 || d < 3 && r % 3 === 0) px(x, y, r % 2 ? 0x635c35 : 0x59613b, 0.85);
+      }
+    }));
+    out.set(mudAlias(mask), canvas(px => {
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+        const r = h2(x, y), distance = edgeDistance(255 ^ mask, x, y);
+        // Rounded exposed corners and dithered grass fringes preserve texture beneath.
+        const corner = Math.hypot(Math.max(0, 8 - x, x - 23), Math.max(0, 8 - y, y - 23));
+        if (distance < 2 || distance < 5 && r % 5 > Math.floor(distance) || corner > 9 && distance < 8) continue;
+        px(x, y, r % 11 === 0 ? 0x686039 : r % 3 ? 0x514829 : 0x595032, distance < 6 ? 0.7 : 0.94);
+      }
+    }));
+  }
   return out;
 }

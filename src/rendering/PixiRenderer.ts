@@ -1,3 +1,6 @@
+import { propDepth } from '../world/ObjectSemantics';
+import { surfaceSites, type MoistureView } from '../systems/SurfaceMoisture';
+import { SurfaceWaterLayer } from './effects/SurfaceWaterLayer';
 import { NestView } from './NestView';
 import { EncounterView } from './EncounterView';
 import { readSafeAreaInsets } from './safeArea';
@@ -13,11 +16,11 @@ import { Hud } from './Hud';
 import type { PlayerInventory, PlayerStats } from '../types/entities';
 import { Camera } from './Camera';
 import { TextureStore } from './TextureStore';
-import { getTileArt, getPropArt, type TileArtLayer } from './terrainArt';
+import { getTileArt, getWorldPropArt, type TileArtLayer } from './terrainArt';
 import { decorAlias, GROUND_PROPS } from './assetCatalog';
 import { elevationMask } from './hillAutotile';
 import { Tile } from '../types/tiles';
-import { createWaterTextures, waterEdgeMask, WATER_PALETTE } from './waterArt';
+import { createWaterTextures, waterEdgeMask, neighbourMaterialMask, WATER_PALETTE } from './waterArt';
 import { WaterLayer } from './effects/WaterLayer';
 import { createBridgeTextures } from './bridgeArt';
 import { createBridgeView } from './BridgeView';
@@ -98,6 +101,8 @@ export class PixiRenderer implements IRenderer {
   readonly debugOverlay = new DebugOverlay();
 
   private weather = new WeatherLayer();
+  private surfaceWater = new SurfaceWaterLayer();
+  private moisture: MoistureView | undefined;
   private water = new WaterLayer();
   private performanceText = new Text({ text: '', style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffffff, stroke: { color: 0x102018, width: 3 } } });
   private impactHoldMs = 0;
@@ -159,8 +164,8 @@ export class PixiRenderer implements IRenderer {
     this.effects = new EffectsLayer(this.actors, this.fx);
     this.hurtFilter.brightness(2.4, false);
     this.enemyFilter.brightness(1.18, false);
-    this.groundFx.addChild(this.sky.shadows, this.weather.ground, this.effects.ground);
-    this.root.addChild(this.terrain, this.water.view, this.bridgeGround, this.groundProps, this.encounterView.ground, this.nestView.ground, this.groundFx, this.actors, this.encounterView.effects, this.nestView.particles, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
+    this.groundFx.addChild(this.sky.shadows, this.effects.ground);
+    this.root.addChild(this.terrain, this.surfaceWater.view, this.water.view, this.weather.ground, this.bridgeGround, this.weather.deck, this.groundProps, this.encounterView.ground, this.nestView.ground, this.groundFx, this.actors, this.encounterView.effects, this.nestView.particles, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
     this.actors.sortableChildren = true;
     this.actors.addChild(this.waterMask, this.waterRipple, this.waterFxMask);
     this.waterRipple.mask = this.waterFxMask;
@@ -234,6 +239,7 @@ export class PixiRenderer implements IRenderer {
     if (this.enteringPortal) this.effects?.startTransition();
     this.enteringPortal = false;
     this.world = world;
+    this.weatherPreview = null; this.weather.reset(); this.surfaceWater.reset(); this.water.reset(world);
     this.encounterView.reset();
     this.nestView.reset();
     this.sky.setWorld(world.meta.width, world.meta.height, world.meta.seed, this.fx?.clouds ?? [], world.spawn.x, world.spawn.y);
@@ -253,9 +259,9 @@ export class PixiRenderer implements IRenderer {
       this.actors.addChild(sprite); this.objects.push(sprite);
     }
     for (const p of world.props) {
-      const sprite = this.tag(p.kind === 'tree' ? new Sprite(this.textures.get('tile_tree')) : this.art(getPropArt(p.kind)), decorAlias(p.kind), GROUND_PROPS.has(p.kind) ? 'ground/prop' : 'actors/prop');
+      const sprite = this.tag(p.kind === 'tree' ? new Sprite(this.textures.get('tile_tree')) : this.art(getWorldPropArt(p)), decorAlias(p.kind), GROUND_PROPS.has(p.kind) ? 'ground/prop' : 'actors/prop');
       if (p.kind === 'tree') { sprite.anchor.set(0.5, 1); sprite.width = 64; sprite.height = 64; sprite.position.set(16, 32); }
-      sprite.x += p.tileX * TILE; sprite.y += p.tileY * TILE; sprite.zIndex = (p.tileY + 1) * TILE;
+      sprite.x += p.tileX * TILE; sprite.y += p.tileY * TILE; sprite.zIndex = propDepth(p) * TILE;
       (GROUND_PROPS.has(p.kind) ? this.groundProps : this.actors).addChild(sprite); this.objects.push(sprite);
       this.propSprites.set(p.id, sprite);
     }
@@ -274,7 +280,7 @@ export class PixiRenderer implements IRenderer {
     for (let ty = y; ty < Math.min(y + CHUNK, height); ty++) for (let tx = x; tx < Math.min(x + CHUNK, width); tx++) {
       const elevation = elevationMask(world.tiles, width, height, tx, ty);
       const tile = world.tiles[ty * width + tx] ?? 0;
-      const shore = tile === Tile.RIVER ? waterEdgeMask(world.tiles, width, height, tx, ty) : 0;
+      const shore = tile === Tile.RIVER ? waterEdgeMask(world.tiles, width, height, tx, ty) : neighbourMaterialMask(world.tiles, width, height, tx, ty, tile === Tile.MUD);
       for (const layer of getTileArt(tile, tx, ty, elevation, shore)) {
         const sprite = this.art(layer); sprite.x += (tx - x) * TILE; sprite.y += (ty - y) * TILE; chunk.addChild(sprite);
       }
@@ -302,6 +308,7 @@ export class PixiRenderer implements IRenderer {
   render(snapshot: RenderSnapshot, alpha: number, dt: number): void {
     const fx = this.fx, effects = this.effects, ambient = this.ambient;
     if (!fx || !effects || !ambient) return;
+    this.moisture = snapshot.moisture;
     const player = snapshot.entities.find(e => e.id === snapshot.playerId);
     if (player) this.camera.follow((player.prevX + (player.x - player.prevX) * alpha) * TILE, (player.prevY + (player.y - player.prevY) * alpha) * TILE, dt);
     const transform = this.camera.getTransform(); this.root.scale.set(transform.scale); this.root.position.set(transform.x, transform.y);
@@ -318,6 +325,7 @@ export class PixiRenderer implements IRenderer {
     this.sky.update(dt, view.x, view.y, this.paused, this.cloudsEnabled, raining);
     if (!this.paused) this.visualTime += dt;
     this.water.update(dt, this.paused, rect, snapshot.world);
+    this.surfaceWater.update(snapshot.world, snapshot.moisture, rect, snapshot.elapsedMs ?? this.visualTime);
 
     this.nestView.update(snapshot, this.actors, this.textures, this.visualTime);
     this.renderEntities(snapshot, alpha, dt, player, fx, effects);
@@ -340,7 +348,7 @@ export class PixiRenderer implements IRenderer {
     ambient.stars.visible = this.starsEnabled && snapshot.environment.darkness > 0.6;
     ambient.update(dt, rect, { paused: this.paused, leaves: this.particlesEnabled, fireflies: this.firefliesEnabled, darkness: snapshot.environment.darkness, worldWidth: snapshot.world.meta.width * TILE, worldHeight: snapshot.world.meta.height * TILE });
 
-    this.weather.update(dt, raining, { paused: this.paused, enabled: this.particlesEnabled, screenWidth: this.app.screen.width, screenHeight: this.app.screen.height, view: rect });
+    this.weather.update(dt, raining, { paused: this.paused, enabled: this.particlesEnabled, screenWidth: this.app.screen.width, screenHeight: this.app.screen.height, view: rect, world: snapshot.world, moisture: snapshot.moisture, player, worldToScreen: (x, y) => this.camera.worldToScreen(x, y) });
     effects.update(dt, this.paused, this.app.screen.width, this.app.screen.height);
 
     this.performanceText.visible = this.performanceEnabled; this.performanceText.text = `${dt > 0 ? Math.round(1000 / dt) : 0} FPS | ${this.visibleChunks}/${this.chunks.size} chunks`; this.performanceText.position.set(20, this.app.screen.height - 24);
@@ -588,6 +596,12 @@ export class PixiRenderer implements IRenderer {
   /** Debug-only counters for visual regression tests. */
   getVisualDebugInfo(): VisualDebugInfo {
     return {
+      propViews: this.propSprites.size,
+      hilltopViews: (this.world?.props ?? []).filter(p => p.hilltop).flatMap(p => {
+        const sprite = this.propSprites.get(p.id);
+        return sprite ? [{ id: p.id, x: sprite.x, y: sprite.y, depth: sprite.zIndex, visible: sprite.visible }] : [];
+      }),
+      playerDepth: [...this.entities.values()].find(v => v.kind === 'player')?.sprite.zIndex,
       wading: this.wading,
       hud: this.hud?.getLayoutDebug() ?? null,
       placeholderSprites: this.placeholderSprites,
@@ -595,6 +609,9 @@ export class PixiRenderer implements IRenderer {
       portalViews: this.portals.size,
       clouds: this.sky.cloudCount,
       raining: this.weather.raining,
+      weather: this.weather.info,
+      puddles: this.world && this.moisture ? [...surfaceSites(this.world).pools].filter(([i]) => (this.moisture?.puddles[i] ?? 0) >= 0.08).map(([i, site]) => ({ x: site.x, y: site.y, amount: this.moisture?.puddles[i] ?? 0 })) : [],
+      riverRepairSkipped: this.world?.meta.riverRepairSkipped ?? [],
       effects: this.effects?.activeCount ?? 0,
       minimapMode: this.minimap.currentMode,
       transitionActive: this.effects?.transitionActive ?? false,

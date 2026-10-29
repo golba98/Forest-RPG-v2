@@ -64,6 +64,7 @@ for (const orientation of ['horizontal', 'vertical'] as const) {
             window.__GAME__!.saveGame('bridge-fixture');
             const payload = JSON.parse(localStorage.getItem('forestrpg.v2.save.bridge-fixture')!);
             delete payload.runtime.encounters;
+    delete payload.runtime.moisture;
     payload.world = w;
             payload.entities = payload.entities.filter(
               (e: { kind: string }) => e.kind === 'player' || e.kind === 'portal',

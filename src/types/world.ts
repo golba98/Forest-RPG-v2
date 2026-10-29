@@ -2,7 +2,7 @@ import type { EnemyType, PickupType } from './entities';
 import type { EncounterSite } from './encounters';
 
 /** Bump whenever generator output for a given seed changes. Stored in saves. */
-export const WORLD_GENERATOR_VERSION = 8;
+export const WORLD_GENERATOR_VERSION = 10;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -15,6 +15,9 @@ export interface TilePoint {
 export interface WorldMeta {
   readonly seed: number;
   readonly generatorVersion: number;
+  readonly hilltopObjectsVersion?: 1;
+  readonly riverRepairVersion?: number;
+  readonly riverRepairSkipped?: readonly TilePoint[];
   readonly width: number;
   readonly height: number;
   readonly isTutorial: boolean;
@@ -54,6 +57,9 @@ export interface WorldProp {
   readonly tileX: number;
   readonly tileY: number;
   readonly solid: boolean;
+  /** Promoted legacy hill decoration: stable source identity, on the raised surface.
+   * Sprite transform, footprint and contact anchor derive from this source hash. */
+  readonly hilltop?: { readonly sourceX: number; readonly sourceY: number };
 }
 
 export interface EnemySpawn {
