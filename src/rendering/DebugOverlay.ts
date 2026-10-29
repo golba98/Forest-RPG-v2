@@ -1,7 +1,7 @@
 import { entityFootprint, resolveFootprint } from '../systems/EntityFootprint';
 import { isRaisedSurface } from '../world/HillCollisionGeometry';
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
-import { TILE_PROPERTIES, type TileId } from '../types/tiles';
+import { Tile, TILE_PROPERTIES, type TileId } from '../types/tiles';
 import type { Entity } from '../types/entities';
 import type { WorldData } from '../types/world';
 import { PORTAL_ENTER_RADIUS_ASSUMED } from './portalVisualState';
@@ -16,6 +16,9 @@ export interface VisualDebugFlags {
   readonly colliders: boolean;
   readonly tileGrid: boolean;
   readonly spriteBounds: boolean;
+  readonly waterCells?: boolean;
+  readonly banks?: boolean;
+  readonly chunkEdges?: boolean;
   /** Info panel: seed, cursor coordinates, asset under cursor. */
   readonly labels: boolean;
 }
@@ -26,6 +29,9 @@ interface HudBounds { readonly x: number; readonly y: number; readonly width: nu
 
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
+  readonly propViews?: number;
+  readonly hilltopViews?: readonly { id: number; x: number; y: number; depth: number; visible: boolean }[];
+  readonly playerDepth?: number | undefined;
   readonly wading?: { readonly x: number; readonly waterlineY: number; readonly spriteY: number } | null;
   readonly hud?: {
     readonly x: number; readonly y: number; readonly width: number; readonly height: number;
@@ -38,6 +44,9 @@ export interface VisualDebugInfo {
   readonly clouds: number;
   /** Rain is currently visible (fading counts). */
   readonly raining: boolean;
+  readonly weather?: { readonly drops: number; readonly impacts: number; readonly footsteps: number; readonly positions: readonly { x: number; y: number; material: string; foot: boolean }[] };
+  readonly puddles?: readonly { x: number; y: number; amount: number }[];
+  readonly riverRepairSkipped?: readonly { x: number; y: number }[];
   readonly effects: number;
   readonly minimapMode: MinimapMode;
   readonly transitionActive: boolean;
@@ -148,6 +157,25 @@ export class DebugOverlay {
       g.stroke({ width: 1, color: 0xffffff, alpha: 0.18 });
     }
 
+    if (this.flags.waterCells || this.flags.banks) {
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+        const wet = (tx: number, ty: number) => tx >= 0 && ty >= 0 && tx < width && ty < height && world.tiles[ty * width + tx] === Tile.RIVER;
+        if (!wet(x, y)) continue;
+        if (this.flags.waterCells) g.rect(x * TILE + 2, y * TILE + 2, TILE - 4, TILE - 4).fill({ color: 0x35cfff, alpha: 0.3 });
+        if (this.flags.banks) for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+          if (wet(x + dx, y + dy)) continue;
+          const sx = x * TILE + (dx === 1 ? TILE : 0), sy = y * TILE + (dy === 1 ? TILE : 0);
+          g.moveTo(sx, sy).lineTo(sx + (dy ? TILE : 0), sy + (dx ? TILE : 0));
+        }
+      }
+      g.stroke({ color: 0xffcc44, width: 1 });
+    }
+    if (this.flags.chunkEdges) {
+      for (let x = Math.ceil(x0 / 16) * 16; x <= x1; x += 16) g.moveTo(x * TILE, y0 * TILE).lineTo(x * TILE, (y1 + 1) * TILE);
+      for (let y = Math.ceil(y0 / 16) * 16; y <= y1; y += 16) g.moveTo(x0 * TILE, y * TILE).lineTo((x1 + 1) * TILE, y * TILE);
+      g.stroke({ color: 0xff63eb, width: 2, alpha: 0.8 });
+    }
+
     if (this.flags.colliders) {
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
         const tile = world.tiles[y * width + x] as TileId;
@@ -235,7 +263,7 @@ export function attachVisualDebugControls(canvas: HTMLCanvasElement, overlay: De
   panel.setAttribute('role', 'group');
   panel.setAttribute('aria-label', 'Visual debug layers');
   panel.style.cssText = 'position:fixed;right:20px;top:170px;z-index:40;display:none;padding:8px 10px;border-radius:6px;background:rgba(11,20,12,.82);color:#f4f7e8;font:12px monospace;line-height:1.7';
-  const options: Array<[keyof VisualDebugFlags, string]> = [['colliders', 'Colliders'], ['tileGrid', 'Tile grid'], ['spriteBounds', 'Sprite bounds'], ['labels', 'Info / coords']];
+  const options: Array<[keyof VisualDebugFlags, string]> = [['colliders', 'Colliders'], ['tileGrid', 'Tile grid'], ['spriteBounds', 'Sprite bounds'], ['labels', 'Info / coords'], ['waterCells', 'Water cells'], ['banks', 'Banks'], ['chunkEdges', 'Chunk edges']];
   for (const [key, label] of options) {
     const row = document.createElement('label');
     row.style.display = 'block';

@@ -1,0 +1,1111 @@
+{
+  "browser": "156.0.8078.4",
+  "errors": [],
+  "scenes": [
+    {
+      "scene": "loaded-v8-seed42",
+      "position": [
+        23.5,
+        87.5
+      ],
+      "info": {
+        "wading": null,
+        "hud": {
+          "x": 16,
+          "y": 16,
+          "width": 1248,
+          "height": 688,
+          "level": {
+            "x": 16,
+            "y": 16,
+            "width": 184,
+            "height": 48
+          },
+          "cluster": {
+            "x": 1028,
+            "y": 572,
+            "width": 236,
+            "height": 132
+          },
+          "scale": 1,
+          "heartCount": 7,
+          "slotCount": 5,
+          "visible": true
+        },
+        "placeholderSprites": 0,
+        "portalStates": [
+          "locked"
+        ],
+        "portalViews": 1,
+        "clouds": 14,
+        "raining": true,
+        "weather": {
+          "drops": 118,
+          "impacts": 74,
+          "footsteps": 0,
+          "positions": [
+            {
+              "x": 989,
+              "y": 2421,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 406,
+              "y": 2422,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1117,
+              "y": 2850,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 1187,
+              "y": 2586,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 115,
+              "y": 2712,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 336,
+              "y": 2813,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1133,
+              "y": 2883,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 625,
+              "y": 3019,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1283,
+              "y": 2752,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 685,
+              "y": 2668,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1245,
+              "y": 2847,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 521,
+              "y": 2539,
+              "material": "grass",
+              "foot": false
+            }
+          ]
+        },
+        "puddles": [
+          {
+            "x": 1038,
+            "y": 80,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 1933,
+            "y": 83,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 2062,
+            "y": 81,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 2225,
+            "y": 79,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 2289,
+            "y": 80,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 2254,
+            "y": 115,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 3151,
+            "y": 111,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 4017,
+            "y": 115,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 1422,
+            "y": 144,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 2989,
+            "y": 145,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 3024,
+            "y": 146,
+            "amount": 0.6466662287712097
+          },
+          {
+            "x": 1362,
+            "y": 179,
+            "amount": 0.6466662287712097
+          }
+        ],
+        "riverRepairSkipped": [
+          {
+            "x": 45,
+            "y": 15
+          },
+          {
+            "x": 24,
+            "y": 78
+          },
+          {
+            "x": 36,
+            "y": 94
+          },
+          {
+            "x": 46,
+            "y": 100
+          },
+          {
+            "x": 47,
+            "y": 102
+          }
+        ],
+        "effects": 0,
+        "minimapMode": "radar",
+        "transitionActive": false,
+        "actorChildren": 1731,
+        "projectiles": 0,
+        "forestTrees": 381,
+        "bridges": 2,
+        "bridgeRailSprites": 20,
+        "puddleCount": 832
+      }
+    },
+    {
+      "scene": "puddle-footstep",
+      "pool": {
+        "x": 497,
+        "y": 368,
+        "amount": 0.6733328700065613
+      },
+      "info": {
+        "wading": null,
+        "hud": {
+          "x": 16,
+          "y": 16,
+          "width": 1248,
+          "height": 688,
+          "level": {
+            "x": 16,
+            "y": 16,
+            "width": 184,
+            "height": 48
+          },
+          "cluster": {
+            "x": 1028,
+            "y": 572,
+            "width": 236,
+            "height": 132
+          },
+          "scale": 1,
+          "heartCount": 7,
+          "slotCount": 5,
+          "visible": true
+        },
+        "placeholderSprites": 0,
+        "portalStates": [
+          "open"
+        ],
+        "portalViews": 1,
+        "clouds": 4,
+        "raining": true,
+        "weather": {
+          "drops": 124,
+          "impacts": 65,
+          "footsteps": 1,
+          "positions": [
+            {
+              "x": 951,
+              "y": 716,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1001,
+              "y": 521,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 695,
+              "y": 573,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 959,
+              "y": 591,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 624,
+              "y": 678,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 44,
+              "y": 139,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 867,
+              "y": 84,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 647,
+              "y": 466,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1175,
+              "y": 624,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1159,
+              "y": 639,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 725,
+              "y": 209,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 469,
+              "y": 704,
+              "material": "grass",
+              "foot": false
+            }
+          ]
+        },
+        "puddles": [
+          {
+            "x": 79,
+            "y": 48,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 82,
+            "y": 84,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 237,
+            "y": 79,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 558,
+            "y": 81,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 1070,
+            "y": 79,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 398,
+            "y": 112,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 1395,
+            "y": 112,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 1425,
+            "y": 115,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 397,
+            "y": 145,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 915,
+            "y": 142,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 977,
+            "y": 143,
+            "amount": 0.7066661715507507
+          },
+          {
+            "x": 1008,
+            "y": 143,
+            "amount": 0.7066661715507507
+          }
+        ],
+        "riverRepairSkipped": [],
+        "effects": 0,
+        "minimapMode": "radar",
+        "transitionActive": false,
+        "actorChildren": 109,
+        "projectiles": 0,
+        "forestTrees": 94,
+        "bridges": 1,
+        "bridgeRailSprites": 10,
+        "puddleCount": 167
+      }
+    },
+    {
+      "scene": "bridge-crossing",
+      "info": {
+        "wading": null,
+        "hud": {
+          "x": 16,
+          "y": 16,
+          "width": 1248,
+          "height": 688,
+          "level": {
+            "x": 16,
+            "y": 16,
+            "width": 184,
+            "height": 48
+          },
+          "cluster": {
+            "x": 1028,
+            "y": 572,
+            "width": 236,
+            "height": 132
+          },
+          "scale": 1,
+          "heartCount": 7,
+          "slotCount": 5,
+          "visible": true
+        },
+        "placeholderSprites": 0,
+        "portalStates": [
+          "open"
+        ],
+        "portalViews": 1,
+        "clouds": 4,
+        "raining": true,
+        "weather": {
+          "drops": 142,
+          "impacts": 75,
+          "footsteps": 0,
+          "positions": [
+            {
+              "x": 463,
+              "y": 984,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1300,
+              "y": 307,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1226,
+              "y": 501,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 844,
+              "y": 801,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 794,
+              "y": 620,
+              "material": "deck",
+              "foot": false
+            },
+            {
+              "x": 519,
+              "y": 727,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1012,
+              "y": 478,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 722,
+              "y": 901,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 609,
+              "y": 838,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 226,
+              "y": 937,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1036,
+              "y": 780,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 886,
+              "y": 740,
+              "material": "grass",
+              "foot": false
+            }
+          ]
+        },
+        "puddles": [
+          {
+            "x": 79,
+            "y": 48,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 82,
+            "y": 84,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 237,
+            "y": 79,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 558,
+            "y": 81,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 1070,
+            "y": 79,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 398,
+            "y": 112,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 1395,
+            "y": 112,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 1425,
+            "y": 115,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 397,
+            "y": 145,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 915,
+            "y": 142,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 977,
+            "y": 143,
+            "amount": 0.7799994349479675
+          },
+          {
+            "x": 1008,
+            "y": 143,
+            "amount": 0.7799994349479675
+          }
+        ],
+        "riverRepairSkipped": [],
+        "effects": 0,
+        "minimapMode": "radar",
+        "transitionActive": false,
+        "actorChildren": 109,
+        "projectiles": 0,
+        "forestTrees": 94,
+        "bridges": 1,
+        "bridgeRailSprites": 10,
+        "puddleCount": 167
+      }
+    },
+    {
+      "scene": "new-seed42",
+      "position": {
+        "x": 106.5,
+        "y": 75
+      },
+      "info": {
+        "wading": null,
+        "hud": {
+          "x": 16,
+          "y": 16,
+          "width": 1248,
+          "height": 688,
+          "level": {
+            "x": 16,
+            "y": 16,
+            "width": 184,
+            "height": 48
+          },
+          "cluster": {
+            "x": 1028,
+            "y": 572,
+            "width": 236,
+            "height": 132
+          },
+          "scale": 1,
+          "heartCount": 7,
+          "slotCount": 5,
+          "visible": true
+        },
+        "placeholderSprites": 0,
+        "portalStates": [
+          "locked"
+        ],
+        "portalViews": 1,
+        "clouds": 14,
+        "raining": true,
+        "weather": {
+          "drops": 134,
+          "impacts": 71,
+          "footsteps": 0,
+          "positions": [
+            {
+              "x": 3238,
+              "y": 2659,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3381,
+              "y": 2595,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 2928,
+              "y": 2185,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3121,
+              "y": 2666,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3076,
+              "y": 2580,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 3776,
+              "y": 2551,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 3466,
+              "y": 2437,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 3290,
+              "y": 2735,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3127,
+              "y": 2396,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3698,
+              "y": 2490,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 3971,
+              "y": 2328,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3016,
+              "y": 2600,
+              "material": "river",
+              "foot": false
+            }
+          ]
+        },
+        "puddles": [],
+        "riverRepairSkipped": [],
+        "effects": 0,
+        "minimapMode": "radar",
+        "transitionActive": false,
+        "actorChildren": 1120,
+        "projectiles": 0,
+        "forestTrees": 344,
+        "bridges": 5,
+        "bridgeRailSprites": 54,
+        "puddleCount": 0
+      }
+    },
+    {
+      "scene": "new-seed123",
+      "position": {
+        "x": 109,
+        "y": 101
+      },
+      "info": {
+        "wading": null,
+        "hud": {
+          "x": 16,
+          "y": 16,
+          "width": 1248,
+          "height": 688,
+          "level": {
+            "x": 16,
+            "y": 16,
+            "width": 184,
+            "height": 48
+          },
+          "cluster": {
+            "x": 1028,
+            "y": 572,
+            "width": 236,
+            "height": 132
+          },
+          "scale": 1,
+          "heartCount": 7,
+          "slotCount": 5,
+          "visible": true
+        },
+        "placeholderSprites": 0,
+        "portalStates": [
+          "locked"
+        ],
+        "portalViews": 1,
+        "clouds": 14,
+        "raining": true,
+        "weather": {
+          "drops": 135,
+          "impacts": 68,
+          "footsteps": 0,
+          "positions": [
+            {
+              "x": 4094,
+              "y": 3478,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3345,
+              "y": 2958,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 4127,
+              "y": 3266,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3082,
+              "y": 2956,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3064,
+              "y": 3324,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3574,
+              "y": 3580,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 4054,
+              "y": 3229,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3285,
+              "y": 3371,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 2885,
+              "y": 3630,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 4023,
+              "y": 2842,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 2960,
+              "y": 3107,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3641,
+              "y": 2942,
+              "material": "river",
+              "foot": false
+            }
+          ]
+        },
+        "puddles": [],
+        "riverRepairSkipped": [],
+        "effects": 0,
+        "minimapMode": "radar",
+        "transitionActive": false,
+        "actorChildren": 1538,
+        "projectiles": 0,
+        "forestTrees": 308,
+        "bridges": 5,
+        "bridgeRailSprites": 52,
+        "puddleCount": 0
+      }
+    },
+    {
+      "scene": "new-seed1",
+      "position": {
+        "x": 111,
+        "y": 93
+      },
+      "info": {
+        "wading": null,
+        "hud": {
+          "x": 16,
+          "y": 16,
+          "width": 1248,
+          "height": 688,
+          "level": {
+            "x": 16,
+            "y": 16,
+            "width": 184,
+            "height": 48
+          },
+          "cluster": {
+            "x": 1028,
+            "y": 572,
+            "width": 236,
+            "height": 132
+          },
+          "scale": 1,
+          "heartCount": 7,
+          "slotCount": 5,
+          "visible": true
+        },
+        "placeholderSprites": 0,
+        "portalStates": [
+          "locked"
+        ],
+        "portalViews": 1,
+        "clouds": 14,
+        "raining": true,
+        "weather": {
+          "drops": 140,
+          "impacts": 75,
+          "footsteps": 0,
+          "positions": [
+            {
+              "x": 4058,
+              "y": 3307,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 4099,
+              "y": 3083,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3594,
+              "y": 3158,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 3212,
+              "y": 2955,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3736,
+              "y": 2923,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3081,
+              "y": 3070,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 2910,
+              "y": 3240,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 2962,
+              "y": 3089,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3958,
+              "y": 2954,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3123,
+              "y": 3124,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 3338,
+              "y": 2871,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 4170,
+              "y": 2740,
+              "material": "grass",
+              "foot": false
+            }
+          ]
+        },
+        "puddles": [],
+        "riverRepairSkipped": [],
+        "effects": 0,
+        "minimapMode": "radar",
+        "transitionActive": false,
+        "actorChildren": 1529,
+        "projectiles": 0,
+        "forestTrees": 298,
+        "bridges": 5,
+        "bridgeRailSprites": 54,
+        "puddleCount": 0
+      }
+    },
+    {
+      "scene": "new-seed1337",
+      "position": {
+        "x": 38.5,
+        "y": 38
+      },
+      "info": {
+        "wading": null,
+        "hud": {
+          "x": 16,
+          "y": 16,
+          "width": 1248,
+          "height": 688,
+          "level": {
+            "x": 16,
+            "y": 16,
+            "width": 184,
+            "height": 48
+          },
+          "cluster": {
+            "x": 1028,
+            "y": 572,
+            "width": 236,
+            "height": 132
+          },
+          "scale": 1,
+          "heartCount": 7,
+          "slotCount": 5,
+          "visible": true
+        },
+        "placeholderSprites": 0,
+        "portalStates": [
+          "locked"
+        ],
+        "portalViews": 1,
+        "clouds": 14,
+        "raining": true,
+        "weather": {
+          "drops": 141,
+          "impacts": 72,
+          "footsteps": 0,
+          "positions": [
+            {
+              "x": 888,
+              "y": 1211,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1006,
+              "y": 1065,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 791,
+              "y": 1185,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 1363,
+              "y": 1364,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 722,
+              "y": 1294,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 1293,
+              "y": 1089,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1432,
+              "y": 1431,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 811,
+              "y": 882,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 737,
+              "y": 1305,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 1596,
+              "y": 1142,
+              "material": "grass",
+              "foot": false
+            },
+            {
+              "x": 1858,
+              "y": 1246,
+              "material": "river",
+              "foot": false
+            },
+            {
+              "x": 841,
+              "y": 1257,
+              "material": "river",
+              "foot": false
+            }
+          ]
+        },
+        "puddles": [],
+        "riverRepairSkipped": [],
+        "effects": 0,
+        "minimapMode": "radar",
+        "transitionActive": false,
+        "actorChildren": 1222,
+        "projectiles": 0,
+        "forestTrees": 390,
+        "bridges": 5,
+        "bridgeRailSprites": 50,
+        "puddleCount": 0
+      }
+    }
+  ],
+  "note": "Rain accumulation and drying use the existing 8x debug time scale; airborne animation remains real time."
+}

@@ -1,3 +1,6 @@
+import { prepareHilltopObjects } from '../world/HilltopObjects';
+import { SurfaceMoisture, surfaceSites } from '../systems/SurfaceMoisture';
+import type { WeatherKind } from '../types/render';
 import { EncounterDirector, type EncounterCue } from '../systems/EncounterDirector';
 import { prepareEncounterWorld } from '../world/EncounterPlacement';
 import type { SimulationRuntime } from '../types/encounters';
@@ -35,6 +38,11 @@ export class Simulation implements ISimulation {
   worldVersion = 0;
   elapsedMs = 0;
   private time = 0.3;
+  moisture!: SurfaceMoisture;
+  weatherOverride: WeatherKind | null = null;
+  getWeather(): WeatherKind {
+    return this.weatherOverride ?? (!this.world.meta.isTutorial && Math.floor((this.elapsedMs + (this.world.meta.seed % 19) * 1000) / 30000) % 6 === 4 ? 'rain' : 'clear');
+  }
   private entities: Entity[] = [];
   private sequence = 0;
   private director!: EncounterDirector;
@@ -72,7 +80,7 @@ export class Simulation implements ISimulation {
     };
   }
   loadWorld(world: WorldData): void {
-    world = prepareEncounterWorld(world);
+    world = prepareHilltopObjects(prepareEncounterWorld(world));
     this.encounters = new EncounterSystem(
       (enemy, damage) => this.onHit?.(enemy, damage),
       new Rng(world.meta.seed),
@@ -86,6 +94,8 @@ export class Simulation implements ISimulation {
       (status) => this.onRoundComplete?.(status),
     );
     this.world = world;
+    this.weatherOverride = null;
+    this.moisture = new SurfaceMoisture(surfaceSites(world));
     this.worldVersion++;
     this.elapsedMs = 0;
     this.time = 0.3;
@@ -150,6 +160,7 @@ export class Simulation implements ISimulation {
     if (!Number.isFinite(dt) || dt <= 0) return;
     this.elapsedMs += dt * 1000;
     this.time = (this.time + dt / C.dayNight.cycleSec) % 1;
+    this.moisture.step(dt * 1000, this.getWeather() === 'rain' || this.getWeather() === 'storm');
     const night = this.time >= C.dayNight.nightStart || this.time < C.dayNight.nightEnd;
     movePlayer(
       this.world,
@@ -189,7 +200,7 @@ export class Simulation implements ISimulation {
   }
   getRuntimeState(): SimulationRuntime {
     this.director.afterCombat(this.player, this.entities);
-    return { rngState: this.encounters.getRandomState(), encounters: structuredClone(this.director.state) };
+    return { moisture: this.moisture.save(), rngState: this.encounters.getRandomState(), encounters: structuredClone(this.director.state) };
   }
   getEncounterDebug() { return { sites: this.director.getSites(), ...structuredClone(this.director.state) }; }
   clearEncounters(bossesOnly = false): void { this.director.clear(this.entities, bossesOnly); }
@@ -206,6 +217,7 @@ export class Simulation implements ISimulation {
     this.player = player;
     this.time = time;
     this.elapsedMs = elapsedMs;
+    this.moisture.restore(runtime?.moisture);
     this.tutorial.stage = tutorialStage;
     if (runtime) this.encounters.setRandomState(runtime.rngState);
     if (!runtime?.encounters && runtime?.ghostNightSpawned) this.player.hauntedIntroComplete = true;
@@ -347,6 +359,8 @@ export class Simulation implements ISimulation {
     const darkness = Math.max(0, Math.cos(this.time * Math.PI * 2)) * 0.8;
     return {
       world: this.world,
+      moisture: this.moisture,
+      elapsedMs: this.elapsedMs,
       encounters: this.director.presentation(this.player, this.entities),
       worldVersion: this.worldVersion,
       playerId: this.player.id,
@@ -370,11 +384,7 @@ export class Simulation implements ISimulation {
       environment: {
         timeOfDay: this.time,
         darkness,
-        weather:
-          !this.world.meta.isTutorial &&
-          Math.floor((this.elapsedMs + (this.world.meta.seed % 19) * 1000) / 30000) % 6 === 4
-            ? 'rain'
-            : 'clear',
+        weather: this.getWeather(),
         lights: [
           {
             x: this.player.x,

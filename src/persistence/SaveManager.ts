@@ -1,3 +1,5 @@
+import { prepareHilltopObjects } from '../world/HilltopObjects';
+import { repairSavedRivers } from '../world/RepairRivers';
 import type { SimulationRuntime } from '../types/encounters';
 import { validateEncounterSites, validateEncounterState } from './EncounterValidation';
 import { prepareEncounterWorld } from '../world/EncounterPlacement';
@@ -237,6 +239,8 @@ function decode(raw: string): {
         integer(p.tileY) &&
         point({ x: p.tileX, y: p.tileY }, w, h) &&
         typeof p.solid === 'boolean' &&
+        (p.hilltop === undefined || (object(p.hilltop) && p.kind === 'rock_boulder' && p.solid === true &&
+          integer(p.hilltop.sourceX) && integer(p.hilltop.sourceY) && point({ x: p.hilltop.sourceX, y: p.hilltop.sourceY }, w, h))) &&
         [
           'tree',
           'bush_small',
@@ -254,6 +258,7 @@ function decode(raw: string): {
     )
   )
     throw new Error('Invalid world objects');
+  if (new Set(world.props.map((p: { id: number }) => p.id)).size !== world.props.length) throw new Error('Duplicate world objects');
   if (
     !Array.isArray(world.enemySpawns) ||
     !Array.isArray(world.pickupSpawns) ||
@@ -302,13 +307,22 @@ function decode(raw: string): {
       (data.runtime.ghostNightSpawned !== undefined && typeof data.runtime.ghostNightSpawned !== 'boolean'))
   )
     throw new Error('Invalid runtime state');
+  if (object(data.runtime) && data.runtime.moisture !== undefined) {
+    const moisture = data.runtime.moisture;
+    const bytes = (v: unknown) => Array.isArray(v) && v.length === w * h && v.every(b => integer(b) && b >= 0 && b <= 255);
+    if (!object(moisture) || moisture.version !== 1 || !bytes(moisture.wetness) || !bytes(moisture.puddles) || !finite(moisture.remainderMs) || moisture.remainderMs < 0 || moisture.remainderMs >= 200)
+      throw new Error('Invalid surface moisture');
+  }
+  if (meta.riverRepairVersion !== undefined && meta.riverRepairVersion !== 1) throw new Error('Invalid river repair version');
+  if (meta.riverRepairSkipped !== undefined && (!Array.isArray(meta.riverRepairSkipped) || meta.riverRepairSkipped.length > w * h || !meta.riverRepairSkipped.every(p => point(p, w, h)))) throw new Error('Invalid river repair report');
+  if (meta.hilltopObjectsVersion !== undefined && meta.hilltopObjectsVersion !== 1) throw new Error('Invalid hilltop objects version');
   const runtime = data.runtime as SimulationRuntime | undefined;
   const convertedWorld = { ...(world as unknown as WorldData), tiles: Uint8Array.from(world.tiles as number[]) };
   if (convertedWorld.encounterSites === undefined && !runtime?.encounters)
     for (const e of data.entities as Entity[])
       if (e.alive && (e.kind === 'player' || e.kind === 'enemy'))
         restoreSafePosition(convertedWorld, e, e.kind === 'enemy' ? e.enemyType === 'ghost' ? 'ghost' : 'groundEnemy' : 'player');
-  const restoredWorld = prepareEncounterWorld(convertedWorld, data.entities as Entity[]);
+  const restoredWorld = prepareHilltopObjects(repairSavedRivers(prepareEncounterWorld(convertedWorld, data.entities as Entity[]), data.entities as Entity[]), data.entities as Entity[]);
   validateEncounterSites(restoredWorld);
   validateEncounterState(restoredWorld, runtime?.encounters);
   return {

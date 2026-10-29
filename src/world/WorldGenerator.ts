@@ -1,3 +1,4 @@
+import { prepareHilltopObjects } from './HilltopObjects';
 import { reserveNest, clearNestReservation, siteBounds, placeGroves } from './EncounterPlacement';
 import { canOccupy, hasClearPath } from '../systems/CollisionSystem';
 import { bridgeGeometry } from './BridgeGeometry';
@@ -24,8 +25,6 @@ import {
   applySpawnSafeArea,
   carveGuidedRivers,
   carveMainRiver,
-  carveSpawnBranch,
-  roundRiverTips,
   smoothRiverDiagonals,
 } from './generation/rivers';
 import { PerlinNoise } from './Noise';
@@ -33,7 +32,6 @@ import { Rng } from './Rng';
 
 export const MIN_WORLD_SIZE = 32;
 const MAX_ATTEMPTS = 32;
-const SPAWN_BRANCH_CHANCE = 0.55;
 
 /**
  * Deterministic procedural world: identical options always produce
@@ -90,10 +88,8 @@ function tryGenerate(
   const riverRng = stream('rivers');
   carveMainRiver(grid, riverRng, noise);
   carveGuidedRivers(grid, clear, riverRng, noise);
-  if (riverRng.chance(SPAWN_BRANCH_CHANCE)) carveSpawnBranch(grid, spawn, riverRng, noise);
-  applySpawnSafeArea(grid, clear, spawn);
-  smoothRiverDiagonals(grid, clear);
-  roundRiverTips(grid, clear);
+  applySpawnSafeArea(grid, clear);
+  smoothRiverDiagonals(grid);
   applyBorderRing(grid);
 
   const nest = reserveNest(grid, spawn, opts.seed, opts.level, stream('nest'));
@@ -122,7 +118,7 @@ function tryGenerate(
     (x, y) => !tileProperties(grid.get(x, y)).solid && !trunkCells.has(y * width + x),
   );
   for (let i = 0; i < grid.tiles.length; i++) {
-    if (!tileProperties(grid.tiles[i] ?? 0).solid && !reached[i] && !trunkCells.has(i))
+    if (grid.tiles[i] !== Tile.RIVER && !tileProperties(grid.tiles[i] ?? 0).solid && !reached[i] && !trunkCells.has(i))
       grid.tiles[i] = Tile.FOREST;
   }
 
@@ -137,7 +133,7 @@ function tryGenerate(
   );
   for (let y = 1; y < height - 1; y++)
     for (let x = 1; x < width - 1; x++)
-      if (canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3) && !finalReached[y * width + x])
+      if (grid.get(x, y) !== Tile.RIVER && canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3) && !finalReached[y * width + x])
         grid.set(x, y, Tile.FOREST);
   refreshHillEdges(grid);
   for (const bridge of bridges) {
@@ -194,5 +190,5 @@ function tryGenerate(
     pickupSpawns: plan.pickupSpawns,
     encounterSites: [nest],
   };
-  return { ...world, encounterSites: [nest, ...placeGroves(world, [nest])] };
+  return prepareHilltopObjects({ ...world, encounterSites: [nest, ...placeGroves(world, [nest])] });
 }

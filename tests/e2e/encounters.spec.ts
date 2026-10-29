@@ -34,6 +34,7 @@ async function boot(page: Page, world: WorldData, introComplete = false) {
         const g = window.__GAME__!;
         g.saveGame('encounter-fixture');
         const data = JSON.parse(localStorage.getItem('forestrpg.v2.save.encounter-fixture')!);
+        delete data.runtime.moisture;
         data.world = w;
         data.runtime = { rngState: 123, encounters: state };
         data.entities = data.entities.filter(
