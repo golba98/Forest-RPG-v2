@@ -4,6 +4,7 @@ import type { Game } from '../../game/Game';
 import type { Simulation } from '../../simulation/Simulation';
 import type { EnemyEntity, EnemyType, PickupEntity } from '../../types/entities';
 import type { OnboardingStore } from '../../persistence/OnboardingStore';
+import { formatLandscapeInspection, inspectLandscape } from '../../world/LandscapeInspector';
 
 /** Explicitly registered diagnostic commands; never evaluates JavaScript. */
 export class Terminal {
@@ -27,9 +28,14 @@ export class Terminal {
   close(): void { this.overlay.hidden = true; if (this.game.currentScene === 'paused') this.game.resume(); }
   execute(raw: string): string {
     const [name, arg, arg2] = raw.trim().toLowerCase().split(/\s+/);
+    if (name === '/landscape') {
+      if (arg === undefined || arg2 === undefined || !Number.isFinite(Number(arg)) || !Number.isFinite(Number(arg2))) return 'Usage: /landscape x y [access] — coordinates in tiles.';
+      const access = raw.trim().split(/\s+/)[3] === 'access';
+      return formatLandscapeInspection(inspectLandscape(this.sim.world, Number(arg), Number(arg2), access));
+    }
     const entities = this.sim.getEntities();
     const enemies = entities.filter((e): e is EnemyEntity => e.kind === 'enemy' && e.alive);
-    if (name === '/help') return '/kill all|boss  /collect all  /scan boss  /locate boss  /spawn boss|ghost  /give health|speed|xp amount  /time 0..1  /health|mana|stamina amount  /tutorial welcome|reset  /clear  /exit';
+    if (name === '/help') return '/kill all|boss  /collect all  /scan boss  /locate boss  /spawn boss|ghost  /give health|speed|xp amount  /time 0..1  /health|mana|stamina amount  /tutorial welcome|reset  /landscape x y [access]  /clear  /exit';
     if (name === '/save' || name === '/load') { try { if (!this.saves) return 'Save manager unavailable.'; if (name === '/save') this.saves.save(arg); else this.saves.load(arg); return name === '/save' ? 'Game saved.' : 'Game loaded.'; } catch (error) { return error instanceof Error ? error.message : 'Save operation failed.'; } }
     if (name === '/clear') { this.output.textContent = ''; return ''; }
     if (name === '/exit') { this.close(); return ''; }

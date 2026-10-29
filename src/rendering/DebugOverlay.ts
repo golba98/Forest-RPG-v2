@@ -29,6 +29,7 @@ interface HudBounds { readonly x: number; readonly y: number; readonly width: nu
 
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
+  readonly groveViews?: readonly { id: string; x: number; y: number; width: number; height: number; scaleX: number; scaleY: number; depth: number; fungi: number }[];
   readonly propViews?: number;
   readonly hilltopViews?: readonly { id: number; x: number; y: number; depth: number; visible: boolean }[];
   readonly playerDepth?: number | undefined;
@@ -41,6 +42,7 @@ export interface VisualDebugInfo {
   readonly placeholderSprites: number;
   readonly portalStates: readonly string[];
   readonly portalViews: number;
+  readonly portalTextures?: readonly { id: string; width: number; height: number; placeholder: boolean }[];
   readonly clouds: number;
   /** Rain is currently visible (fading counts). */
   readonly raining: boolean;

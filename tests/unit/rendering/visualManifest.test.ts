@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildVisualManifest } from '../../../src/rendering/visualManifest';
-import { rendererExtraAssets } from '../../../src/rendering/assetCatalog';
+import { PORTAL_ART_ALIAS, PORTAL_ART_SRC, rendererExtraAssets } from '../../../src/rendering/assetCatalog';
 import { ANIMATION_DEFS, listReferencedAliases } from '../../../src/animation/AnimationDefs';
 import { resolveSpriteFrame } from '../../../src/animation/resolveSpriteFrame';
 import type { AnimState, Direction } from '../../../src/types/entities';
@@ -46,6 +46,11 @@ describe('visual asset manifest', () => {
   it('covers every alias the animation system references', () => {
     const aliases = new Set(entries.map((e) => e.alias));
     for (const alias of listReferencedAliases()) expect(aliases.has(alias), alias).toBe(true);
+  });
+
+  it('loads the real portal artwork through renderer extras when an older manifest omits it', () => {
+    expect(rendererExtraAssets()).toContainEqual({ alias: PORTAL_ART_ALIAS, src: PORTAL_ART_SRC });
+    expect(pngSize(resolve(PUBLIC, PORTAL_ART_SRC))).toEqual({ w: 1312, h: 1199 });
   });
 
   it('every texture alias the renderer can request exists on disk', () => {

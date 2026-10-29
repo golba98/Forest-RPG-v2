@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { InputManager } from '@/core/input/InputManager';
 
 describe('InputManager DOM gating', () => {
@@ -68,4 +68,26 @@ describe('InputManager DOM gating', () => {
     input.simulateKeyDown('KeyF');
     expect(input.isActionActive('fullscreen')).toBe(true);
   });
+  for (const event of ['blur', 'focusout']) {
+    it(`clears held movement and pending presses on ${event}`, () => {
+      keyDown('KeyW');
+      expect(input.isActionActive('moveUp')).toBe(true);
+      window.dispatchEvent(new Event(event));
+      expect(input.isActionActive('moveUp')).toBe(false);
+      expect(input.isActionJustPressed('moveUp')).toBe(false);
+    });
+  }
+
+  it('clears held movement when the document becomes hidden', () => {
+    keyDown('KeyW');
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    try {
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(input.isActionActive('moveUp')).toBe(false);
+      expect(input.isActionJustPressed('moveUp')).toBe(false);
+    } finally {
+      hidden.mockRestore();
+    }
+  });
+
 });
