@@ -25,3 +25,31 @@ Generation brief: single isolated low decaying woodland stump insect dwelling on
 `waterArt.ts` retains the original four 32×32 water body textures and eight shallow/foam edge overlays, restoring their original contrast and detail at the user's request. It also generates 256 masks each for land-side banks and textured soil fringes. Pixel positions and palette are authored in project code, use nearest sampling, and have no external asset source or third-party licence requirement. Existing source images remain available for compatibility; production mud rendering uses grass beneath transparent, rounded soil fringes instead of stretching the legacy mud image over every cell.
 
 `SurfaceWaterLayer`, `WaterLayer` and `WeatherLayer` draw puddles, crests, splashes and ripples from native world pixels. No downloaded or AI-generated bitmap assets were added for this work. The bridge and nest image assets are unchanged.
+
+## Ghost grove pixel art (2026-10-29)
+
+The procedural grey trunk/branches, block stones and schematic mushrooms in
+`EncounterView.grove()` are replaced with existing pixel artwork from
+[bluecarrot16 and contributors: LPC Flowers / Plants / Fungi / Wood](https://opengameart.org/content/lpc-flowers-plants-fungi-wood),
+licensed **CC BY-SA 3.0**. The complete supplied contributor credits and an
+adaptation notice ship at [public/assets/licenses/grove/NOTICE.txt](../../public/assets/licenses/grove/NOTICE.txt).
+The source archive, original `plants.png`, source URL and SHA-256 hashes are
+retained under `docs/assets/source/grove/`. The adapted sprites retain CC BY-SA
+3.0. No AI image generation, procedural redrawing, recoloring or resampling is
+used. `node scripts/prepare-grove-assets.mjs` reproduces the crops.
+
+The stump is the native 64×48 crop at (32,800). The source sheet is not a uniform
+grid: individual fungi are isolated at (22,578), (33,578), and (54,580), each
+8×8, then padded with transparency to a 16×16 bottom-centred frame. Existing
+artist-painted half-opacity contact-shadow pixels are preserved. `GroveView`
+uses unit sprite scale, integer world positions, nearest texture sampling, and
+the existing character-foot depth convention. A restrained shared ground shadow
+anchors the stump. Twelve mushroom sprites replace the old ring decorations.
+Ghost phases/effects, generation, passable collision semantics, and saved site
+definitions remain unchanged. Sprite lifecycle follows site IDs and world reset.
+
+Alternatives inspected: existing project logs (baked grass and no established
+source-license record); OGA DB32 trees/plants (larger forms and pronounced baked
+shadows); Yar's tree rework (64×160, unsuitable native scale here); Kenney Tiny
+Town (simpler 16px style); and itch.io Haunted Forest (different purple palette).
+Actual game screenshots and verification logs are in `docs/qa/evidence/grove-art/`.

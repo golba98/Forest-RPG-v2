@@ -2,7 +2,7 @@
 
 A browser-based pixel-art RPG built with strict TypeScript, PixiJS 8 and Vite. Explore seeded forests, fight their inhabitants, collect coins and open the portal to the next world. A training glade introduces the controls on the first visit; it can be replayed or disabled in settings.
 
-Use Node 20+ and npm 10+:
+Use Node 20.19+, 22.12+, or 24+ (as specified in `package.json`) and npm 10+:
 
 ```sh
 npm install
@@ -25,3 +25,7 @@ npm run benchmark
 Playwright serves the production build on port 4173, so run the build first. To open a deterministic diagnostic session locally, use `/?debug=1&autostart=1&seed=123`; add `tutorial=1` for the training glade. Diagnostics and the command terminal are available in development or with `debug=1`.
 
 See [implementation status](docs/implementation-status.md), [architecture](docs/architecture.md), [gameplay](docs/gameplay-systems.md), [testing](docs/testing.md), [performance](docs/performance.md), and [deployment](docs/deployment.md). This project has not been deployed.
+
+Ghost-grove artwork: [LPC Flowers / Plants / Fungi / Wood](https://opengameart.org/content/lpc-flowers-plants-fungi-wood)
+by bluecarrot16 and contributors, CC BY-SA 3.0.
+[Complete credits and adaptation notice](public/assets/licenses/grove/NOTICE.txt).

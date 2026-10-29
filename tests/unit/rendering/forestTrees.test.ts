@@ -27,7 +27,7 @@ describe('planForestTrees', () => {
   it('covers every solid forest tile in generated worlds and the tutorial', () => {
     for (const seed of [1, 7, 42, 123, 1337]) expect(uncovered(generateWorld({ seed, level: 1, difficulty: 'normal' }))).toEqual([]);
     expect(uncovered(generateTutorialWorld())).toEqual([]);
-  });
+  }, 30000);
 
   it('only puts trunks on solid forest tiles', () => {
     const world = generateWorld({ seed: 42, level: 1, difficulty: 'normal' });

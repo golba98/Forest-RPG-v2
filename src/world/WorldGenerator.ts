@@ -1,7 +1,9 @@
 import { prepareHilltopObjects } from './HilltopObjects';
 import { reserveNest, clearNestReservation, siteBounds, placeGroves } from './EncounterPlacement';
-import { canOccupy, hasClearPath } from '../systems/CollisionSystem';
-import { bridgeGeometry } from './BridgeGeometry';
+import { canOccupy } from '../systems/CollisionSystem';
+import { LandscapePlan } from './LandscapePlan';
+import { requiredBridgeAccess, requiredNestAccess } from './LandscapeAccess';
+import { attachLandscapeTrace, createLandscapeTrace } from './LandscapeTrace';
 import { placeMud } from './generation/mud';
 import { placeWoodland } from './generation/woodland';
 import { GAME_CONFIG } from '../config/GameConfig';
@@ -43,6 +45,8 @@ const MAX_ATTEMPTS = 32;
  * result is still a pure function of the options.
  */
 export function generateWorld(opts: WorldGenOptions): WorldData {
+  if (opts.generatorVersion !== undefined && opts.generatorVersion !== WORLD_GENERATOR_VERSION)
+    throw new Error(`Unsupported generation request: ${opts.generatorVersion}; only ${WORLD_GENERATOR_VERSION} can be generated`);
   const width = opts.width ?? GAME_CONFIG.world.width;
   const height = opts.height ?? GAME_CONFIG.world.height;
   if (
@@ -71,6 +75,7 @@ function tryGenerate(
   height: number,
   attempt: number,
 ): WorldData | null {
+  const trace = createLandscapeTrace();
   const baseSeed =
     attempt === 0 ? opts.seed >>> 0 : Rng.derive(opts.seed, `attempt-${attempt}`).nextUint32();
   const stream = (stage: string): Rng => Rng.derive(baseSeed, stage);
@@ -108,7 +113,8 @@ function tryGenerate(
   // Part 4 — anything the player cannot reach becomes forest.
   pruneUnreachable(grid, spawn);
 
-  const trees = placeWoodland(grid, stream('woodland'), spawn, bridges, reservations);
+  const woodland = new LandscapePlan({ meta: { width, height }, tiles: grid.tiles, props: [], bridges, encounterSites: [nest], spawn }, 'woodland');
+  const trees = placeWoodland(grid, stream('woodland'), spawn, woodland, trace);
   placeMud(grid, spawn, stream('mud'), bridges);
 
   const trunkCells = new Set(trees.map((t) => t.tileY * width + t.tileX));
@@ -136,17 +142,9 @@ function tryGenerate(
       if (grid.get(x, y) !== Tile.RIVER && canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3) && !finalReached[y * width + x])
         grid.set(x, y, Tile.FOREST);
   refreshHillEdges(grid);
+  const access = new LandscapePlan(collisionWorld, 'access');
   for (const bridge of bridges) {
-    if (!validBridgeTerrain(grid, bridge)) return null;
-    const f = bridgeGeometry(bridge).footprint;
-    const horizontal = bridge.orientation === 'horizontal';
-    for (const cross of [0.5, 1, 1.5]) {
-      const x = horizontal ? f.minX - 0.5 : f.minX + cross;
-      const y = horizontal ? f.minY + cross : f.minY - 0.5;
-      const tx = horizontal ? f.maxX + 0.5 : x;
-      const ty = horizontal ? y : f.maxY + 0.5;
-      if (!hasClearPath(collisionWorld, x, y, tx, ty, 0.3, 'groundEnemy')) return null;
-    }
+    if (!validBridgeTerrain(grid, bridge) || !requiredBridgeAccess(access, bridge).ok) return null;
   }
   const enemyCount = GAME_CONFIG.world.enemiesByDifficulty[opts.difficulty];
   const plan = planSpawns(
@@ -162,14 +160,7 @@ function tryGenerate(
   );
   if (!plan) return null;
 
-  const nestReached = floodFill(grid, spawn, (x, y) => canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3, 'groundEnemy'));
-  if (!nestReached[Math.floor(nest.y) * width + Math.floor(nest.x)]) return null;
-  let exits = 0;
-  for (const [dx, dy] of [[0, -6], [6, 0], [0, 6], [-6, 0]] as const) {
-    const x = Math.floor(nest.x) + dx, y = Math.floor(nest.y) + dy;
-    if (x >= 0 && y >= 0 && x < width && y < height && nestReached[y * width + x] && hasClearPath(collisionWorld, nest.x, nest.y, x + 0.5, y + 0.5, 0.3, 'groundEnemy')) exits++;
-  }
-  if (exits < 2) return null;
+  if (!requiredNestAccess(access, spawn, nest).ok) return null;
 
   const world: WorldData = {
     meta: {
@@ -190,5 +181,5 @@ function tryGenerate(
     pickupSpawns: plan.pickupSpawns,
     encounterSites: [nest],
   };
-  return prepareHilltopObjects({ ...world, encounterSites: [nest, ...placeGroves(world, [nest])] });
+  return attachLandscapeTrace(prepareHilltopObjects({ ...world, encounterSites: [nest, ...placeGroves(world, [nest])] }, [], trace), trace);
 }

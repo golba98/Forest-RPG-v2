@@ -85,6 +85,11 @@ export class PortalView extends Container {
     this.addChild(this.frame, this.vortexMask, this.vortex, this.glow, this.ring, ...this.sparks, this.caption);
   }
 
+  /** Actual frame texture, including a missing-art fallback, for renderer diagnostics. */
+  get artTexture(): Texture {
+    return this.frame.texture;
+  }
+
   /** Vortex centre relative to the portal's foot point (world px). */
   get vortexOffsetY(): number {
     return this.vortex.y;

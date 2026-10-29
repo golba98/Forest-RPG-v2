@@ -9,6 +9,8 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    // Bound CPU contention in multi-seed generation and timing-sensitive stress tests.
+    maxWorkers: 4,
     // Core game simulation (world gen, physics, AI state machines, math, combat, persistence)
     // runs lightning-fast in pure Node without heavy DOM overhead.
     // DOM-specific test files can override per-file via: // @vitest-environment happy-dom
