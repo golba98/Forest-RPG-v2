@@ -6,6 +6,7 @@ import { Game } from '../../../src/game/Game';
 import { parseLaunchParams } from '../../../src/game/LaunchParams';
 import { SaveManager } from '../../../src/persistence/SaveManager';
 import { generateTutorialWorld } from '../../../src/world/TutorialMap';
+import type { Entity } from '../../../src/types/entities';
 import { Simulation } from '../../../src/simulation/Simulation';
 import { FakeRenderer, FakeWorldFactory } from '../game/fakes';
 import { bridgeFixture } from '../../fixtures/bridge-world';
@@ -205,7 +206,7 @@ it('imports legacy boulders and trees as physical objects with intentional footp
   });
   expect(world.tiles[2 * 8 + 2]).toBe(1);
   expect(canOccupy(world, 2.5, 1.2, 0.1)).toBe(true);
-  expect(canOccupy(world, 2.5, 1.8, 0.1)).toBe(false);
+  expect(canOccupy(world, 2.5, 1.8, 0.1)).toBe(true);
   expect(canOccupy(world, 2.5, 2.8, 0.1)).toBe(false);
   expect(canOccupy(world, 5.5, 3.7, 0.3)).toBe(false);
 });
@@ -235,4 +236,33 @@ it('round-trips accumulated puddles and accepts older saves without moisture', (
   saves.import(JSON.stringify(old));
   expect(Math.max(...sim.moisture.wetness)).toBe(0);
   expect(Math.max(...sim.moisture.puddles)).toBe(0);
+});
+
+it('round-trips opening and opened treasure without replaying rewards or changing terrain', () => {
+  const world = { ...generateTutorialWorld(), pickupSpawns: [{type:'chest' as const, id:'chest:3:3',x:3,y:3,chestVariant:'reinforced' as const}] };
+  game.loadWorld(world);
+  const chest=sim.getEntities().find(e=>e.kind==='pickup');
+  if(chest?.kind!=='pickup'||!chest.chest)throw new Error('Missing chest');
+  chest.chest.state='opening';chest.chest.elapsedMs=300;
+  saves.save('treasure');saves.load('treasure');
+  sim.step(.3,{moveX:0,moveY:0,sprint:false,attack:false,skillQ:false,skillE:false,jump:false,dash:false,potionHealth:false,potionSpeed:false});
+  expect(sim.player.stats.coins).toBe(10);
+  saves.save('treasure');saves.load('treasure');
+  expect(sim.getEntities().find(e=>e.id===chest.id)).toMatchObject({alive:true,chest:{state:'opened',elapsedMs:600}});
+  expect(sim.world.tiles).toEqual(world.tiles);
+  expect(sim.player.stats.coins).toBe(10);
+});
+it('rejects malformed treasure and currency fields before replacing the active world', () => {
+  const payload=JSON.parse(saves.export());
+  const coin=payload.entities.find((e:Entity)=>e.kind==='pickup');
+  const version=sim.worldVersion;
+  for(const value of [0,-1,1.5,101]){
+    coin.value=value;expect(()=>saves.import(JSON.stringify(payload))).toThrow('Invalid entities');
+    expect(sim.worldVersion).toBe(version);
+  }
+  delete coin.value;coin.pickupType='chest';
+  for(const chest of [{variant:'wooden',state:'opened',elapsedMs:0},{variant:'rare',state:'closed',elapsedMs:0},{variant:'wooden',state:'opening',elapsedMs:601}]){
+    coin.chest=chest;expect(()=>saves.import(JSON.stringify(payload))).toThrow('Invalid entities');
+    expect(sim.worldVersion).toBe(version);
+  }
 });

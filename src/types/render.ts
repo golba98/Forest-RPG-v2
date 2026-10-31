@@ -15,6 +15,8 @@ export type PortalVisualState = 'locked' | 'reacting' | 'open' | 'transitioning'
  * Coordinates are in tiles; the renderer interpolates prev→current with alpha.
  */
 export interface RenderEntityView {
+  readonly chest?: import('./entities').ChestState;
+  readonly requiredForCompletion?: boolean;
   readonly formation?: number;
   readonly nestEmergence?: { readonly siteId: string; readonly progress: number };
   /** A lifecycle fade already handled this removal; do not replay a death effect. */

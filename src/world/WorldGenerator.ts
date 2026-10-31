@@ -1,3 +1,4 @@
+import { placeTreasure } from './TreasurePlacement';
 import { prepareHilltopObjects } from './HilltopObjects';
 import { reserveNest, clearNestReservation, siteBounds, placeGroves } from './EncounterPlacement';
 import { canOccupy, hasClearPath } from '../systems/CollisionSystem';
@@ -190,5 +191,5 @@ function tryGenerate(
     pickupSpawns: plan.pickupSpawns,
     encounterSites: [nest],
   };
-  return prepareHilltopObjects({ ...world, encounterSites: [nest, ...placeGroves(world, [nest])] });
+  return placeTreasure(prepareHilltopObjects({ ...world, encounterSites: [nest, ...placeGroves(world, [nest])] }));
 }

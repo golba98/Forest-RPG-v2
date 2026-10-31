@@ -1,0 +1,41 @@
+{
+  "method": "Same process, alternating baseline then overhaul; one sample per seed; shared host",
+  "results": [
+    {
+      "seed": 42,
+      "baselineMs": 3539,
+      "baselineProps": 1289,
+      "baselineChests": 0,
+      "overhaulMs": 3448,
+      "overhaulProps": 1289,
+      "overhaulChests": 4
+    },
+    {
+      "seed": 1,
+      "baselineMs": 2702,
+      "baselineProps": 1837,
+      "baselineChests": 0,
+      "overhaulMs": 2213,
+      "overhaulProps": 1836,
+      "overhaulChests": 4
+    },
+    {
+      "seed": 123,
+      "baselineMs": 2008,
+      "baselineProps": 1846,
+      "baselineChests": 0,
+      "overhaulMs": 2489,
+      "overhaulProps": 1844,
+      "overhaulChests": 4
+    },
+    {
+      "seed": 456,
+      "baselineMs": 604,
+      "baselineProps": 1898,
+      "baselineChests": 0,
+      "overhaulMs": 863,
+      "overhaulProps": 1896,
+      "overhaulChests": 4
+    }
+  ]
+}

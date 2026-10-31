@@ -116,7 +116,16 @@ export interface ProjectileEntity extends EntityBase {
   maxDistance: number;
 }
 
+export interface ChestState {
+  variant: 'wooden' | 'reinforced';
+  state: 'closed' | 'opening' | 'opened';
+  elapsedMs: number;
+}
+
 export interface PickupEntity extends EntityBase {
+  value?: number;
+  requiredForCompletion?: boolean;
+  chest?: ChestState;
   readonly kind: 'pickup';
   readonly pickupType: PickupType;
 }

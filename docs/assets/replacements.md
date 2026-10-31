@@ -25,3 +25,22 @@ Generation brief: single isolated low decaying woodland stump insect dwelling on
 `waterArt.ts` retains the original four 32×32 water body textures and eight shallow/foam edge overlays, restoring their original contrast and detail at the user's request. It also generates 256 masks each for land-side banks and textured soil fringes. Pixel positions and palette are authored in project code, use nearest sampling, and have no external asset source or third-party licence requirement. Existing source images remain available for compatibility; production mud rendering uses grass beneath transparent, rounded soil fringes instead of stretching the legacy mud image over every cell.
 
 `SurfaceWaterLayer`, `WaterLayer` and `WeatherLayer` draw puddles, crests, splashes and ripples from native world pixels. No downloaded or AI-generated bitmap assets were added for this work. The bridge and nest image assets are unchanged.
+
+## World art and treasure (2026-10-31)
+
+All additions are project-authored pixel drawing code in `src/rendering/woodlandArt.ts`, extending
+`bridgeArt.ts` material colors. No third-party artwork, generated bitmap, watermark or external
+license was introduced. Existing PNG sources and their prior provenance are preserved.
+
+| Runtime asset | Native pixels | Production use |
+|---|---|---|
+| Tall / broad / young tree | 64×80 / 80×64 / 40×48 | New-world props, one world pixel per pixel |
+| Compatibility / boundary tree | 64×64 | Saved props / solid forest tiles |
+| Bushes | 16×48 / 32×32 | Existing small/obstacle bush aliases, transparent padding |
+| Fallen logs / stump | 32×32 / 32×48 / 32×32 | Existing decor aliases; native pixels |
+| Fern / mushroom | 24×24 | Existing passable flower-clump slots in new worlds |
+| Coin | 128×32, four 32×32 frames | Existing coin animation alias, native-pixel rendering |
+| Wooden / reinforced chest | Four 32×32 textures each | Closed, two opening frames, opened |
+
+The PNG visual manifest remains a source-file inventory. The table above records runtime
+replacements and is not a claim that the retained PNG files changed.

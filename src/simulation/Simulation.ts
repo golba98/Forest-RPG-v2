@@ -1,3 +1,4 @@
+import { collectLoot, prepareLoot } from '../systems/LootSystem';
 import { prepareHilltopObjects } from '../world/HilltopObjects';
 import { SurfaceMoisture, surfaceSites } from '../systems/SurfaceMoisture';
 import type { WeatherKind } from '../types/render';
@@ -146,6 +147,8 @@ export class Simulation implements ISimulation {
         ...this.base('pickup', s.x + 0.5, s.y + 0.5),
         kind: 'pickup',
         pickupType: s.type,
+        ...(s.id ? { id: s.id } : {}),
+        ...(s.type === 'chest' ? { chest: { variant: s.chestVariant ?? 'wooden', state: 'closed', elapsedMs: 0 } as const } : {}),
       });
     this.entities.push({
       ...this.base('portal', world.portal.x + 0.5, world.portal.y + 0.5),
@@ -155,6 +158,7 @@ export class Simulation implements ISimulation {
       roundComplete: false,
       entryEligible: false,
     });
+    prepareLoot(this.world, this.entities);
   }
   step(dt: number, intent: PlayerIntent): void {
     if (!Number.isFinite(dt) || dt <= 0) return;
@@ -169,9 +173,11 @@ export class Simulation implements ISimulation {
       dt,
       this.sensitivity,
     );
+    const encounterInteraction = intent.interact === true && !!this.director.presentation(this.player, this.entities).interaction;
     this.director.step(this.player, this.entities, intent, dt, night, this.encounters.getNavigationDebug());
     this.encounters.step(this.world, this.player, this.entities, intent, dt);
     this.director.afterCombat(this.player, this.entities);
+    collectLoot(this.world, this.player, this.entities, dt, intent.interact === true && !encounterInteraction, () => this.onFeedback?.('coin', this.player));
     this.portal.step(this.player, this.entities, dt, this.director.pendingBosses(this.entities));
     if (this.world.meta.isTutorial) this.tutorial.update(this.player, this.entities, intent);
     this.entities = this.entities.filter(
@@ -227,6 +233,7 @@ export class Simulation implements ISimulation {
       if (match) this.sequence = Math.max(this.sequence, Number(match[1]) + 1);
     }
     this.encounters.setSequence(this.sequence);
+    prepareLoot(this.world, this.entities);
     for (const e of entities)
       if (e.alive && (e.kind === 'player' || e.kind === 'enemy'))
         restoreSafePosition(

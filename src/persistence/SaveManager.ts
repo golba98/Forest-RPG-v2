@@ -147,7 +147,15 @@ function validEntity(v: unknown, w: number, h: number): v is Entity {
       hasNumbers(v, ['health', 'maxHealth', 'hurtTimerMs', 'attackCooldownMs'])
     );
   if (v.kind === 'pickup')
-    return ['coin', 'health_potion', 'speed_potion', 'chest'].includes(String(v.pickupType));
+    return ['coin', 'health_potion', 'speed_potion', 'chest'].includes(String(v.pickupType)) &&
+      (v.value === undefined || (integer(v.value) && v.value >= 1 && v.value <= 100)) &&
+      (v.requiredForCompletion === undefined || typeof v.requiredForCompletion === 'boolean') &&
+      (v.chest === undefined || (v.pickupType === 'chest' && object(v.chest) &&
+        ['wooden', 'reinforced'].includes(String(v.chest.variant)) &&
+        ['closed', 'opening', 'opened'].includes(String(v.chest.state)) && finite(v.chest.elapsedMs) &&
+        v.chest.elapsedMs >= 0 && v.chest.elapsedMs <= 600 &&
+        (v.chest.state !== 'closed' || v.chest.elapsedMs === 0) &&
+        (v.chest.state !== 'opened' || v.chest.elapsedMs === 600)));
   if (v.kind === 'portal')
     return (
       typeof v.active === 'boolean' &&
@@ -274,7 +282,9 @@ function decode(raw: string): {
       (v: unknown) =>
         point(v, w, h) &&
         object(v) &&
-        ['coin', 'health_potion', 'speed_potion', 'chest'].includes(String(v.type)),
+        ['coin', 'health_potion', 'speed_potion', 'chest'].includes(String(v.type)) &&
+        (v.id === undefined || (typeof v.id === 'string' && v.id.length > 0 && v.id.length <= 160)) &&
+        (v.chestVariant === undefined || (v.type === 'chest' && ['wooden', 'reinforced'].includes(String(v.chestVariant)))),
     )
   )
     throw new Error('Invalid spawn data');

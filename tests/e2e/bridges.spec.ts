@@ -16,7 +16,7 @@ async function boot(page: Page, query = 'tutorial=1'): Promise<string[]> {
   await page.waitForFunction(
     () => !!window.__RENDER_DEBUG__ && window.__GAME__?.getState().ui.currentMenu === null,
   );
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 60000));
   await page.evaluate(() => window.__GAME__!.setDaylightRatio(0.5));
   return errors;
 }

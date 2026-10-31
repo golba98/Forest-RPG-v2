@@ -25,8 +25,8 @@ export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint, bridges
   const trees: WorldProp[] = [];
   const occupied = new Set<number>();
   for (const p of rng.shuffle(candidates)) {
-    if (intersectsReservations({ minX: p.x - 1, minY: p.y - 1, maxX: p.x + 2, maxY: p.y + 1 }, reservations)) continue;
-    if (intersectsBridgeReservation(bridges, { minX: p.x - 1, minY: p.y - 1, maxX: p.x + 2, maxY: p.y + 1 })) continue;
+    if (intersectsReservations({ minX: p.x - 1, minY: p.y - 2, maxX: p.x + 2, maxY: p.y + 1 }, reservations)) continue;
+    if (intersectsBridgeReservation(bridges, { minX: p.x - 1, minY: p.y - 2, maxX: p.x + 2, maxY: p.y + 1 })) continue;
     let near = grid
       .neighbors8(p.x, p.y)
       .some((n) => grid.get(n.x, n.y) === Tile.RAMP || grid.get(n.x, n.y) === Tile.LOG);
