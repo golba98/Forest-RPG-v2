@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 const root = process.argv[2] ?? 'test-results';
-const destination = process.argv[3] ?? 'docs/qa/evidence/directional-stability';
+const destination = process.argv[3] ?? 'artifacts/directional-gallery';
 async function files(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   return (await Promise.all(entries.map(e => e.isDirectory() ? files(path.join(dir, e.name)) : path.join(dir, e.name)))).flat();

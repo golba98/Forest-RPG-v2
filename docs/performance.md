@@ -21,12 +21,12 @@ all four authoritative world hashes matched exactly. Timings exclude rendering.
 
 Median milliseconds, **before → after**:
 
-| Seed | Generation | Simulation load | Current save import | Legacy hilltop conversion/import |
-| --- | --- | --- | --- | --- |
-| 1 | 784.13 → 689.15 | 7.39 → 5.82 | 9.37 → 9.12 | 124.56 → 116.09 |
-| 42 | 535.68 → 518.90 | 4.19 → 4.65 | 7.50 → 7.53 | 84.36 → 82.52 |
-| 123 | 759.17 → 709.62 | 5.48 → 5.32 | 8.78 → 8.34 | 135.63 → 126.65 |
-| 1337 | 231.26 → 220.02 | 4.88 → 4.87 | 7.63 → 7.81 | 76.79 → 76.24 |
+| Seed | Generation      | Simulation load | Current save import | Legacy hilltop conversion/import |
+| ---- | --------------- | --------------- | ------------------- | -------------------------------- |
+| 1    | 784.13 → 689.15 | 7.39 → 5.82     | 9.37 → 9.12         | 124.56 → 116.09                  |
+| 42   | 535.68 → 518.90 | 4.19 → 4.65     | 7.50 → 7.53         | 84.36 → 82.52                    |
+| 123  | 759.17 → 709.62 | 5.48 → 5.32     | 8.78 → 8.34         | 135.63 → 126.65                  |
+| 1337 | 231.26 → 220.02 | 4.88 → 4.87     | 7.63 → 7.81         | 76.79 → 76.24                    |
 
 No median increase exceeded the investigation threshold of both 10% and 5 ms.
 The largest load/import median increase was 0.47 ms; five samples do not establish a
@@ -45,4 +45,5 @@ only on request. This does not measure GPU cost or maximum-map diagnostic heap.
 Reproduce with `TMPDIR=/dev/shm node scripts/profile-landscape.mjs --output /tmp/landscape-after.json`.
 The temp-directory override avoids the current environment's default-temp quota
 error. Original samples are in `tests/fixtures/landscape/baseline.json`; the
-comparison is in `docs/qa/evidence/landscape/performance.json`.
+historical comparisons remain in Git history. Save new measurements under ignored
+`artifacts/` or another explicit output path.

@@ -51,7 +51,7 @@ test('keyboard sprint artwork follows all diagonal directions', async ({ page },
     expect(Math.sign(running.x - 24.5)).toBe(dx);
     expect(Math.sign(running.y - 24.5)).toBe(dy);
     await page.screenshot({
-      path: `docs/qa/evidence/player-running/${info.project.name}-${direction}.png`,
+      path: info.outputPath(`${info.project.name}-${direction}.png`),
     });
     await page.keyboard.up('ShiftLeft');
     await page.clock.runFor(100);

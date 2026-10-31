@@ -1,17 +1,14 @@
-import { test, expect, type Page } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import { generateWorld } from '../../src/world/WorldGenerator';
 import { Tile, isHillTile, type TileId } from '../../src/types/tiles';
 import type { WorldData } from '../../src/types/world';
 
 /**
  * Deterministic visual QA captures. Run with VISUAL_PHASE=before|after to fill
- * docs/qa/screens/<phase>/. Scenes are chosen from the same seeded world the
- * game generates, so before/after pairs show identical terrain.
+ * each test's directory under test-results/. Scenes use the game's seeded
+ * worlds, so before/after pairs show identical terrain.
  */
 const PHASE = process.env.VISUAL_PHASE ?? 'after';
-const OUT = `docs/qa/screens/${PHASE}`;
-mkdirSync(OUT, { recursive: true });
 
 const elevated = (w: WorldData, x: number, y: number): boolean => {
   const t = w.tiles[y * w.meta.width + x] as TileId;
@@ -46,42 +43,42 @@ async function teleport(page: Page, x: number, y: number, settleMs = 900): Promi
   await page.waitForTimeout(settleMs);
 }
 
-async function shot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: `${OUT}/${name}.png` });
+async function shot(page: Page, info: TestInfo, name: string): Promise<void> {
+  await page.screenshot({ path: info.outputPath(`${PHASE}-${name}.png`) });
 }
 
 test.describe.configure({ mode: 'serial' });
 test.use({ viewport: { width: 1280, height: 720 } });
 
 for (const seed of [42, 1, 1337]) {
-  test(`seed ${seed}: forest, hills and portal`, async ({ page }) => {
+  test(`seed ${seed}: forest, hills and portal`, async ({ page }, info) => {
     const world = generateWorld({ seed, level: 1, difficulty: 'normal' });
     await boot(page, `seed=${seed}`);
-    await shot(page, `seed${seed}-01-spawn`);
+    await shot(page, info, `seed${seed}-01-spawn`);
     const hill = hillViewpoint(world);
     await teleport(page, hill.x, hill.y);
-    await shot(page, `seed${seed}-02-hill`);
+    await shot(page, info, `seed${seed}-02-hill`);
     const portal = world.portal;
     await teleport(page, portal.x + 0.5, portal.y + 4.5);
-    await shot(page, `seed${seed}-03-portal-locked`);
+    await shot(page, info, `seed${seed}-03-portal-locked`);
     await teleport(page, portal.x + 0.5, portal.y + 2.2, 350);
-    await shot(page, `seed${seed}-04-portal-approach`);
+    await shot(page, info, `seed${seed}-04-portal-approach`);
     await page.evaluate(() => { window.__GAME__!.executeCommand('/kill all'); window.__GAME__!.executeCommand('/collect all'); });
     await teleport(page, portal.x + 0.5, portal.y + 4.5);
     await expect.poll(() => page.evaluate(() => window.__GAME__!.getState().world.isPortalActive)).toBe(true);
-    await shot(page, `seed${seed}-05-portal-open`);
+    await shot(page, info, `seed${seed}-05-portal-open`);
   });
 }
 
-test('projectiles, night ambience and tutorial', async ({ page }) => {
+test('projectiles, night ambience and tutorial', async ({ page }, info) => {
   await boot(page, 'seed=42');
   await page.evaluate(() => window.__GAME__!.setPlayerMana(100));
   await page.keyboard.press('KeyR');
   await page.waitForTimeout(120);
-  await shot(page, 'misc-01-magic-bolt');
+  await shot(page, info, 'misc-01-magic-bolt');
   await page.evaluate(() => window.__GAME__!.setDaylightRatio(0.02));
   await page.waitForTimeout(600);
-  await shot(page, 'misc-02-night');
+  await shot(page, info, 'misc-02-night');
   await boot(page, 'tutorial=1');
-  await shot(page, 'misc-03-tutorial');
+  await shot(page, info, 'misc-03-tutorial');
 });

@@ -1,10 +1,9 @@
 import sharp from 'sharp';
 import { rasterizeSoilTile } from '../../src/rendering/soilMaterial';
 import { expect, test } from '@playwright/test';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 
 const phase = process.env.FOREST_SOIL_PHASE ?? 'after';
-const evidence = `docs/qa/evidence/riverbank-material/${phase}`;
 
 for (const seed of [1, 42, 123, 1337]) {
   test(`bank material seed ${seed}: camera cycling and saved world`, async ({ page }, info) => {
@@ -36,8 +35,7 @@ for (const seed of [1, 42, 123, 1337]) {
       return { world, x, y };
     });
     await page.clock.runFor(350);
-    mkdirSync(evidence, { recursive: true });
-    await page.screenshot({ path: `${evidence}/${info.project.name}-seed-${seed}.png` });
+    await page.screenshot({ path: info.outputPath(`${phase}-${info.project.name}-seed-${seed}.png`) });
     if (seed === 42) {
       await page.evaluate(() =>
         window.__RENDER_DEBUG__!.setFlags({
@@ -49,7 +47,7 @@ for (const seed of [1, 42, 123, 1337]) {
         }),
       );
       await page.clock.runFor(32);
-      await page.screenshot({ path: `${evidence}/${info.project.name}-seed-42-colliders.png` });
+      await page.screenshot({ path: info.outputPath(`${phase}-${info.project.name}-seed-42-colliders.png`) });
       await page.evaluate(() => window.__RENDER_DEBUG__!.setFlags({ enabled: false }));
     }
     for (const [x, y] of [
@@ -202,7 +200,7 @@ test('WebGL composes a bank transition across saved mud/grass cells and preserve
       }
     }
   };
-  await page.screenshot({ path: `${evidence}/${info.project.name}-isolated-bank.png` });
+  await page.screenshot({ path: info.outputPath(`${phase}-${info.project.name}-isolated-bank.png`) });
   await check();
   for (const viewport of [
     { width: 1920, height: 1080 },

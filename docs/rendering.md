@@ -32,5 +32,11 @@ a sparse chunk atlas. It is composed after grass and before flowers/contact
 shadows, and released on chunk replacement, world load and renderer teardown.
 This replaces the old nearly opaque `soil_patch_*` stamps and their tile-local
 clipping, rather than adding a covering effect. Water, cliff, stair and bridge
-art retain their own surface geometry. Regression evidence and before/after
-captures are under `qa/evidence/riverbank-material/`.
+art retain their own surface geometry. Browser coverage is in `tests/e2e/riverbank-material.spec.ts`; captures are written
+to ignored per-test output directories (see [testing](testing.md)).
+
+## Directional effects and HUD
+
+Punch presentation uses the simulation's locked attack direction, swing ID, combo and elapsed time. Slashes follow the interpolated player origin and do not restart after missed frames. The shipped southwest running strip duplicates southeast artwork; `AnimationDefs` selects and mirrors individual southeast frames without reversing frame order. Pixel regression tests use independently mirrored references.
+
+The bottom HUD uses the pure `hudLayout` function with viewport size, UI scale and safe-area insets. It shows existing resources, progression and potion shortcuts. The minimap cycles through radar, full and hidden modes. Browser rendering checks cover resizing, effects lifetime, pause/resume, world replacement and map controls.

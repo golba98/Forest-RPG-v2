@@ -1,12 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
 import { encounterFixture } from '../fixtures/encounter-world';
 import { generateWorld } from '../../src/world/WorldGenerator';
 import type { WorldData } from '../../src/types/world';
 
 const phase = process.env.GROVE_ART_PHASE ?? 'after';
-const out = `docs/qa/evidence/grove-art/${phase}`;
-mkdirSync(out, { recursive: true });
 async function load(page: Page, world: WorldData) {
   await page.clock.install();
   await page.goto('/?debug=1&autostart=1&tutorial=0&seed=123');
@@ -55,11 +52,11 @@ test('native grove, walking, depth, camera cycling, night and reload', async ({ 
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const grove = await load(page, encounterFixture());
-  await page.screenshot({ path: `${out}/${info.project.name}-day.png` });
+  await page.screenshot({ path: info.outputPath(`${phase}-${info.project.name}-day.png`) });
   if (phase === 'before') {
     await page.evaluate(() => window.__GAME__!.setDaylightRatio(0.95));
     await page.clock.runFor(100);
-    await page.screenshot({ path: `${out}/${info.project.name}-night.png` });
+    await page.screenshot({ path: info.outputPath(`${phase}-${info.project.name}-night.png`) });
     return;
   }
   const views = await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().groveViews!);
@@ -88,7 +85,7 @@ test('native grove, walking, depth, camera cycling, night and reload', async ({ 
       grove: window.__RENDER_DEBUG__!.getInfo().groveViews![0]!.depth,
     }));
     expect(name === 'behind' ? order.player < order.grove : order.player > order.grove).toBe(true);
-    await page.screenshot({ path: `${out}/${info.project.name}-${name}.png` });
+    await page.screenshot({ path: info.outputPath(`${phase}-${info.project.name}-${name}.png`) });
   }
   for (const viewport of [
     { width: 1920, height: 1080 },
@@ -97,7 +94,7 @@ test('native grove, walking, depth, camera cycling, night and reload', async ({ 
   ]) {
     await page.setViewportSize(viewport);
     await page.clock.runFor(200);
-    await page.screenshot({ path: `${out}/${info.project.name}-${viewport.width}.png` });
+    await page.screenshot({ path: info.outputPath(`${phase}-${info.project.name}-${viewport.width}.png`) });
   }
   await page.evaluate(() => window.__GAME__!.setPlayerPosition(8, 8));
   await page.clock.runFor(300);
@@ -117,10 +114,10 @@ test('native grove, walking, depth, camera cycling, night and reload', async ({ 
   expect(loadedWorld).toEqual(savedWorld);
   await page.clock.runFor(200);
   expect(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().groveViews!.length)).toBe(2);
-  await page.screenshot({ path: `${out}/${info.project.name}-reload.png` });
+  await page.screenshot({ path: info.outputPath(`${phase}-${info.project.name}-reload.png`) });
   await page.evaluate(() => window.__GAME__!.setDaylightRatio(0.95));
   await page.clock.runFor(100);
-  await page.screenshot({ path: `${out}/${info.project.name}-night.png` });
+  await page.screenshot({ path: info.outputPath(`${phase}-${info.project.name}-night.png`) });
   expect(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().placeholderSprites)).toBe(0);
   expect(errors).toEqual([]);
 });
@@ -131,7 +128,7 @@ for (const seed of [1, 42, 123, 1337])
     test.setTimeout(90000);
     const world = generateWorld({ seed, level: 1, difficulty: 'normal' });
     await load(page, world);
-    await page.screenshot({ path: `${out}/${info.project.name}-seed-${seed}.png` });
+    await page.screenshot({ path: info.outputPath(`${phase}-${info.project.name}-seed-${seed}.png`) });
     expect(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().placeholderSprites)).toBe(
       0,
     );

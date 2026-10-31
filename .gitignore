@@ -44,6 +44,16 @@ Thumbs.db
 # the previous development session local state (agent worktrees)
 **/worktrees/
 
-# Visual QA captures: specs write raw PNGs; curated, palette-reduced copies are *.qa.png
-docs/qa/screens/**/*.png
-!docs/qa/screens/**/*.qa.png
+# Local caches and generated TypeScript build state
+.vite/
+*.tsbuildinfo
+
+# Generated captures, profiling output, and temporary documentation
+/artifacts/
+/docs/tmp/
+
+# Legacy QA output paths (kept ignored for older local tooling)
+/docs/qa/evidence/
+/docs/qa/screens/
+/docs/qa/frames/
+/docs/qa/ledge-hud-evidence/

@@ -35,7 +35,7 @@ Before submitting code changes, run typecheck, lint, relevant tests, and the pro
 
 ### Browser tests
 
-Install the matching browsers and build first. Playwright starts the production preview on port 4173 and runs Chromium and Firefox:
+Install the matching browsers and build first. Playwright starts the production preview on port 4311 and runs Chromium and Firefox:
 
 ```sh
 npx playwright install chromium firefox
@@ -43,7 +43,7 @@ npm run build
 npm run test:e2e
 ```
 
-See [testing](../testing.md) for focused suites, browser configuration, and recorded results.
+See [testing](../testing.md) for focused suites, browser configuration, and output locations.
 
 ## Diagnostics
 
@@ -66,9 +66,36 @@ Add `&tutorial=1` to start in the training glade. In a diagnostic session, open 
 | [Save format](../save-format.md)                     | Persistence, imports, and compatibility        |
 | [Performance](../performance.md)                     | Measurements and limitations                   |
 | [Deployment](../deployment.md)                       | Static hosting and build configuration         |
-| [Implementation status](../implementation-status.md) | Recorded milestones and remaining validation   |
+| [Implementation status](../implementation-status.md) | Current capabilities and remaining review      |
 | [Feature parity](../feature-parity.md)               | Differences from the original game             |
 
-## Task notes
+## Scripts and generated output
 
-Use the [task note format](notes/README.md) when a plan or handoff needs to be saved. Notes live in this tracked documentation tree; maintained technical guides hold lasting system information.
+| Script                                                   | Purpose                                                                                 |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `prepare-grove-assets.mjs`, `prepare-nest-assets.mjs`    | Reproduce shipped sprites from tracked asset sources                                    |
+| `build-hill-tileset.mjs`, `build-rock-sprites.mjs`       | Generate shipped terrain and object art                                                 |
+| `sanitize-assets.js`, `transcode-media.sh`               | Prepare asset manifests and media; review generated asset diffs                         |
+| `profile-landscape.mjs`                                  | Profile generation/loading; fixture regeneration requires explicit `--capture-baseline` |
+| `profile-browser.mjs`, `profile-surface-weather.mjs`     | Measure browser cadence or compare weather builds                                       |
+| `capture-surface-weather.mjs`, `directional-gallery.mjs` | Produce local QA captures and galleries                                                 |
+
+Asset preparation intentionally changes shipped files; ordinary tests and captures should not. Browser/profiling scripts may require a running production preview; see [testing](../testing.md) and [performance](../performance.md) for prerequisites and options.
+
+`dist/`, `coverage/`, `test-results/`, `playwright-report/`, `artifacts/` and caches are ignored. Put temporary drafts and handoffs in ignored `docs/tmp/`; see the [note guidance](notes/README.md). Maintained documentation, regression fixtures, asset sources and curated `docs/images/` stay tracked.
+
+## Directory map
+
+| Location                                        | Contents                                                              |
+| ----------------------------------------------- | --------------------------------------------------------------------- |
+| `src/game/`, `src/core/`                        | Composition, scenes, loop, input and shared services                  |
+| `src/simulation/`, `src/systems/`, `src/world/` | Headless simulation, rules and world generation                       |
+| `src/rendering/`, `src/animation/`              | Pixi views, effects, geometry and animation                           |
+| `src/ui/`, `src/audio/`, `src/persistence/`     | DOM shell, audio and saves/settings                                   |
+| `src/types/`, `src/config/`                     | Shared interfaces and configuration                                   |
+| `tests/`                                        | Unit, integration, browser and benchmark suites, helpers and fixtures |
+| `public/assets/`                                | Shipped images, audio, manifests and licenses                         |
+| `scripts/`                                      | Asset preparation, profiling and capture tools                        |
+| `docs/`                                         | Maintained technical guides, source attribution and curated images    |
+
+Before submitting, inspect `git status --short` and `git diff --check`. A normal test run should not modify documentation or tracked images. Keep generated output out of commits; move only deliberately selected documentation images into `docs/images/`.
