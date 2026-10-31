@@ -1,0 +1,165 @@
+{
+  "createdUtc": "2026-10-31T15:38:33.643656+00:00",
+  "repository": "golba98/Forest-RPG-v2",
+  "branches": [
+    {
+      "branch": "checkpoint/directional-punch",
+      "commit": "1b58cbac0496d0146923abbbe5e2c6447d9ed66e",
+      "remoteBranch": "checkpoint/directional-punch"
+    },
+    {
+      "branch": "claude/visual-rendering-repair",
+      "commit": "dd039baa0f627f34cf3b5c71e406d592c00348d6",
+      "remoteBranch": "claude/visual-rendering-repair"
+    },
+    {
+      "branch": "codex/gameplay-repair",
+      "commit": "8217083435e5e8ee70b0dbeb3cb18038132f2c91",
+      "remoteBranch": "codex/gameplay-repair"
+    },
+    {
+      "branch": "codex/ledge-bottom-hud",
+      "commit": "2b9a7e6b6dc85aec11bcc5309cfa47afa54a99c7",
+      "remoteBranch": "codex/ledge-bottom-hud"
+    },
+    {
+      "branch": "codex/save-hilltop-weather-rivers",
+      "commit": "221a03376abc5e06d949103f14d2df855e3523d4",
+      "remoteBranch": "codex/save-hilltop-weather-rivers"
+    },
+    {
+      "branch": "docs/public-readme-cleanup",
+      "commit": "fab98088ea493c38ac2ac2bd74612e704e65a77e",
+      "remoteBranch": "docs/public-readme-cleanup"
+    },
+    {
+      "branch": "docs/readme-workspace-cleanup",
+      "commit": "64e1b62345e9ea0f3b0c6da888b59729b6e03327",
+      "remoteBranch": "docs/readme-workspace-cleanup"
+    },
+    {
+      "branch": "feat/forest-rpg-v2-clean",
+      "commit": "2ae836982093fe3487984b95c2c6435039869042",
+      "remoteBranch": "feat/forest-rpg-v2-clean"
+    },
+    {
+      "branch": "feat/forest-rpg-v2-foundation",
+      "commit": "3228cb72bc06cd3e9fb4447663db087f081acd96",
+      "remoteBranch": "feat/forest-rpg-v2-foundation"
+    },
+    {
+      "branch": "feat/world-art-loot-overhaul",
+      "commit": "91452373aa4b6870edeea2f1ce42c35766d415d3",
+      "remoteBranch": "feat/world-art-loot-overhaul"
+    },
+    {
+      "branch": "fix/directional-stability",
+      "commit": "ff1864d60de10dd577c8631ffc282e9de6345366",
+      "remoteBranch": "fix/directional-stability"
+    },
+    {
+      "branch": "fix/landscape-grove-art",
+      "commit": "e1418ff3fb312f3f6384986cac5af41816a4c528",
+      "remoteBranch": "fix/landscape-grove-art"
+    },
+    {
+      "branch": "integration/codex-claude",
+      "commit": "f55251661960e8164c68cb1942cf9df5142d900d",
+      "remoteBranch": "integration/codex-claude"
+    },
+    {
+      "branch": "main",
+      "commit": "58baaf85064efd55fce239e3f0e05ec35276c940",
+      "remoteBranch": "save/all-work-20261031-153832/committed/main"
+    },
+    {
+      "branch": "save/current-work",
+      "commit": "c7ba2c81897719bfef7b382f05985ec9e0f6f68f",
+      "remoteBranch": "save/current-work"
+    },
+    {
+      "branch": "worktree-agent-a31da5925bb72073b",
+      "commit": "c7fef7a5d458cd6ce5ec1d62bd27558543cbd8de",
+      "remoteBranch": "worktree-agent-a31da5925bb72073b"
+    },
+    {
+      "branch": "worktree-agent-a99e9eb9c4447a6cb",
+      "commit": "51af36bec280ed97d0604e5ff4d168a049bf929b",
+      "remoteBranch": "worktree-agent-a99e9eb9c4447a6cb"
+    },
+    {
+      "branch": "worktree-agent-ae198c9e4588746d5",
+      "commit": "261efbd8cee4298b5af8ed1ff04424b6abc2275d",
+      "remoteBranch": "worktree-agent-ae198c9e4588746d5"
+    },
+    {
+      "branch": "worktree-agent-af0cf6f733dab9ac2",
+      "commit": "79a318d77bf8f18d9ed5a8dd6ba4ced8608ea0c2",
+      "remoteBranch": "worktree-agent-af0cf6f733dab9ac2"
+    }
+  ],
+  "snapshots": [
+    {
+      "sourceBranch": "main",
+      "branch": "save/all-work-20261031-153832/main",
+      "commit": "085447c5ad7aec83fef112c846c63321322cd4ff",
+      "parent": "58baaf85064efd55fce239e3f0e05ec35276c940",
+      "files": [
+        "docs/qa/evidence/player-directions/after-northwest-punch.png",
+        "docs/qa/evidence/player-directions/before-opposite-punch.png",
+        "docs/qa/evidence/player-directions/chromium-eight-directions.png",
+        "docs/qa/evidence/player-directions/firefox-eight-directions.png",
+        "docs/qa/evidence/player-directions/live-frame-check.json",
+        "docs/qa/evidence/player-directions/validation-summary.json",
+        "docs/qa/player-directions.md",
+        "docs/testing.md",
+        "src/core/math/Direction.ts",
+        "src/game/Diagnostics.ts",
+        "src/main.ts",
+        "src/rendering/DebugOverlay.ts",
+        "src/rendering/PixiRenderer.ts",
+        "src/simulation/Simulation.ts",
+        "src/systems/EncounterSystem.ts",
+        "src/systems/MovementSystem.ts",
+        "src/types/diagnostics.ts",
+        "src/types/entities.ts",
+        "src/types/render.ts",
+        "src/types/simulation.ts",
+        "tests/e2e/player-directions.spec.ts",
+        "tests/e2e/tier1-feature/combat-abilities-bestiary.spec.ts",
+        "tests/unit/animation/playerPunchDirection.test.ts",
+        "tests/unit/core/Direction.test.ts",
+        "tests/unit/game/fakes.ts",
+        "tests/unit/persistence/saves.test.ts"
+      ],
+      "fileCount": 26
+    },
+    {
+      "sourceBranch": "claude/visual-rendering-repair",
+      "branch": "save/all-work-20261031-153832/claude/visual-rendering-repair",
+      "commit": "74f81138237071e413b8d5e6b7dfc13e17188bbd",
+      "parent": "dd039baa0f627f34cf3b5c71e406d592c00348d6",
+      "files": [
+        "docs/qa/visual-recording-review.md",
+        "src/main.ts",
+        "src/rendering/DebugOverlay.ts",
+        "src/rendering/Minimap.ts",
+        "src/rendering/PixiRenderer.ts",
+        "src/rendering/effects/EffectsLayer.ts",
+        "src/systems/EncounterSystem.ts",
+        "src/systems/EnemyAISystem.ts",
+        "src/ui/GameShell.ts",
+        "src/ui/theme.css",
+        "tests/e2e/menu-theme.spec.ts",
+        "tests/e2e/visual-rendering.spec.ts",
+        "tests/unit/rendering/EffectsLayer.test.ts",
+        "tests/unit/rendering/minimap.test.ts",
+        "tests/unit/simulation/combat-aim.test.ts"
+      ],
+      "fileCount": 15
+    }
+  ],
+  "verifiedUtc": "2026-10-31T15:40:13.350322+00:00",
+  "scope": "All 19 local branch heads and all tracked/non-ignored untracked working changes present at capture time across five worktrees. Dependency/build/cache files excluded by existing Git ignore rules.",
+  "verification": "All 21 recorded commits matched their remote branch heads after the atomic push. Branches can subsequently advance; recorded commits remain in their history."
+}

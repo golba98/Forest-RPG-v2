@@ -15,7 +15,7 @@ test('shared landscape inspector, required access, terminal and cached-chunk/rel
     return window.__GAME__!.getLandscapeDebug(70.5, 96.5, true);
   });
   expect(initial.units).toBe('tiles');
-  expect(initial.generatorVersion).toBe(10);
+  expect(initial.generatorVersion).toBe(12);
   expect(initial.surface.elevation).toBe(1);
   expect(initial.surface.plateau?.id).toMatch(/^plateau:/);
   expect(initial.placement.hilltop.accepted).toBe(true);
@@ -67,7 +67,7 @@ test('shared landscape inspector, required access, terminal and cached-chunk/rel
   const before = await page.evaluate(() => window.__GAME__!.getState().world);
   const rejected = await page.evaluate(() => {
     const bad = JSON.parse(localStorage.getItem('forestrpg.v2.save.landscape')!);
-    bad.world.meta.generatorVersion = 11;
+    bad.world.meta.generatorVersion = 13;
     localStorage.setItem('forestrpg.v2.save.landscape-future', JSON.stringify(bad));
     return window.__GAME__!.loadGame('landscape-future');
   });

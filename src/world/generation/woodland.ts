@@ -26,9 +26,14 @@ export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint,
   const trees: WorldProp[] = [];
   const occupied = new Set<number>();
   for (const p of rng.shuffle(candidates)) {
-    const reason = landscape.woodlandRejection(p);
+    const reason = landscape.woodlandRejection(p, { minX: p.x - 1, minY: p.y - 3, maxX: p.x + 2, maxY: p.y + 1.5 });
     if (reason) { trace?.record({ consumer: 'woodland', source: p, at: null, outcome: 'rejected', reasons: [reason] }); continue; }
     let near = false;
+    // Native LPC crowns reach three tiles above their roots. Keep the entire
+    // canopy clear of stairs and landings; roots retain the existing footprint.
+    for (let dy = -3; dy <= 2 && !near; dy++)
+      for (let dx = -2; dx <= 2; dx++)
+        if (grid.inBounds(p.x + dx, p.y + dy) && grid.get(p.x + dx, p.y + dy) === Tile.STAIRS) near = true;
     for (let dy = -2; dy <= 2; dy++)
       for (let dx = -2; dx <= 2; dx++) {
         if (dx * dx + dy * dy < 5 && occupied.has((p.y + dy) * grid.width + p.x + dx)) near = true;

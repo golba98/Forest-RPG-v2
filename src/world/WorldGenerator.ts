@@ -1,3 +1,4 @@
+import { placeTreasure } from './TreasurePlacement';
 import { prepareHilltopObjects } from './HilltopObjects';
 import { reserveNest, clearNestReservation, siteBounds, placeGroves } from './EncounterPlacement';
 import { canOccupy } from '../systems/CollisionSystem';
@@ -181,5 +182,5 @@ function tryGenerate(
     pickupSpawns: plan.pickupSpawns,
     encounterSites: [nest],
   };
-  return attachLandscapeTrace(prepareHilltopObjects({ ...world, encounterSites: [nest, ...placeGroves(world, [nest])] }, [], trace), trace);
+  return attachLandscapeTrace(placeTreasure(prepareHilltopObjects({ ...world, encounterSites: [nest, ...placeGroves(world, [nest])] }, [], trace)), trace);
 }
