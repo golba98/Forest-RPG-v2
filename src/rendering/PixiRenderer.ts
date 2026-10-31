@@ -1,3 +1,7 @@
+import { createLootTextures } from './lootArt';
+import { VEGETATION, vegetationFor, type VegetationFrame } from './vegetationArt';
+import { LootView } from './LootView';
+
 import { GroveView } from './GroveView';
 import { createSoilChunkArt, type SoilChunkArt } from './SoilArt';
 import { propDepth } from '../world/ObjectSemantics';
@@ -85,6 +89,7 @@ function artKey(e: RenderEntityView): string {
 }
 
 export class PixiRenderer implements IRenderer {
+  private readonly lootView = new LootView();
   language: Language = 'English';
   cameraShakeEnabled = true;
   starsEnabled = true;
@@ -180,6 +185,7 @@ export class PixiRenderer implements IRenderer {
   async loadAssets(progress?: (p: number) => void): Promise<void> {
     await this.textures.load(progress);
     for (const [alias, texture] of createWaterTextures()) this.textures.registerRuntime(alias, texture);
+    for (const [alias, texture] of createLootTextures()) this.textures.registerRuntime(alias, texture);
     for (const [alias, texture] of createBridgeTextures()) this.textures.registerRuntime(alias, texture);
     this.hud = new Hud(this.textures.get('ui_heart'), [this.textures.get('item_potion_health'), this.textures.get('item_potion_speed')]);
     this.hud.layout(this.app.screen.width, this.app.screen.height, this.hudScale);
@@ -243,6 +249,9 @@ export class PixiRenderer implements IRenderer {
     if (this.enteringPortal) this.effects?.startTransition();
     this.enteringPortal = false;
     this.world = world;
+    this.lootView.reset();
+    this.actors.addChild(this.lootView.container);
+    this.lootView.container.zIndex = 1e8;
     this.weatherPreview = null; this.weather.reset(); this.surfaceWater.reset(); this.water.reset(world);
     this.encounterView.reset();
     this.groveView.reset();
@@ -258,14 +267,13 @@ export class PixiRenderer implements IRenderer {
     }
 
     for (const tree of planForestTrees(world)) {
-      const sprite = this.tag(new Sprite(this.textures.get('tile_tree')), 'tile_tree', 'actors/forest');
-      sprite.anchor.set(0.5, 1); sprite.width = 64; sprite.height = 64;
-      sprite.position.set((tree.x + 0.5) * TILE, (tree.y + 1) * TILE); sprite.zIndex = sprite.y;
+      const sprite = this.tag(this.vegetationSprite(VEGETATION.compact), 'lpc_trees', 'actors/forest');
+      sprite.x += tree.x * TILE; sprite.y += tree.y * TILE; sprite.zIndex = (tree.y + 1) * TILE;
       this.actors.addChild(sprite); this.objects.push(sprite);
     }
     for (const p of world.props) {
-      const sprite = this.tag(p.kind === 'tree' ? new Sprite(this.textures.get('tile_tree')) : this.art(getWorldPropArt(p)), decorAlias(p.kind), GROUND_PROPS.has(p.kind) ? 'ground/prop' : 'actors/prop');
-      if (p.kind === 'tree') { sprite.anchor.set(0.5, 1); sprite.width = 64; sprite.height = 64; sprite.position.set(16, 32); }
+      const vegetation = vegetationFor(p, world);
+      const sprite = this.tag(vegetation ? this.vegetationSprite(vegetation) : this.art(getWorldPropArt(p)), vegetation?.atlas ?? decorAlias(p.kind), GROUND_PROPS.has(p.kind) ? 'ground/prop' : 'actors/prop');
       sprite.x += p.tileX * TILE; sprite.y += p.tileY * TILE; sprite.zIndex = propDepth(p) * TILE;
       (GROUND_PROPS.has(p.kind) ? this.groundProps : this.actors).addChild(sprite); this.objects.push(sprite);
       this.propSprites.set(p.id, sprite);
@@ -273,6 +281,14 @@ export class PixiRenderer implements IRenderer {
     this.camera.setWorldSize(world.meta.width * TILE, world.meta.height * TILE);
     this.camera.snapTo((world.spawn.x + 0.5) * TILE, (world.spawn.y + 0.5) * TILE);
     for (let y = 0; y < world.meta.height; y += CHUNK) for (let x = 0; x < world.meta.width; x += CHUNK) this.buildChunk(x, y);
+  }
+
+  private vegetationSprite(frame: VegetationFrame): Sprite {
+    const { x, y, w, h } = frame.rect;
+    const sprite = new Sprite(this.textures.getRect(frame.atlas, x, y, w, h));
+    // One atlas pixel per world pixel. Root anchors align with trunk footprints.
+    sprite.position.set(TILE / 2 - frame.root[0], TILE - frame.root[1]);
+    return sprite;
   }
 
   private buildChunk(x: number, y: number): void {
@@ -418,6 +434,7 @@ export class PixiRenderer implements IRenderer {
   }
 
   private renderEntities(snapshot: RenderSnapshot, alpha: number, dt: number, player: RenderEntityView | undefined, fx: EffectTextures, effects: EffectsLayer): void {
+    this.lootView.update(snapshot, this.paused ? 0 : dt, effects);
     this.waterMask.clear(); this.waterRipple.clear(); this.waterFxMask.clear(); effects.ground.clear();
     this.wading = null;
     effects.syncPlayerSlash(null);
@@ -458,7 +475,8 @@ export class PixiRenderer implements IRenderer {
         (e.kind === 'player' || e.kind === 'enemy');
       if (!holdFrame) {
         let texture: Texture;
-        if (spriteKey === 'magic_bolt') texture = fx.bolt;
+        if (e.chest) texture = this.textures.get(`woodland_chest_${e.chest.variant}_${e.chest.state === 'closed' ? 0 : e.chest.state === 'opened' ? 3 : Math.min(2, 1 + Math.floor(e.chest.elapsedMs / 300))}`);
+        else if (spriteKey === 'magic_bolt') texture = fx.bolt;
         else if (f.placeholder) texture = this.textures.getPlaceholder();
         else texture = this.textures.getRect(f.textureAlias, f.frame.x, f.frame.y, f.frame.w, f.frame.h);
         sprite.texture = texture;
@@ -469,6 +487,7 @@ export class PixiRenderer implements IRenderer {
 
       const flip = f.flipX ? -1 : 1;
       let sx = f.scale * flip, sy = f.scale;
+      if (spriteKey === 'coin') sx = sy = 1;
       if (anim.telegraph > 0) {
         // Wind-up: squash and a red ground ring under the attacker.
         sx *= 1 + 0.1 * anim.telegraph; sy *= 1 - 0.1 * anim.telegraph;
@@ -477,6 +496,7 @@ export class PixiRenderer implements IRenderer {
       if (spriteKey === 'magic_bolt') { sx = sy = 1; if (!this.paused) effects.trail(x, y, y - 1); }
       sprite.anchor.set(f.anchorX, f.anchorY); sprite.scale.set(sx, sy);
       sprite.position.set(x, y);
+      if (spriteKey === 'coin') sprite.y -= Math.round(2 + Math.sin(e.animTimeMs / 190) * 2);
       sprite.zIndex = y + e.lift * TILE; sprite.alpha = e.alpha;
       if (e.kind === 'enemy') this.nestView.apply(e, sprite);
       if (e.formation !== undefined) {
@@ -580,7 +600,7 @@ export class PixiRenderer implements IRenderer {
     let label: string;
     if (state === 'open' || state === 'transitioning') label = translate(this.language, 'PORTAL OPEN');
     else {
-      const coins = snapshot.entities.filter(item => item.spriteKey === 'coin').length;
+      const coins = snapshot.entities.filter(item => item.spriteKey === 'coin' && item.requiredForCompletion !== false).length;
       const enemies = snapshot.entities.filter(item => item.kind === 'enemy' && item.spriteKey !== 'ghost').length + (snapshot.encounters?.pendingBosses ?? 0);
       const progress = `${coins} ${translate(this.language, 'Coins')} • ${enemies} ${translate(this.language, 'foes')}`;
       label = state === 'reacting' ? `${translate(this.language, 'Portal sealed')}\n${progress}` : progress;

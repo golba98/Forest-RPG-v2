@@ -5,9 +5,8 @@ import type { PropKind, WorldProp } from '../types/world';
 
 /** Physical footprints in tile units, relative to the sprite's ground tile. */
 export const OBJECT_FOOTPRINTS: Readonly<Partial<Record<PropKind, Bounds>>> = {
-  // Trunk tile plus the canopy row above it, so the player cannot walk behind a
-  // tree (the 64×64 sprite spans x −0.5..1.5, y −1..1 of its trunk tile).
-  tree: { minX: -0.2, minY: -0.6, maxX: 1.2, maxY: 1 },
+  // Only the trunk and substantial roots block movement; foliage is overhead.
+  tree: { minX: 0.32, minY: 0.65, maxX: 0.68, maxY: 1 },
   rock_boulder: { minX: 0.1, minY: 0.4, maxX: 0.9, maxY: 1 },
   bush_obstacle: { minX: 0.1, minY: 0.45, maxX: 0.9, maxY: 1 },
   log_horizontal: { minX: 0, minY: 0.6, maxX: 1, maxY: 1 },
@@ -35,6 +34,6 @@ export function propDepth(prop: WorldProp): number {
   const base = propFootprint(prop);
   return (
     prop.tileY +
-    (prop.kind === 'rock_boulder' && base ? base.maxY - CHARACTER_FOOT_OFFSET_PX / 32 : 1)
+    (base ? base.maxY - CHARACTER_FOOT_OFFSET_PX / 32 : 1)
   );
 }

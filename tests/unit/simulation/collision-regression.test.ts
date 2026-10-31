@@ -67,7 +67,7 @@ describe('authoritative collision', () => {
     expect(s.player.x).toBeGreaterThan(6);
     expect(canOccupy(w, 6.5, 2.5, 0.3, 'groundEnemy')).toBe(true);
   });
-  it('stops a player walking south into a tree at the top of its canopy', () => {
+  it('allows walking beneath the canopy and stops at the trunk', () => {
     const w = {
       ...makeWorld(),
       props: [{ id: 1, kind: 'tree' as const, tileX: 4, tileY: 5, solid: true }],
@@ -76,8 +76,8 @@ describe('authoritative collision', () => {
     s.loadWorld(w);
     s.setPlayerPosition(4.5, 1.5);
     for (let i = 0; i < 60; i++) s.step(1 / 60, { ...IDLE_INTENT, moveY: 1 });
-    // Canopy row starts at y = 4.4; the player's box (half 0.3) stops above it.
-    expect(s.player.y).toBeLessThanOrEqual(4.1 + 1e-6);
+    // Actual footbox reaches the trunk at y=5.65; canopy does not collide.
+    expect(s.player.y).toBeCloseTo(5.3375, 5);
   });
   it('allows exact contact without granting a hill exemption', () => {
     const w = makeWorld();
@@ -102,7 +102,7 @@ describe('authoritative collision', () => {
     expect(s.player.y).toBeCloseTo(3.6875);
     expect(canOccupy(w, s.player.x, s.player.y, entityFootprint(s.player))).toBe(true);
   });
-  it('uses tree bodies and solid boulders independently of legacy decoration flags', () => {
+  it('uses tree trunks and solid boulders independently of legacy decoration flags', () => {
     const w = {
       ...makeWorld(),
       props: [
@@ -112,7 +112,7 @@ describe('authoritative collision', () => {
     };
     // Trunk tile and the canopy row above it block; above the canopy is open.
     expect(canOccupy(w, 3.5, 2.2, 0.1)).toBe(true);
-    expect(canOccupy(w, 3.5, 2.8, 0.1)).toBe(false);
+    expect(canOccupy(w, 3.5, 2.8, 0.1)).toBe(true);
     expect(canOccupy(w, 3.5, 3.8, 0.1)).toBe(false);
     expect(canOccupy(w, 5.5, 3.7, 0.3)).toBe(false);
     for (const [dx, dy] of directions) {
