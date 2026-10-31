@@ -27,6 +27,7 @@ export interface RenderEntityView {
   readonly y: number;
   readonly prevX: number;
   readonly prevY: number;
+  /** Display direction; a player's active punch uses its locked combat direction. */
   readonly facing: Direction;
   readonly anim: AnimState;
   readonly animTimeMs: number;

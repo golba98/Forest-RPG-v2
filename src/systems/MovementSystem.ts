@@ -1,6 +1,7 @@
 import { entityFootprint, resolveFootprint } from './EntityFootprint';
 import { GAME_CONFIG as C } from '../config/GameConfig';
-import type { Direction, PlayerEntity, PlayerIntent } from '../types/entities';
+import type { PlayerEntity, PlayerIntent } from '../types/entities';
+import { directionFromVector, DIRECTION_VECTORS } from '../core/math/Direction';
 import type { WorldData } from '../types/world';
 import { TILE_PROPERTIES, type TileId } from '../types/tiles';
 import { canOccupy, moveWithCollision } from './CollisionSystem';
@@ -37,7 +38,7 @@ function overJumpableEdge(world: WorldData, p: PlayerEntity): boolean {
 function finishCrossing(world: WorldData, p: PlayerEntity): { x: number; y: number } | null {
   let dx = p.vx,
     dy = p.vy;
-  if (Math.hypot(dx, dy) < 1e-9) [dx, dy] = FACING_VECTORS[p.facing];
+  if (Math.hypot(dx, dy) < 1e-9) [dx, dy] = DIRECTION_VECTORS[p.facing];
   const len = Math.hypot(dx, dy) || 1;
   for (let d = 0.05; d <= LANDING_SEARCH_TILES + 1e-9; d += 0.05) {
     const x = p.x + (dx / len) * d,
@@ -50,24 +51,13 @@ function finishCrossing(world: WorldData, p: PlayerEntity): { x: number; y: numb
 /** How far past a cliff edge a nearly-complete jump may step to land. */
 const LANDING_SEARCH_TILES = 0.7;
 
-const FACING_VECTORS: Readonly<Record<Direction, readonly [number, number]>> = {
-  N: [0, -1],
-  NE: [1, -1],
-  E: [1, 0],
-  SE: [1, 1],
-  S: [0, 1],
-  SW: [-1, 1],
-  W: [-1, 0],
-  NW: [-1, -1],
-};
-
 export function movePlayer(
   world: WorldData,
   p: PlayerEntity,
   intent: PlayerIntent,
   dt: number,
   sensitivity = 5,
-): void {
+): 'idle' | 'walk' | 'run' | 'jump' {
   if (intent.jump && !p.isJumping) {
     p.isJumping = true;
     p.jumpProgress = 0;
@@ -133,11 +123,8 @@ export function movePlayer(
     : groundSpeed;
   p.vx = length ? (intent.moveX / length) * speed : 0;
   p.vy = length ? (intent.moveY / length) * speed : 0;
-  if (length)
-    p.facing =
-      `${intent.moveY < 0 ? 'N' : intent.moveY > 0 ? 'S' : ''}${intent.moveX < 0 ? 'W' : intent.moveX > 0 ? 'E' : ''}` as Direction;
+  p.facing = directionFromVector(intent.moveX, intent.moveY, p.facing);
   const anim = p.isJumping ? 'jump' : length ? (p.isSprinting ? 'run' : 'walk') : 'idle';
-  p.animTimeMs = p.anim === anim ? p.animTimeMs + dt * 1000 : 0;
-  p.anim = anim;
   moveWithCollision(world, p, p.vx * dt, p.vy * dt, p.isJumping ? 'jumping' : 'player');
+  return anim;
 }

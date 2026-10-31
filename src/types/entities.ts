@@ -11,6 +11,12 @@ export type EntityKind = 'player' | 'enemy' | 'projectile' | 'pickup' | 'portal'
 /** Simulation-level animation intent; the animation layer maps it to sprite frames. */
 export type AnimState = 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'hurt' | 'death';
 
+/** Transient combat presentation, independent of the player's current movement facing. */
+export interface PlayerAttackView {
+  readonly direction: Direction;
+  readonly elapsedMs: number;
+}
+
 export type EnemyAIState =
   | 'idle'
   | 'patrol'

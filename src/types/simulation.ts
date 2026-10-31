@@ -1,4 +1,4 @@
-import type { Entity, EnemyType, PlayerEntity, PlayerIntent } from './entities';
+import type { Entity, EnemyType, PlayerEntity, PlayerIntent, PlayerAttackView } from './entities';
 import type { RenderSnapshot } from './render';
 import type { WorldData } from './world';
 
@@ -21,6 +21,7 @@ export interface ISimulation {
   claimPortalTransition(): boolean;
   getGameplayDebug?(): import('./gameplay').GameplayDebug;
   getEntities(): readonly Entity[];
+  getPlayerAttack(): PlayerAttackView | null;
   /** Builds the read-only view consumed by the renderer. */
   buildRenderSnapshot(): RenderSnapshot;
 
