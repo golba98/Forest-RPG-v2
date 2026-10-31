@@ -25,14 +25,14 @@ export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint, bridges
   const trees: WorldProp[] = [];
   const occupied = new Set<number>();
   for (const p of rng.shuffle(candidates)) {
-    if (intersectsReservations({ minX: p.x - 1, minY: p.y - 2, maxX: p.x + 2, maxY: p.y + 1 }, reservations)) continue;
-    if (intersectsBridgeReservation(bridges, { minX: p.x - 1, minY: p.y - 2, maxX: p.x + 2, maxY: p.y + 1 })) continue;
+    if (intersectsReservations({ minX: p.x - 1, minY: p.y - 3, maxX: p.x + 2, maxY: p.y + 1.5 }, reservations)) continue;
+    if (intersectsBridgeReservation(bridges, { minX: p.x - 1, minY: p.y - 3, maxX: p.x + 2, maxY: p.y + 1.5 })) continue;
     let near = grid
       .neighbors8(p.x, p.y)
       .some((n) => grid.get(n.x, n.y) === Tile.RAMP || grid.get(n.x, n.y) === Tile.LOG);
-    // A tree's body covers its trunk tile and the canopy row above, so keep
-    // trees two tiles clear of stairs or they block the landing.
-    for (let dy = -2; dy <= 2 && !near; dy++)
+    // Native LPC crowns reach three tiles above their roots. Keep the entire
+    // canopy clear of stairs and landings; roots retain the existing footprint.
+    for (let dy = -3; dy <= 2 && !near; dy++)
       for (let dx = -2; dx <= 2; dx++)
         if (grid.inBounds(p.x + dx, p.y + dy) && grid.get(p.x + dx, p.y + dy) === Tile.STAIRS) near = true;
     for (let dy = -2; dy <= 2; dy++)

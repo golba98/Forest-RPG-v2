@@ -5,7 +5,7 @@ import type { WorldData } from '../../src/types/world';
 
 async function capture(page: Page, info: TestInfo, name: string) {
   await page.screenshot({
-    path: `docs/qa/evidence/world-art-loot/${info.project.name}-${name}.png`,
+    path: `docs/qa/evidence/lpc-vegetation/${info.project.name}-${name}.png`,
   });
 }
 async function saved(page: Page) {
@@ -82,6 +82,12 @@ test('seed 42 forest, chest opening, rewards and reload', async ({ page }, info)
   expect((await saved(page)).entities.find((e: Entity) => e.kind === 'player').stats.coins).toBe(
     balance + 1,
   );
+  const hillBoulder = (initial.world.props as WorldData['props']).find(
+    (p) => p.kind === 'rock_boulder' && p.hilltop,
+  )!;
+  expect(hillBoulder).toBeTruthy();
+  await move(page, hillBoulder.tileX + 1.5, hillBoulder.tileY + 1.5);
+  await capture(page, info, 'hilltop-boulder-flowers');
   await page.setViewportSize({ width: 1920, height: 1080 });
   await move(page, forest.tileX + 2, forest.tileY + 1);
   await capture(page, info, 'forest-desktop');
@@ -100,6 +106,9 @@ test('bridge and boulder benchmark, tree occlusion and trunk clearance', async (
     { id: 16, kind: 'log_horizontal', tileX: 15, tileY: 21, solid: true },
     { id: 17, kind: 'log_stump', tileX: 14, tileY: 22, solid: true },
     { id: 18, kind: 'bush_obstacle', tileX: 18, tileY: 22, solid: true },
+    { id: 19, kind: 'flower_pink', tileX: 15, tileY: 18, solid: false },
+    { id: 20, kind: 'flower_yellow', tileX: 16, tileY: 18, solid: false },
+    { id: 21, kind: 'log_vertical', tileX: 13, tileY: 22, solid: true },
   ];
   await page.evaluate(
     (w) => {
@@ -134,11 +143,29 @@ test('bridge and boulder benchmark, tree occlusion and trunk clearance', async (
   expect((await page.evaluate(() => window.__GAME__!.getState().player)).y).toBeGreaterThan(15);
   await move(page, 16.5, 15.2);
   await capture(page, info, 'tree-front');
+  await move(page, 15.5, 21.2);
+  await page.keyboard.down('KeyS');
+  await page.clock.runFor(400);
+  await page.keyboard.up('KeyS');
+  expect((await page.evaluate(() => window.__GAME__!.getState().player)).y).toBeLessThan(21.4);
+  await capture(page, info, 'log-behind');
+  await move(page, 15.5, 22.1);
+  await capture(page, info, 'log-front');
   await move(page, 19.5, 18.7);
   await capture(page, info, 'bridge-boulder-vegetation');
   await page.keyboard.down('KeyD');
   await page.clock.runFor(1100);
   await page.keyboard.up('KeyD');
   expect((await page.evaluate(() => window.__GAME__!.getState().player)).x).toBeGreaterThan(25);
+  const legacy = await saved(page);
+  const propsBefore = legacy.world.props;
+  legacy.world.meta.generatorVersion = 11;
+  await page.evaluate((payload) => {
+    localStorage.setItem('forestrpg.v2.save.art-qa', JSON.stringify(payload));
+    window.__GAME__!.loadGame('art-qa');
+  }, legacy);
+  await move(page, 19.5, 18.7);
+  expect((await saved(page)).world.props).toEqual(propsBefore);
+  await capture(page, info, 'legacy-compact-trees');
   expect(errors).toEqual([]);
 });

@@ -1,4 +1,5 @@
-import { createWoodlandTextures, createLootTextures, treeArt, nearRiver } from './woodlandArt';
+import { createLootTextures } from './lootArt';
+import { VEGETATION, vegetationFor, type VegetationFrame } from './vegetationArt';
 import { LootView } from './LootView';
 import { propDepth } from '../world/ObjectSemantics';
 import { surfaceSites, type MoistureView } from '../systems/SurfaceMoisture';
@@ -181,7 +182,7 @@ export class PixiRenderer implements IRenderer {
   async loadAssets(progress?: (p: number) => void): Promise<void> {
     await this.textures.load(progress);
     for (const [alias, texture] of createWaterTextures()) this.textures.registerRuntime(alias, texture);
-    for (const [alias, texture] of [...createWoodlandTextures(), ...createLootTextures()]) this.textures.registerRuntime(alias, texture);
+    for (const [alias, texture] of createLootTextures()) this.textures.registerRuntime(alias, texture);
     for (const [alias, texture] of createBridgeTextures()) this.textures.registerRuntime(alias, texture);
     this.hud = new Hud(this.textures.get('ui_heart'), [this.textures.get('item_potion_health'), this.textures.get('item_potion_speed')]);
     this.hud.layout(this.app.screen.width, this.app.screen.height, this.hudScale);
@@ -260,17 +261,13 @@ export class PixiRenderer implements IRenderer {
     }
 
     for (const tree of planForestTrees(world)) {
-      const sprite = this.tag(new Sprite(this.textures.get('woodland_tree_boundary')), 'woodland_tree_boundary', 'actors/forest');
-      sprite.anchor.set(0.5, 1); sprite.width = 64; sprite.height = 64;
-      sprite.position.set((tree.x + 0.5) * TILE, (tree.y + 1) * TILE); sprite.zIndex = sprite.y;
+      const sprite = this.tag(this.vegetationSprite(VEGETATION.compact), 'lpc_trees', 'actors/forest');
+      sprite.x += tree.x * TILE; sprite.y += tree.y * TILE; sprite.zIndex = (tree.y + 1) * TILE;
       this.actors.addChild(sprite); this.objects.push(sprite);
     }
     for (const p of world.props) {
-      const sprite = this.tag(p.kind === 'tree' ? new Sprite(this.textures.get(world.meta.generatorVersion >= 11 && nearRiver(world, p.tileX, p.tileY) ? 'woodland_tree_broad' : treeArt(p.tileX, p.tileY, world.meta.generatorVersion >= 11))) : this.art(getWorldPropArt(p)), decorAlias(p.kind), GROUND_PROPS.has(p.kind) ? 'ground/prop' : 'actors/prop');
-      if (p.kind === 'tree') { sprite.anchor.set(0.5, 1); sprite.position.set(16, 32); }
-      if (p.kind === 'flower_clump' && world.meta.generatorVersion >= 11) {
-        sprite.texture = this.textures.get(nearRiver(world, p.tileX, p.tileY) || (p.tileX + p.tileY) % 3 !== 0 ? 'woodland_fern' : 'woodland_mushroom'); sprite.scale.set(1); sprite.position.set(4, 8);
-      }
+      const vegetation = vegetationFor(p, world);
+      const sprite = this.tag(vegetation ? this.vegetationSprite(vegetation) : this.art(getWorldPropArt(p)), vegetation?.atlas ?? decorAlias(p.kind), GROUND_PROPS.has(p.kind) ? 'ground/prop' : 'actors/prop');
       sprite.x += p.tileX * TILE; sprite.y += p.tileY * TILE; sprite.zIndex = propDepth(p) * TILE;
       (GROUND_PROPS.has(p.kind) ? this.groundProps : this.actors).addChild(sprite); this.objects.push(sprite);
       this.propSprites.set(p.id, sprite);
@@ -278,6 +275,14 @@ export class PixiRenderer implements IRenderer {
     this.camera.setWorldSize(world.meta.width * TILE, world.meta.height * TILE);
     this.camera.snapTo((world.spawn.x + 0.5) * TILE, (world.spawn.y + 0.5) * TILE);
     for (let y = 0; y < world.meta.height; y += CHUNK) for (let x = 0; x < world.meta.width; x += CHUNK) this.buildChunk(x, y);
+  }
+
+  private vegetationSprite(frame: VegetationFrame): Sprite {
+    const { x, y, w, h } = frame.rect;
+    const sprite = new Sprite(this.textures.getRect(frame.atlas, x, y, w, h));
+    // One atlas pixel per world pixel. Root anchors align with trunk footprints.
+    sprite.position.set(TILE / 2 - frame.root[0], TILE - frame.root[1]);
+    return sprite;
   }
 
   private buildChunk(x: number, y: number): void {

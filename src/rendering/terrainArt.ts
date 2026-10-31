@@ -1,3 +1,4 @@
+import { DECOR_VEGETATION, VEGETATION } from './vegetationArt';
 import { hashTile } from '../world/TileHash';
 export { hashTile } from '../world/TileHash';
 import { plateauDecoration, hilltopSpritePlacement } from '../world/HilltopDecoration';
@@ -115,8 +116,12 @@ export function getTileArt(tileId: number, x: number, y: number, elevation = 0, 
     if (tileId === Tile.STAIRS) layers.push(fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillStairsFrame(elevation) }));
     const decor = plateauDecoration(tileId, x, y, elevation);
     // Solid decor is an authoritative world prop, never part of a terrain cache.
-    if (decor && decor.kind !== 'rock_boulder')
-      layers.push(contain(decorAlias(decor.kind), 0.9, 0.9, 'center', WHITE, decor.offsetX, decor.offsetY));
+    if (decor && decor.kind !== 'rock_boulder') {
+      const frame = DECOR_VEGETATION[decor.kind];
+      layers.push(frame
+        ? { ...contain(frame.atlas, 1, 1, 'center'), source: { type: 'rect', rect: frame.rect } }
+        : contain(decorAlias(decor.kind), 0.9, 0.9, 'center', WHITE, decor.offsetX, decor.offsetY));
+    }
     return layers;
   }
   if (tileId === Tile.RIVER) {
@@ -145,7 +150,8 @@ function getGroundArt(tileId: number, x: number, y: number): TileArtLayer[] {
       const kind = FLOWER_VARIANTS[h % FLOWER_VARIANTS.length] ?? 'flower_clump';
       const jitterX = ((h >>> 8) % 9) - 4;
       const jitterY = ((h >>> 16) % 7) - 3;
-      return [grass(), contain(decorAlias(kind), 0.8, 0.8, 'center', WHITE, jitterX, jitterY)];
+      const frame = DECOR_VEGETATION[kind] ?? VEGETATION.flowers;
+      return [grass(), { ...contain(frame.atlas, 1, 1, 'center', WHITE, jitterX, jitterY), source: { type: 'rect', rect: frame.rect } }];
     }
     case Tile.RAMP:
       return [fill('tile_bridge')];

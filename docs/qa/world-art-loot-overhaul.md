@@ -3,6 +3,10 @@
 Branch: `feat/world-art-loot-overhaul` · baseline: `58baaf8` · 2026-10-31.
 Worktree: `../18-Forest-RPG-v2-world-art`. No merge, push or deployment.
 
+**Current revision:** the initial procedural vegetation was rejected by the user. The selected
+Detailed LPC forest replacement described below supersedes that art; the verified treasure and
+currency implementation is retained. Earlier screenshots are retained as before evidence.
+
 ## Initial audit and priorities
 
 The engine uses 32-pixel tiles, PixiJS nearest sampling, cached terrain chunks and a depth-sorted actor layer. Generator v10 has independent seeded streams, bridge reservations, encounter reservations and authoritative hilltop boulders. V2 saves retain terrain, props, entities, encounter state and RNG state. Runtime weather, moisture, lighting, contact effects and coin pickup particles already exist.
@@ -19,13 +23,44 @@ Coins already use `PlayerStats.coins`, HUD presentation, save persistence and po
 
 ## Art direction, source and ownership
 
-All new art is authored in `src/rendering/woodlandArt.ts` using integer pixels and polygon scan conversion. It extends the existing project-owned bridge material palette and the boulders' northwest lighting convention. There are no downloaded packs, generated bitmap placeholders, watermarks or new third-party license obligations. Existing source PNGs remain intact with their existing provenance; this work does not assert new ownership over those originals.
+The user selected **Detailed LPC forest** after reviewing the source sheets. The first procedural
+canopies had repetitive polygon silhouettes and weak leaf detail; changing their colours or adding
+more trees would not address that rejection. The replacement uses a curated subset of actual LPC
+sprites: young 64×64, tall 64×96, broad 96×128, and compact 64×64 compatibility/boundary trees.
+Their clustered foliage, branching trunks, exposed roots and original translucent contact shadows
+are retained at one source pixel per world pixel. Giant and cartoon-style trees in the pack are unused.
 
-Native assets: tall 64×80, broad 80×64, young 40×48; compatibility/boundary 64×64; bushes 16×48 and 32×32; logs/stump 32×32, 32×48 and 32×32; fern/mushroom 24×24; coin four 32×32 frames; two chest sets with four 32×32 states each. No smooth gradients or fractional sprite scaling are used for the new trees, coins, chests or logs. Sparse translucent contact shadows integrate the silhouettes with terrain.
+Bushes, fallen logs, upright cut trunks, stumps, ferns, grass tufts, small mushrooms and pink/yellow/
+mixed flowers use 32×32 source rectangles. Flower terrain and hilltop flower/bush rendering were
+also replaced, avoiding a mixture of old and new flower art. Biome variation replaces existing
+slots: broad trees and ferns near water; mixed flowers, grass or mushrooms in dry clearings.
+No extra vegetation population or animation was added. Transparent logs now sort among actors; solid
+vegetation uses the same foot-relative depth convention as boulders, without changing collision. Coins and chest pixels remain the
+project-authored bridge-palette artwork, now isolated in `lootArt.ts`.
 
-Existing saved object trees retain their coordinates and 64×64 envelope. New-world trees reserve the larger canopy envelope. River-adjacent trees favor broad crowns; bank detail favors ferns. Other flower kinds remain unchanged. Ferns and mushrooms reuse existing passable flower-clump slots: object count does not grow. Solid forest/border tiles use additional understory within the boundary-tree sprite so their blocked space remains visually legible.
+Source and licence records:
 
-Visual iteration: the first log revision looked too much like straight posts. It was replaced with broken contours, branching ends, bark grain, cut wood and moss. Final comparison captures disable clouds to expose silhouettes and depth clearly; the normal cloud/weather behavior is unchanged.
+- [LPC Trees](https://opengameart.org/content/lpc-trees), `trees-pale.png`, 1024×1024.
+- [LPC Flowers / Plants / Fungi / Wood](https://opengameart.org/content/lpc-flowers-plants-fungi-wood), `plants.png`, 512×1024.
+- Both compilations: **CC BY-SA 3.0**, bluecarrot16 and the contributors credited in the supplied
+  full attribution files. These files and the full licence are redistributed with the sheets in
+  [the public source folder](../../public/assets/images/environment/lpc/README.md).
+- Source sheets are byte-for-byte originals. Runtime frame selection is documented in
+  `vegetationArt.ts`; there is no resampling, recolouring, repainting or alpha replacement. Future
+  adapted artwork must keep attribution and the same licence. No watermark or generated substitute.
+
+Generator v12 reserves three tiles above tree roots and the full broad crown width around bridge
+and encounter reservations, with larger stair clearance. Existing v0–11 saves use complete small
+source trees; prop coordinates, identifiers, trunk footprints and saved terrain are unchanged.
+Native canopy bounds are checked against actual bridge reservations. Subtextures share the
+loaded atlases safely through the existing `getRect` cache; source textures are not registered as
+runtime-owned aliases. Two PNGs add approximately 289 KiB on disk / 6 MiB decoded RGBA.
+
+Actual gameplay screenshots were inspected at 1280×720 and 1920×1080. The new trees have distinct
+leaf clusters, natural branching and clear ground contact, while flowers remain small readable
+accents. Behind/front views show the player obscured by foliage and emerging around the trunk;
+movement assertions confirm that only the base blocks traversal. The dense grass and bright
+cliff palette still compete with the vegetation and are documented as a separate improvement.
 
 ## Gameplay implemented
 
@@ -47,7 +82,8 @@ Shared-file integration points are deliberately limited:
 
 - `Simulation`: pickup construction, loot step after combat, collision preparation on load/restore.
 - `EncounterSystem`: remove the old collection loop and append optional coin drops to the existing accepted-defeat transaction. No attack/facing/aim logic changes.
-- `PixiRenderer`: texture registration, tree selection, chest frame override, native coin scale/lift, loot-view update and bonus-aware portal label.
+- `PixiRenderer`: atlas/native-frame selection, root anchors, chest frame override, native coin scale/lift, loot-view update and bonus-aware portal label.
+- `terrainArt` / `assetCatalog`: native flowers on terrain/hills, atlas loading, transparent logs in the actor layer. `ObjectSemantics.propDepth` aligns all solid prop bases with character feet; collision footprints are unchanged by the LPC revision.
 - Entity/render/world types and `SaveManager`: optional additive loot fields and validation.
 - `CollisionSystem`: registered chest base footprints plus a target-only visibility exclusion. Movement algorithms are unchanged.
 
@@ -55,40 +91,47 @@ Agent 1's checkout and uncommitted work were not edited or copied. Changes to ov
 
 ## Verification
 
-Final validation results: **522 unit/integration tests and 20 production browser checks passed**. Commands use this worktree's own `npm ci` dependencies. An initial shared-dependency run was discarded because that installation used Vite 7/Vitest 4 instead of the lockfile's Vite 5/Vitest 2.
+Latest unit validation: **527 unit/integration tests passed across 58 files**. Browser validation is recorded below. Commands use this worktree's own `npm ci` dependencies. An initial shared-dependency run was discarded because that installation used Vite 7/Vitest 4 instead of the lockfile's Vite 5/Vitest 2.
 
-- Full unit/integration suite: final run **522/522 passed across 57 files**, including the additional persistence and defeat tests.
+- Full unit/integration suite: latest run **527/527 passed across 58 files**, including atlas bounds/transparency, native hilltop flowers, legacy tree compatibility and actual canopy clearance.
 - Focused tests cover deterministic seeds 42, 1, 123 and 456, unique chest IDs, safe approaches/bypasses, trunk collision, canopy traversal, optional progression, exactly-once rewards, legacy defaults, corrupted-save rejection and mid-opening restore.
-- Initial Chromium and Firefox visual/gameplay run: **4/4 passed**, with no page errors or missing textures.
-- Production browser suite: **20/20 passed across Chromium and Firefox**. It covers the new gameplay scenarios plus existing bridge traversal, rails, layering, save/reload and save-flow checks. The final run uses an isolated production preview on port 4183, hardware WebGL, one worker and a 90-second budget. The clock setup now leaves 60 seconds of headroom before pausing to avoid host-load timing races. An earlier development-server broad run was interrupted after screenshot timeouts amid concurrent browser workloads and source updates; it is not counted as passing evidence.
+- After the final transparent-log depth correction, **4/4 focused Chromium/Firefox checks passed again**, including behind/front log views and collision. No page errors or missing textures.
+- Production browser suite: **20/20 passed across Chromium and Firefox**. It covers the new gameplay scenarios plus existing bridge traversal, rails, layering, save/reload and save-flow checks. The suite uses an isolated production preview on port 4183, hardware WebGL, one worker and a 90-second budget. The clock setup now leaves 60 seconds of headroom before pausing to avoid host-load timing races. An earlier development-server broad run was interrupted after screenshot timeouts amid concurrent browser workloads and source updates; it is not counted as passing evidence.
 - Production build succeeds. Vite reports the existing large Pixi vendor-chunk advisory.
-- Typecheck, lint and `git diff --check` are run separately.
-- Existing world-generation benchmarks completed on both baseline and changed code. A same-process alternating comparison for seeds 42/1/123/456 averaged 2,213 ms before and 2,253 ms after (about +1.8%); every new world had four chests and prop counts stayed equal or decreased slightly. These single-sample shared-host timings are indicative, not a stable hardware performance guarantee. Raw results: `evidence/world-art-loot/generation-timings.json`.
+- Typecheck, lint (zero warnings) and `git diff --check` pass.
+- Current generator-v12 benchmark: **815.63 ms mean** across 10 varying-seed 150×150 worlds (501.09–1,616.91 ms, ±29.52% RME on this shared host). Command: `npm run benchmark -- tests/benchmarks/world.bench.ts`; [raw output](evidence/lpc-vegetation/world-generation-benchmark.txt). This is a generation measurement, not an FPS claim.
+- Historical first-pass world-generation benchmarks completed on both baseline and changed code. A same-process alternating comparison for seeds 42/1/123/456 averaged 2,213 ms before and 2,253 ms after (about +1.8%); every new world had four chests and prop counts stayed equal or decreased slightly. These single-sample shared-host timings are indicative, not a stable hardware performance guarantee. Raw results: `evidence/world-art-loot/generation-timings.json`.
 
 Reproduce: `npm ci`, `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, then `npx playwright test --config playwright.world-art.config.ts`. Run locally with `npm run dev -- --port 4182`.
 
 ## Screenshot evidence
 
-All evidence is under `docs/qa/evidence/world-art-loot/`. The baseline screenshot is from the unmodified committed baseline; generator version changes mean a new seed-42 layout need not match v10 placements exactly. Browser screenshots exercise the actual game, with debug relocation used to reach distant objects and a documented bridge fixture for controlled occlusion/traversal checks.
+Current LPC evidence is under `docs/qa/evidence/lpc-vegetation/`; original and rejected-first-pass captures remain under `docs/qa/evidence/world-art-loot/`. The baseline screenshot is from the unmodified committed baseline; generator version changes mean a new seed-42 layout need not match v10 placements exactly. Browser screenshots exercise the actual game, with debug relocation used to reach distant objects and a documented bridge fixture for controlled occlusion/traversal checks.
 
 - [Before: seed 42](evidence/world-art-loot/before-seed42.png)
 - [Before: matched bridge/vegetation fixture](evidence/world-art-loot/before-bridge-boulder-vegetation.png)
-- [Forest artwork](evidence/world-art-loot/chromium-forest.png)
-- [Desktop forest, 1920×1080](evidence/world-art-loot/chromium-forest-desktop.png)
-- [Closed chest](evidence/world-art-loot/chromium-chest-closed.png)
-- [Opening animation](evidence/world-art-loot/chromium-chest-opening.png)
-- [Reward and opened chest](evidence/world-art-loot/chromium-chest-reward.png)
-- [World coin](evidence/world-art-loot/chromium-coin-world.png)
-- [Coin collected](evidence/world-art-loot/chromium-coin-collected.png)
-- [Behind tree](evidence/world-art-loot/chromium-tree-behind.png)
-- [In front of tree](evidence/world-art-loot/chromium-tree-front.png)
-- [Bridge, boulder and vegetation comparison](evidence/world-art-loot/chromium-bridge-boulder-vegetation.png)
+- [Forest artwork](evidence/lpc-vegetation/chromium-forest.png)
+- [Desktop forest, 1920×1080](evidence/lpc-vegetation/chromium-forest-desktop.png)
+- [Closed chest](evidence/lpc-vegetation/chromium-chest-closed.png)
+- [Opening animation](evidence/lpc-vegetation/chromium-chest-opening.png)
+- [Reward and opened chest](evidence/lpc-vegetation/chromium-chest-reward.png)
+- [World coin](evidence/lpc-vegetation/chromium-coin-world.png)
+- [Coin collected](evidence/lpc-vegetation/chromium-coin-collected.png)
+- [Behind log](evidence/lpc-vegetation/chromium-log-behind.png)
+- [In front of log](evidence/lpc-vegetation/chromium-log-front.png)
+- [Behind tree](evidence/lpc-vegetation/chromium-tree-behind.png)
+- [In front of tree](evidence/lpc-vegetation/chromium-tree-front.png)
+- [Bridge, boulder and vegetation comparison](evidence/lpc-vegetation/chromium-bridge-boulder-vegetation.png)
+
+- [Hilltop boulder and native flowers](evidence/lpc-vegetation/chromium-hilltop-boulder-flowers.png)
+- [Version-11 save with compact trees](evidence/lpc-vegetation/chromium-legacy-compact-trees.png)
+- [Rejected procedural vegetation](evidence/world-art-loot/chromium-bridge-boulder-vegetation.png)
 
 Equivalent Firefox captures are retained with the `firefox-` prefix. Screenshots are visual evidence, not a substitute for the movement, collision and persistence assertions in the tests.
 
 ## Remaining opportunities
 
-The dense legacy grass pattern, coarse grove landmark and bright cliff rims remain visually busier than the new objects. The chosen baseline predates the locally available commit titled “Improve landscape rendering and grove artwork”; that branch was not merged or duplicated in this workstream. A terrain-palette pass should be separately reviewed against the user's existing river preferences. More species, stronger biome differentiation and subtle canopy movement could follow; this revision deliberately limits variety and avoids extra scenery density. Chests have no item rewards and there is no rare tier. Runtime asset metadata could eventually be folded into a single expanded manifest; the existing PNG manifest remains a source-file inventory, with runtime additions documented in `docs/assets/replacements.md`.
+The dense legacy grass pattern, coarse grove landmark and bright cliff rims remain visually busier than the new objects. Some small props in the LPC compilation have simpler shading than its trees; only a restrained subset is used. The chosen baseline predates the locally available commit titled “Improve landscape rendering and grove artwork”; that branch was not merged or duplicated in this workstream. A terrain-palette pass should be separately reviewed against the user's existing river preferences. More species, stronger biome differentiation and subtle canopy movement could follow; this revision deliberately limits variety and avoids extra scenery density. Chests have no item rewards and there is no rare tier. Runtime asset metadata could eventually be folded into a single expanded manifest; the existing PNG manifest remains a source-file inventory, with runtime additions documented in `docs/assets/replacements.md`.
 
 ## Changed files
 
@@ -104,6 +147,7 @@ No directional code was changed on this branch; this is an integration review it
 
 ### File inventory
 
+- `README.md` (attribution link)
 - `docs/assets/replacements.md`
 - `docs/qa/world-art-loot-overhaul.md`
 - `docs/rendering.md`
@@ -112,7 +156,13 @@ No directional code was changed on this branch; this is an integration review it
 - `src/persistence/SaveManager.ts`
 - `src/rendering/LootView.ts`
 - `src/rendering/PixiRenderer.ts`
-- `src/rendering/woodlandArt.ts`
+- `src/rendering/woodlandArt.ts` (removed in LPC revision)
+- `src/rendering/lootArt.ts`
+- `src/rendering/vegetationArt.ts`
+- `src/rendering/assetCatalog.ts`
+- `src/rendering/terrainArt.ts`
+- `public/assets/images/environment/lpc/`: original sheets, original credits, full licence and source README
+- `tests/unit/rendering/vegetationArt.test.ts`
 - `src/simulation/Simulation.ts`
 - `src/systems/CollisionSystem.ts`
 - `src/systems/EncounterSystem.ts`
@@ -133,3 +183,5 @@ No directional code was changed on this branch; this is an integration review it
 - `tests/unit/simulation/loot.test.ts`
 - `tests/unit/world/treasure.test.ts`
 - `docs/qa/evidence/world-art-loot/`: baseline, Chromium/Firefox captures and generation timings.
+
+- `docs/qa/evidence/lpc-vegetation/`: current Chromium/Firefox gameplay and compatibility captures.

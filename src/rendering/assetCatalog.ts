@@ -50,15 +50,13 @@ export const DECOR_KINDS: readonly PropKind[] = [
 ];
 
 /**
- * Decor that lies flat and whose art is an opaque tile of baked-in grass. Drawn
- * under every actor: depth-sorting them lets the grass rectangle cover the player.
+ * Passable floor details render below actors. Transparent LPC logs are solid
+ * props and now sort with actors at their ground contact, like stumps and trees.
  */
 export const GROUND_PROPS: ReadonlySet<PropKind> = new Set<PropKind>([
   'flower_clump',
   'flower_pink',
   'flower_yellow',
-  'log_horizontal',
-  'log_vertical',
   'rock_pebble',
   'hole',
 ]);
@@ -92,7 +90,10 @@ export interface CatalogAsset {
 
 /** Assets the renderer needs that are not (yet) in the manifest. */
 export function rendererExtraAssets(): CatalogAsset[] {
-  const assets: CatalogAsset[] = [];
+  const assets: CatalogAsset[] = [
+    { alias: 'lpc_trees', src: 'assets/images/environment/lpc/trees-pale.png' },
+    { alias: 'lpc_plants', src: 'assets/images/environment/lpc/plants.png' },
+  ];
   for (const anim of PLAYER_SHEET_ANIMS) {
     for (const dir of DIRECTIONS) {
       assets.push({

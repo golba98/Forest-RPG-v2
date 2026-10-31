@@ -21,3 +21,10 @@ callbacks. Opened chests stay alive and visible; consumed legacy chest pickups s
 Live legacy chest pickups without state become closed wooden chests. Opening progress resumes
 on load. Collision is rebuilt from live chest entities before actor position recovery. Optional
 enemy coins never delay portal completion. The V2 save envelope is unchanged.
+
+Generator version 12 changes woodland canopy reservations for native LPC tree artwork. Only new
+worlds use the taller/wider silhouettes; generator versions 0–11 select complete compact 64×64
+source trees. This is a rendering compatibility rule, not a migration: saved terrain, prop IDs,
+positions, trunk footprints, collection state and chest rewards remain intact. No new save fields
+or additional collectibles are introduced. Sprite selection uses coordinates without consuming
+simulation RNG. The V2 save envelope and existing scoped migrations remain unchanged.

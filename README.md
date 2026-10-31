@@ -25,3 +25,5 @@ npm run benchmark
 Playwright serves the production build on port 4173, so run the build first. To open a deterministic diagnostic session locally, use `/?debug=1&autostart=1&seed=123`; add `tutorial=1` for the training glade. Diagnostics and the command terminal are available in development or with `debug=1`.
 
 See [implementation status](docs/implementation-status.md), [architecture](docs/architecture.md), [gameplay](docs/gameplay-systems.md), [testing](docs/testing.md), [performance](docs/performance.md), and [deployment](docs/deployment.md). This project has not been deployed.
+
+Forest vegetation includes LPC artwork under CC BY-SA 3.0. See the [source and full contributor credits](public/assets/images/environment/lpc/README.md) and [asset replacement notes](docs/assets/replacements.md).

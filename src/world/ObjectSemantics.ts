@@ -34,6 +34,6 @@ export function propDepth(prop: WorldProp): number {
   const base = propFootprint(prop);
   return (
     prop.tileY +
-    ((prop.kind === 'rock_boulder' || prop.kind === 'tree') && base ? base.maxY - CHARACTER_FOOT_OFFSET_PX / 32 : 1)
+    (base ? base.maxY - CHARACTER_FOOT_OFFSET_PX / 32 : 1)
   );
 }
