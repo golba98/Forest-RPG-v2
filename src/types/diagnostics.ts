@@ -29,6 +29,7 @@ export interface PlayerState {
   hurtTimer: number;
   comboCount: number;
   direction: Direction;
+  attackDirection: Direction | null;
   coins: number;
   potions: {
     health: number;

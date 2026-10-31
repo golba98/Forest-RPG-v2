@@ -49,8 +49,8 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
 
   test('T1.3.2 — Combo reset: exceeding 800ms attack window resets combo count back to 0', async () => {
     await driver.performMeleeAttack();
-    const hit1State = await driver.getState();
-    expect(hit1State.player.comboCount).toBe(1);
+    // Input is consumed on the next fixed step, which may follow mouseup.
+    await expect.poll(async () => (await driver.getState()).player.comboCount).toBe(1);
 
     // Wait > 800ms without attacking
     await driver.page.waitForTimeout(900);
