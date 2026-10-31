@@ -1,0 +1,365 @@
+{
+  "source": "Historical report retained unchanged; these are code-supported classifications before test repairs.",
+  "failures": [
+    {
+      "file": "player-directions.spec.ts",
+      "title": "W movement, all punch frames, and stationary punch",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": false,
+      "classification": "Pixel capture synchronization tightened; final focused suite passes twice",
+      "historicalDisposition": "Pixel capture synchronization tightened; final focused suite passes twice",
+      "resolution": "Previously repaired synchronization; retained as historical evidence"
+    },
+    {
+      "file": "tier1-feature/combat-abilities-bestiary.spec.ts",
+      "title": "T1.3.8 \u2014 Bestiary Beetle Boss AI: persistent aggro, immune to crush instakill, resists knockback",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Forest boss spawn requests stage nest warning/emergence before a combat-ready actor exists.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/combat-abilities-bestiary.spec.ts",
+      "title": "T1.3.9 \u2014 Bestiary Ghost AI: phases through obstacles, blue point-light, despawns at dawn",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Ghosts form through grove encounters and remain active across dawn.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/combat-abilities-bestiary.spec.ts",
+      "title": "T1.3.2 \u2014 Combo reset: exceeding 800ms attack window resets combo count back to 0",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": false,
+      "classification": "Immediate pre-fixed-step combo assertion changed to poll for accepted input",
+      "historicalDisposition": "Immediate pre-fixed-step combo assertion changed to poll for accepted input",
+      "resolution": "Previously repaired synchronization; retained as historical evidence"
+    },
+    {
+      "file": "tier1-feature/combat-abilities-bestiary.spec.ts",
+      "title": "T1.3.8 \u2014 Bestiary Beetle Boss AI: persistent aggro, immune to crush instakill, resists knockback",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Forest boss spawn requests stage nest warning/emergence before a combat-ready actor exists.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/combat-abilities-bestiary.spec.ts",
+      "title": "T1.3.9 \u2014 Bestiary Ghost AI: phases through obstacles, blue point-light, despawns at dawn",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Ghosts form through grove encounters and remain active across dawn.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/simulation-movement-physics.spec.ts",
+      "title": "T1.2.1 \u2014 8-Directional movement: directional input displaces player coordinates by tile increments",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "MovementSystem integrates velocity continuously; key duration is not a tile count.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/simulation-movement-physics.spec.ts",
+      "title": "T1.2.3 \u2014 Stamina exhaustion: reaching 0 stamina disables sprint and triggers 4000ms recovery cooldown",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Stamina regenerates during the 4000 ms sprint lockout.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/simulation-movement-physics.spec.ts",
+      "title": "T1.2.4 \u2014 Dash ability: Shift + direction tap triggers rapid 1-tile dash with 1000ms cooldown",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Dash lasts 200 ms and cooldown lasts 1000 ms; it is not a discrete tile jump.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/simulation-movement-physics.spec.ts",
+      "title": "T1.2.5 \u2014 Jump physics: Spacebar executes 5-frame parabolic arc and locks directional inputs during jump",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Jump input is steerable; jumpDurationMs controls landing.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/simulation-movement-physics.spec.ts",
+      "title": "T1.2.6 \u2014 Top-down collision response: solid obstacle tiles block player movement",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Player uses a 0.22 x 0.10 half-size offset footbox, not a centred 0.30 box.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/simulation-movement-physics.spec.ts",
+      "title": "T1.2.1 \u2014 8-Directional movement: directional input displaces player coordinates by tile increments",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "MovementSystem integrates velocity continuously; key duration is not a tile count.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/simulation-movement-physics.spec.ts",
+      "title": "T1.2.3 \u2014 Stamina exhaustion: reaching 0 stamina disables sprint and triggers 4000ms recovery cooldown",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Stamina regenerates during the 4000 ms sprint lockout.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/simulation-movement-physics.spec.ts",
+      "title": "T1.2.4 \u2014 Dash ability: Shift + direction tap triggers rapid 1-tile dash with 1000ms cooldown",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Dash lasts 200 ms and cooldown lasts 1000 ms; it is not a discrete tile jump.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/simulation-movement-physics.spec.ts",
+      "title": "T1.2.5 \u2014 Jump physics: Spacebar executes 5-frame parabolic arc and locks directional inputs during jump",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Jump input is steerable; jumpDurationMs controls landing.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/simulation-movement-physics.spec.ts",
+      "title": "T1.2.6 \u2014 Top-down collision response: solid obstacle tiles block player movement",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Player uses a 0.22 x 0.10 half-size offset footbox, not a centred 0.30 box.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/world-environment-lifecycle.spec.ts",
+      "title": "T1.4.5 \u2014 Environmental interaction: slashing flower patches yields grass and rolls loot",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "/set_tile and /get_tile are unsupported; 100 ms precedes the 120 ms strike.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/world-environment-lifecycle.spec.ts",
+      "title": "T1.4.9 \u2014 Debug terminal console: backquote opens terminal, executes /god, /tp, /help",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "/god is unsupported; test bypassed the actual terminal UI.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/world-environment-lifecycle.spec.ts",
+      "title": "T1.4.5 \u2014 Environmental interaction: slashing flower patches yields grass and rolls loot",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "/set_tile and /get_tile are unsupported; 100 ms precedes the 120 ms strike.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier1-feature/world-environment-lifecycle.spec.ts",
+      "title": "T1.4.9 \u2014 Debug terminal console: backquote opens terminal, executes /god, /tp, /help",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "/god is unsupported; test bypassed the actual terminal UI.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-combat-ai.spec.ts",
+      "title": "T2.3.2 \u2014 Player zero HP death: triggers Game Over screen and locks movement",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "The current scene is named gameover.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-combat-ai.spec.ts",
+      "title": "T2.3.3 \u2014 Zero mana skill cast rejection: casting Q or E with 0 mana fails gracefully",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Mana regenerates continuously; rejected casts must preserve regenerated mana.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-combat-ai.spec.ts",
+      "title": "T2.3.4 \u2014 Invulnerability frames: consecutive hits within 600ms hurtTimer window are rejected",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "/damage_player is unsupported; ordinary damage uses an 800 ms immunity window.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-combat-ai.spec.ts",
+      "title": "T2.3.5 \u2014 Beetle Boss crush immunity: pushing boss against solid cliff does not instakill",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Boss spawn is staged; /push_enemy is unsupported and did not deliver a hit.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-combat-ai.spec.ts",
+      "title": "T2.3.2 \u2014 Player zero HP death: triggers Game Over screen and locks movement",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "The current scene is named gameover.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-combat-ai.spec.ts",
+      "title": "T2.3.3 \u2014 Zero mana skill cast rejection: casting Q or E with 0 mana fails gracefully",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Mana regenerates continuously; rejected casts must preserve regenerated mana.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-combat-ai.spec.ts",
+      "title": "T2.3.4 \u2014 Invulnerability frames: consecutive hits within 600ms hurtTimer window are rejected",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "/damage_player is unsupported; ordinary damage uses an 800 ms immunity window.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-combat-ai.spec.ts",
+      "title": "T2.3.5 \u2014 Beetle Boss crush immunity: pushing boss against solid cliff does not instakill",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Boss spawn is staged; /push_enemy is unsupported and did not deliver a hit.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-simulation-movement.spec.ts",
+      "title": "T2.2.1 \u2014 World edge clamping: player at (0, 0) cannot move North or West beyond boundaries",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Border contact uses the offset physical footbox.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-simulation-movement.spec.ts",
+      "title": "T2.2.2 \u2014 World maximum coordinate clamping: player at (149, 149) cannot exceed map dimensions",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Border contact uses the offset physical footbox.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-simulation-movement.spec.ts",
+      "title": "T2.2.3 \u2014 Zero stamina boundary: stamina never goes below 0 and prevents sprint engagement",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Regeneration continues during exhaustion lockout.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-simulation-movement.spec.ts",
+      "title": "T2.2.5 \u2014 Conflicting simultaneous directional inputs cancel out cleanly",
+      "project": "firefox",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Keydown/up cross process calls may include frames with only one key held.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-simulation-movement.spec.ts",
+      "title": "T2.2.1 \u2014 World edge clamping: player at (0, 0) cannot move North or West beyond boundaries",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Border contact uses the offset physical footbox.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-simulation-movement.spec.ts",
+      "title": "T2.2.2 \u2014 World maximum coordinate clamping: player at (149, 149) cannot exceed map dimensions",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Border contact uses the offset physical footbox.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-simulation-movement.spec.ts",
+      "title": "T2.2.3 \u2014 Zero stamina boundary: stamina never goes below 0 and prevents sprint engagement",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Regeneration continues during exhaustion lockout.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    },
+    {
+      "file": "tier2-boundary/boundary-simulation-movement.spec.ts",
+      "title": "T2.2.5 \u2014 Conflicting simultaneous directional inputs cancel out cleanly",
+      "project": "chromium",
+      "status": "unexpected",
+      "baselineConfirmed": true,
+      "classification": "Keydown/up cross process calls may include frames with only one key held.",
+      "historicalDisposition": "Unchanged legacy failure",
+      "resolution": "Current-contract assertion and fixture repair"
+    }
+  ]
+}

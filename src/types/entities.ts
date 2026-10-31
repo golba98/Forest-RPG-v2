@@ -13,6 +13,9 @@ export type AnimState = 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'hurt' | '
 
 /** Transient combat presentation, independent of the player's current movement facing. */
 export interface PlayerAttackView {
+  /** Monotonic within a world; restored attacks are cancelled. */
+  readonly swingId: number;
+  readonly comboStep: number;
   readonly direction: Direction;
   readonly elapsedMs: number;
 }

@@ -43,8 +43,6 @@ const CHUNK = 16;
 const HURT_WHITE_MS = 70;
 /** After the white flash the hurt tint stays red this long, then the sprite blinks for the rest of the invulnerability. */
 const HURT_RED_MS = 220;
-/** Matches EncounterSystem's combo window: swings closer together than this chain. */
-const COMBO_WINDOW_MS = 800;
 const FACING_ANGLE: Readonly<Record<string, number>> = { E: 0, SE: Math.PI / 4, S: Math.PI / 2, SW: (3 * Math.PI) / 4, W: Math.PI, NW: (-3 * Math.PI) / 4, N: -Math.PI / 2, NE: -Math.PI / 4 };
 /** Matches the simulation's death display window (codex/gameplay-repair keeps dead enemies 450 ms). */
 const DEATH_FADE_MS = 450;
@@ -62,9 +60,7 @@ interface EntityVisual {
   shadow: Sprite | null;
   lastAnim: string;
   lastAnimTimeMs: number;
-  /** Consecutive swings within the combo window (every third is the finisher). */
-  swings: number;
-  lastSwingAt: number;
+  lastSwingId: number | null;
   /** Clip actually assigned to the sprite, retained during impact frame holds. */
   displayed: Pick<RenderEntityView, 'anim' | 'facing' | 'animTimeMs'> | null;
 }
@@ -424,6 +420,7 @@ export class PixiRenderer implements IRenderer {
   private renderEntities(snapshot: RenderSnapshot, alpha: number, dt: number, player: RenderEntityView | undefined, fx: EffectTextures, effects: EffectsLayer): void {
     this.waterMask.clear(); this.waterRipple.clear(); this.waterFxMask.clear(); effects.ground.clear();
     this.wading = null;
+    effects.syncPlayerSlash(null);
     this.animator.beginFrame();
     const alive = new Set<string>(); this.renderedEntities = snapshot.entities.length; this.placeholderSprites = 0;
     let entering = false;
@@ -437,7 +434,7 @@ export class PixiRenderer implements IRenderer {
       let visual = this.entities.get(e.id);
       const isNew = !visual;
       if (!visual) {
-        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false, quietRemoval: false, shadow: null, lastAnim: e.anim, lastAnimTimeMs: e.animTimeMs, swings: 0, lastSwingAt: -Infinity, displayed: null };
+        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false, quietRemoval: false, shadow: null, lastAnim: e.anim, lastAnimTimeMs: e.animTimeMs, lastSwingId: null, displayed: null };
         if (e.kind !== 'projectile') {
           visual.shadow = new Sprite(fx.glow);
           visual.shadow.anchor.set(0.5);
@@ -451,7 +448,9 @@ export class PixiRenderer implements IRenderer {
       visual.quietRemoval = e.quietRemoval === true;
       const anim = this.animator.resolve(e.nestEmergence ? { ...e, spriteKey, anim: 'walk', moving: true, animTimeMs: e.nestEmergence.progress * 800 } : spriteKey === e.spriteKey ? e : { ...e, spriteKey }, this.paused ? 0 : dt);
       const f = resolveSpriteFrame(anim);
-      const started = e.anim === 'attack' && (visual.lastAnim !== 'attack' || e.animTimeMs + 1 < visual.lastAnimTimeMs);
+      const started = e.kind === 'player'
+        ? !!e.attack && e.attack.swingId !== visual.lastSwingId
+        : e.anim === 'attack' && (visual.lastAnim !== 'attack' || e.animTimeMs + 1 < visual.lastAnimTimeMs);
       // Hold a frame within its clip, never an old pose from another facing or
       // animation. A new swing must display its own first frame immediately.
       const holdFrame = this.impactHoldMs > 0 && !isNew && !started &&
@@ -518,13 +517,15 @@ export class PixiRenderer implements IRenderer {
         visual.shadow.alpha = e.nestEmergence ? 0 : 0.42 * sprite.alpha;
       }
 
-      // Sword slash when a swing starts (also on a re-swing mid-combo).
+      // The simulation owns swing identity, combo and age. Following the same
+      // interpolated origin as the actor keeps moving attacks aligned.
       if (e.kind === 'player') {
-        if (started && !this.paused) {
-          visual.swings = this.visualTime - visual.lastSwingAt <= COMBO_WINDOW_MS ? visual.swings + 1 : 1;
-          visual.lastSwingAt = this.visualTime;
-          effects.slash(x, y - 12, FACING_ANGLE[e.facing] ?? Math.PI / 2, visual.swings % 3 === 0);
-        }
+        effects.syncPlayerSlash(e.attack ? {
+          swingId: e.attack.swingId, comboStep: e.attack.comboStep,
+          x, y: y - 12, angle: FACING_ANGLE[e.attack.direction] ?? Math.PI / 2,
+          age: e.attack.elapsedMs,
+        } : null);
+        visual.lastSwingId = e.attack?.swingId ?? null;
       }
       visual.lastAnim = e.anim; visual.lastAnimTimeMs = e.animTimeMs;
 
@@ -627,8 +628,10 @@ export class PixiRenderer implements IRenderer {
     const sprite = player?.sprite;
     const bounds = sprite?.getBounds();
     return {
+      playerSlash: this.effects?.getPlayerSlash() ?? null,
       playerSprite: sprite && player?.displayed && bounds ? {
         ...player.displayed,
+        position: { x: sprite.x, y: sprite.y },
         assetId: this.spriteInfo.get(sprite)?.assetId ?? 'placeholder',
         frame: { x: sprite.texture.frame.x, y: sprite.texture.frame.y, w: sprite.texture.frame.width, h: sprite.texture.frame.height },
         scaleX: sprite.scale.x, scaleY: sprite.scale.y, rotation: sprite.rotation,

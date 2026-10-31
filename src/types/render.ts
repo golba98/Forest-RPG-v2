@@ -1,4 +1,4 @@
-import type { AnimState, Direction, EntityKind, ProjectileType } from './entities';
+import type { AnimState, Direction, EntityKind, ProjectileType, PlayerAttackView } from './entities';
 import type { WorldData } from './world';
 
 export type WeatherKind = 'clear' | 'leaves' | 'rain' | 'storm';
@@ -31,6 +31,7 @@ export interface RenderEntityView {
   readonly facing: Direction;
   readonly anim: AnimState;
   readonly animTimeMs: number;
+  readonly attack?: PlayerAttackView | null;
   /** Vertical lift in tiles (jump arc), drawn as upward offset without changing depth. */
   readonly lift: number;
   /** Player is standing in water, not on a bridge or airborne. */
