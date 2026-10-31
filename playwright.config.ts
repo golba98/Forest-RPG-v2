@@ -20,7 +20,7 @@ export default defineConfig({
     ['html', { open: 'never', outputFolder: 'playwright-report' }],
   ],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4173',
+    baseURL: 'http://localhost:4311',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -51,9 +51,9 @@ export default defineConfig({
   ],
   // Points to Vite preview server running the production bundle
   webServer: {
-    command: 'npm run preview -- --port 4173',
-    port: 4173,
-    reuseExistingServer: !process.env.CI,
+    command: 'npm run preview -- --host localhost --port 4311 --strictPort',
+    url: 'http://localhost:4311',
+    reuseExistingServer: false,
     timeout: 120000,
   },
 });

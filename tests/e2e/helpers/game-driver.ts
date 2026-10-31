@@ -19,9 +19,14 @@ export class GameDriver {
   readonly page: Page;
   readonly baseUrl: string;
 
-  constructor(page: Page, baseUrl = '') {
+  constructor(page: Page, baseUrl = '', private readonly controlledClock = false) {
     this.page = page;
     this.baseUrl = baseUrl;
+  }
+
+  private async wait(ms: number): Promise<void> {
+    if (this.controlledClock) await this.page.clock.runFor(ms);
+    else await this.page.waitForTimeout(ms);
   }
 
   /**
@@ -99,7 +104,7 @@ export class GameDriver {
    */
   async pressKey(key: string, durationMs = 80): Promise<void> {
     await this.page.keyboard.down(key);
-    await this.page.waitForTimeout(durationMs);
+    await this.wait(durationMs);
     await this.page.keyboard.up(key);
   }
 
@@ -110,7 +115,7 @@ export class GameDriver {
     for (const key of keys) {
       await this.page.keyboard.down(key);
     }
-    await this.page.waitForTimeout(durationMs);
+    await this.wait(durationMs);
     for (const key of keys.reverse()) {
       await this.page.keyboard.up(key);
     }
@@ -138,7 +143,7 @@ export class GameDriver {
       } else {
         await this.holdKeys([...keys], 100);
       }
-      await this.page.waitForTimeout(60);
+      await this.wait(60);
     }
   }
 
@@ -266,7 +271,7 @@ export class GameDriver {
       if (predicate(state)) {
         return state;
       }
-      await this.page.waitForTimeout(pollIntervalMs);
+      await this.wait(pollIntervalMs);
     }
     const finalState = await driverSnapshot(this);
     throw new Error(

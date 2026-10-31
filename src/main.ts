@@ -60,7 +60,7 @@ simulation.onHit = (enemy, damage) => {
 simulation.onFeedback = (kind, p, enemy) => {
   const position = new Vector2(p.x, p.y);
   if (kind === 'swing')
-    bus.emit('player:attackSwing', { direction: simulation.getPlayerAttack()?.direction ?? p.facing, comboStep: p.comboCount || 3 });
+    bus.emit('player:attackSwing', { direction: simulation.getPlayerAttack()?.direction ?? p.facing, comboStep: simulation.getPlayerAttack()?.comboStep ?? (p.comboCount || 3) });
   else if (kind === 'spin' || kind === 'bolt') {
     bus.emit('player:castSpell', {
       spellId: kind === 'spin' ? 'spin' : 'projectile',

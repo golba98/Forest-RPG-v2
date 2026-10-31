@@ -1,7 +1,6 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import sharp from 'sharp';
-import type { Entity, EnemyEntity, PlayerEntity, PortalEntity } from '../../src/types/entities';
-import type { WorldData } from '../../src/types/world';
+import { boot } from './helpers/directional-fixture';
 
 // Reviewed against the actual PNGs, independently of AnimationDefs. Diagonal
 // punch filenames face horizontally opposite the compass direction they draw.
@@ -16,57 +15,6 @@ const directions = [
   { facing: 'NW', keys: ['KeyW', 'KeyA'], dx: -1, dy: -1, art: 'northwest', punch: 'northeast' },
 ] as const;
 
-type FixtureSave = {
-  entities: Entity[];
-  world: Omit<WorldData, 'tiles'> & { tiles: number[] };
-  runtime: { encounters?: unknown; moisture?: unknown };
-  time: number;
-  elapsedMs: number;
-};
-
-async function boot(page: Page, enemyOffsets: readonly (readonly [number, number])[] = []) {
-  const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
-  await page.addInitScript(() => localStorage.setItem('forestrpg.v2.settings', JSON.stringify({
-    clouds: false, particles: false, lighting: false, shake: false, tutorials: false,
-  })));
-  // The clock must own the RAF scheduled during boot, not just later timers.
-  await page.clock.install();
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=42');
-  await page.waitForFunction(() => !!window.__GAME__ && !!window.__RENDER_DEBUG__);
-  // Leave ample headroom for the cross-process call on a busy test host. The
-  // fixture is loaded afterward, so advancing boot time cannot affect the case.
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 60_000));
-  await page.evaluate(offsets => {
-    const g = window.__GAME__!;
-    g.pauseSimulation();
-    g.saveGame('directions');
-    const data = JSON.parse(localStorage.getItem('forestrpg.v2.save.directions')!) as FixtureSave;
-    const p = data.entities.find((e): e is PlayerEntity => e.kind === 'player')!;
-    const portal = data.entities.find((e): e is PortalEntity => e.kind === 'portal')!;
-    const baseEnemy = data.entities.find((e): e is EnemyEntity => e.kind === 'enemy')!;
-    delete data.runtime.encounters;
-    delete data.runtime.moisture;
-    data.world = {
-      ...data.world, meta: { ...data.world.meta, width: 40, height: 40, isTutorial: false },
-      tiles: Array<number>(1600).fill(1), props: [], bridges: [], encounterSites: [],
-      enemySpawns: [], pickupSpawns: [], spawn: { x: 20, y: 20 }, portal: { x: 38, y: 38 },
-    };
-    Object.assign(p, { x: 20.5, y: 20.5, prevX: 20.5, prevY: 20.5, facing: 'S', anim: 'idle', animTimeMs: 0 });
-    Object.assign(portal, { x: 38.5, y: 38.5, prevX: 38.5, prevY: 38.5, active: false, portalState: 'locked', roundComplete: false });
-    const enemies = offsets.map(([dx, dy], i): EnemyEntity => ({
-      ...baseEnemy, id: `direction-enemy-${i}`, enemyType: 'mantis',
-      x: p.x + dx, y: p.y + dy, prevX: p.x + dx, prevY: p.y + dy,
-      health: 20, maxHealth: 20, aggressive: false, hurtTimerMs: 0, alive: true, aiState: 'idle',
-    }));
-    data.entities = [p, portal, ...enemies]; data.time = .3; data.elapsedMs = 0;
-    localStorage.setItem('forestrpg.v2.save.directions', JSON.stringify(data));
-    if (!g.loadGame('directions')) throw new Error('Direction fixture failed to load');
-  }, enemyOffsets);
-  await page.clock.runFor(50);
-  return errors;
-}
-
 async function held(page: Page, keys: readonly string[], down: boolean) {
   for (const key of keys) await page.keyboard[down ? 'down' : 'up'](key);
 }
@@ -74,13 +22,14 @@ async function held(page: Page, keys: readonly string[], down: boolean) {
 async function displayed(page: Page) {
   const sprite = await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().playerSprite);
   expect(sprite).toBeTruthy();
-  expect(sprite!.scaleX).toBeGreaterThan(0);
+  const mirror = sprite!.anim === 'run' && sprite!.facing === 'SW';
+  expect(Math.sign(sprite!.scaleX)).toBe(mirror ? -1 : 1);
   expect(sprite!.scaleY).toBeGreaterThan(0);
   expect(sprite!.rotation).toBe(0);
-  expect(sprite!.transform.a).toBeGreaterThan(0);
+  expect(Math.sign(sprite!.transform.a)).toBe(mirror ? -1 : 1);
   expect(sprite!.transform.d).toBeGreaterThan(0);
-  expect(sprite!.transform.b).toBe(0);
-  expect(sprite!.transform.c).toBe(0);
+  expect(Math.abs(sprite!.transform.b)).toBe(0);
+  expect(Math.abs(sprite!.transform.c)).toBe(0);
   return sprite!;
 }
 
@@ -89,14 +38,19 @@ async function displayed(page: Page) {
  * this checks the drawn character, not just its diagnostics or an effect arc. */
 async function verifyPixels(page: Page, info: TestInfo, name: string, anim: string, suffix: string, column: number) {
   const sprite = await displayed(page);
-  expect(sprite.assetId).toBe(`player_${anim}_${suffix}`);
-  const file = `public/assets/images/characters/player/${anim}/${anim}_${suffix}.png`;
+  // Independently reviewed exception: all six SW run frames were a duplicate
+  // of SE. Require the actual horizontal mirror, retaining frame order.
+  const mirror = anim === 'run' && suffix === 'southwest';
+  const source = mirror ? 'southeast' : suffix;
+  expect(sprite.assetId).toBe(`player_${anim}_${source}`);
+  const file = `public/assets/images/characters/player/${anim}/${anim}_${source}.png`;
   const metadata = await sharp(file).metadata();
   const count = anim === 'run' ? 6 : 4;
   const x = Math.floor(column * metadata.width! / count);
   const w = Math.floor((column + 1) * metadata.width! / count) - x;
   expect(sprite.frame).toEqual({ x, y: 0, w, h: metadata.height! });
-  const reference = await sharp(file).extract({ left: x, top: 0, width: w, height: metadata.height! }).ensureAlpha().raw().toBuffer();
+  const sourceFrame = sharp(file).extract({ left: x, top: 0, width: w, height: metadata.height! });
+  const reference = await (mirror ? sourceFrame.flop() : sourceFrame).ensureAlpha().raw().toBuffer();
   // Commit the paused WebGL frame to the browser compositor before sampling
   // pixels. Neither screenshot advances the controlled game clock.
   await page.screenshot();
@@ -141,11 +95,22 @@ for (const d of directions) test(`${d.facing} movement, all punch frames, and st
   expect(Math.sign(p.x - 20.5)).toBe(d.dx);
   expect(Math.sign(p.y - 20.5)).toBe(d.dy);
   expect(p.direction).toBe(d.facing);
-  await verifyPixels(page, info, `${d.facing}-walk`, 'walk', d.art, 0);
-  await page.keyboard.down('ShiftLeft'); await page.clock.runFor(500);
-  const run = await displayed(page);
-  expect(run.anim).toBe('run');
-  await verifyPixels(page, info, `${d.facing}-run`, 'run', d.art, Math.floor(run.animTimeMs / 112.5) % 6);
+  for (const [anim, count, step] of [['walk', 4, 150], ['run', 6, 112.5], ['idle', 4, 150]] as const) {
+    if (anim === 'run') await page.keyboard.down('ShiftLeft');
+    if (anim === 'idle') await held(page, [...d.keys, 'ShiftLeft'], false);
+    await page.clock.runFor(17);
+    const seen = new Set<number>();
+    for (let sample = 0; sample < count * 3 && seen.size < count; sample++) {
+      const pose = await displayed(page);
+      expect(pose.anim).toBe(anim);
+      const frame = Math.floor(pose.animTimeMs / step) % count;
+      if (!seen.has(frame)) await verifyPixels(page, info, `${d.facing}-${anim}-${frame}`, anim, d.art, frame);
+      seen.add(frame);
+      await page.clock.runFor(step / 2);
+    }
+    expect(seen.size).toBe(count);
+  }
+  await held(page, [...d.keys, 'ShiftLeft'], true);
   await page.keyboard.down('KeyE');
   for (let frame = 0; frame < 4; frame++) {
     await page.clock.runFor(frame === 0 ? 17 : 80);
@@ -275,4 +240,151 @@ test('rapid alternating diagonals and frame timing never steer an ongoing punch'
   const sprite = await displayed(page);
   await verifyPixels(page, info, 'rapid-diagonals-locked-NW', 'attack', 'northeast', Math.min(3, Math.floor(sprite.animTimeMs / 80)));
   expect(errors).toEqual([]);
+});
+
+test('running bolt keeps northwest pixels and moving slash follows its locked swing (ten traces)', async ({ page }, info) => {
+  const errors = await boot(page, [[4, 4]]);
+  let lastSwing = 0;
+  for (let repeat = 0; repeat < 10; repeat++) {
+    await page.evaluate(() => {
+      window.__GAME__!.setPlayerPosition(20.5, 20.5);
+      window.__GAME__!.executeCommand('/mana 100');
+      window.__GAME__!.executeCommand('/stamina 100');
+    });
+    await held(page, ['KeyW', 'KeyA', 'ShiftLeft'], true);
+    await page.clock.runFor(17);
+    await page.keyboard.press('KeyR'); await page.clock.runFor(17);
+    const pose = await displayed(page);
+    expect(pose.facing).toBe('NW'); expect(pose.anim).toBe('run');
+    await verifyPixels(page, info, `bolt-NW-${repeat}`, 'run', 'northwest', Math.floor(pose.animTimeMs / 112.5) % 6);
+    await page.keyboard.press('KeyE'); await page.clock.runFor(17);
+    let debug = await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo());
+    const id = debug.playerSlash!.swingId;
+    expect(id).toBeGreaterThan(lastSwing); lastSwing = id;
+    expect(debug.playerSlash!.comboStep).toBe(repeat % 3 + 1);
+    for (const delta of [1, 16, 33, 17]) {
+      await held(page, ['KeyW', 'KeyA'], false);
+      await held(page, ['KeyS', 'KeyD'], true);
+      await page.clock.runFor(delta);
+      debug = await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo());
+      expect(debug.playerSlash!.swingId).toBe(id);
+      expect(debug.playerSlash!.angle).toBeCloseTo(-3 * Math.PI / 4);
+      expect(debug.playerSlash!.x).toBeCloseTo(debug.playerSprite!.position.x);
+      expect(debug.playerSlash!.y).toBeCloseTo(debug.playerSprite!.position.y - 12);
+    }
+    await page.keyboard.press('Escape'); await page.clock.runFor(17);
+    const frozen = await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().playerSlash);
+    await page.clock.runFor(100);
+    expect(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().playerSlash)).toEqual(frozen);
+    await page.keyboard.press('Escape'); await page.clock.runFor(300);
+    expect(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().playerSlash)).toBeNull();
+    await held(page, ['KeyS', 'KeyD', 'ShiftLeft'], false);
+  }
+  expect(errors).toEqual([]);
+});
+
+test('all held-key combinations, arrow aliases and blur release keep physical direction', async ({ page }) => {
+  await boot(page);
+  for (const keys of [['KeyW', 'KeyA', 'KeyS', 'KeyD'], ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight']]) {
+    for (let mask = 0; mask < 16; mask++) {
+      await held(page, keys, false);
+      await page.evaluate(() => window.__GAME__!.setPlayerPosition(20.5, 20.5));
+      await held(page, keys.filter((_, i) => mask & (1 << i)), true);
+      const before = await page.evaluate(() => window.__GAME__!.getState().engine);
+      await page.clock.runFor(100);
+      const state = await page.evaluate(() => window.__GAME__!.getState());
+      const p = state.player;
+      const seconds = (state.engine.stepCount - before.stepCount) * before.fixedDeltaMs / 1000;
+      expect(seconds).toBeGreaterThan(.07); expect(seconds).toBeLessThan(.14);
+      const dx = Number(!!(mask & 8)) - Number(!!(mask & 2));
+      const dy = Number(!!(mask & 4)) - Number(!!(mask & 1));
+      expect(Math.sign(p.x - 20.5)).toBe(dx);
+      expect(Math.sign(p.y - 20.5)).toBe(dy);
+      expect(Math.hypot(p.x - 20.5, p.y - 20.5)).toBeCloseTo(dx || dy ? 6.25 * seconds : 0, 5);
+    }
+    await held(page, keys, false);
+  }
+  await page.keyboard.down('KeyW'); await page.clock.runFor(50);
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.clock.runFor(50);
+  const stopped = await page.evaluate(() => window.__GAME__!.getState().player.y);
+  await page.clock.runFor(100);
+  expect(await page.evaluate(() => window.__GAME__!.getState().player.y)).toBe(stopped);
+});
+
+test('live RAF gameplay keeps running and punching direction through repeated bolts', async ({ page }, info) => {
+  const errors = await boot(page, [[4, 4]], {}, true);
+  const traces: unknown[] = [];
+  for (let repeat = 0; repeat < 10; repeat++) {
+    await page.evaluate(() => {
+      window.__GAME__!.setPlayerPosition(20.5, 20.5);
+      window.__GAME__!.executeCommand('/mana 100'); window.__GAME__!.executeCommand('/stamina 100');
+    });
+    await held(page, ['KeyW', 'KeyA', 'ShiftLeft'], true);
+    await page.waitForTimeout(40);
+    await page.keyboard.press('KeyR');
+    const samples = await page.evaluate(() => new Promise<{ facing: string; anim: string; asset: string }[]>(resolve => {
+      const frames: { facing: string; anim: string; asset: string }[] = [];
+      const sample = () => {
+        const p = window.__RENDER_DEBUG__!.getInfo().playerSprite!;
+        frames.push({ facing: p.facing, anim: p.anim, asset: p.assetId });
+        if (frames.length === 5) resolve(frames); else requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    }));
+    expect(samples.every(s => s.facing === 'NW' && s.anim === 'run' && s.asset === 'player_run_northwest')).toBe(true);
+    await page.keyboard.press('KeyE'); await page.waitForTimeout(40);
+    await held(page, ['KeyW', 'KeyA'], false); await held(page, ['KeyS', 'KeyD'], true);
+    const punch = await displayed(page);
+    expect(punch.facing).toBe('NW'); expect(punch.assetId).toBe('player_attack_northeast');
+    traces.push({ repeat, samples, punch: { facing: punch.facing, asset: punch.assetId } });
+    await held(page, ['KeyS', 'KeyD', 'ShiftLeft'], false); await page.waitForTimeout(380);
+  }
+  await info.attach('live-traces', { body: JSON.stringify(traces), contentType: 'application/json' });
+  expect(errors).toEqual([]);
+});
+
+test('damage keeps the punch locked; reload cancels it and death locks movement', async ({ page }) => {
+  await boot(page, [[.5, 0]]);
+  expect(await page.evaluate(() => {
+    const g = window.__GAME__!; g.saveGame('damage');
+    const data = JSON.parse(localStorage.getItem('forestrpg.v2.save.damage')!);
+    data.entities.find((e: { kind: string }) => e.kind === 'enemy').aggressive = true;
+    localStorage.setItem('forestrpg.v2.save.damage', JSON.stringify(data));
+    return g.loadGame('damage');
+  })).toBe(true);
+  await page.keyboard.press('KeyE'); await page.clock.runFor(250);
+  // Melee would stun the close attacker; a fresh one supplies ordinary damage.
+  await page.evaluate(() => window.__GAME__!.spawnEnemy('mantis', 20.5, 20.5));
+  await page.clock.runFor(150); // Let the previous swing finish.
+  await page.keyboard.press('KeyE'); await page.clock.runFor(100);
+  const state = await page.evaluate(() => window.__GAME__!.getState());
+  expect(state.player.hurtTimer).toBeGreaterThan(0);
+  const locked = state.player.attackDirection;
+  expect(locked).not.toBeNull();
+  await page.keyboard.down('KeyA'); await page.clock.runFor(17);
+  expect((await displayed(page)).facing).toBe(locked);
+  await page.keyboard.up('KeyA');
+  expect(await page.evaluate(() => { const g = window.__GAME__!; return g.saveGame('mid-swing') && g.loadGame('mid-swing'); })).toBe(true);
+  await page.clock.runFor(17);
+  expect(await page.evaluate(() => window.__GAME__!.getState().player.attackDirection)).toBeNull();
+  expect(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().playerSlash)).toBeNull();
+  await page.evaluate(() => window.__GAME__!.executeCommand('/health 0'));
+  await page.clock.runFor(17);
+  const dead = await page.evaluate(() => window.__GAME__!.getState());
+  expect(dead.ui.currentMenu).toBe('gameover');
+  await page.keyboard.down('KeyD'); await page.clock.runFor(200);
+  const after = await page.evaluate(() => window.__GAME__!.getState());
+  expect(after.player.x).toBe(dead.player.x); expect(after.player.y).toBe(dead.player.y);
+});
+
+test('inverted Y follows effective movement for run pixels and locked punch', async ({ page }, info) => {
+  await boot(page, [], { invertY: true });
+  await held(page, ['KeyW', 'KeyA', 'ShiftLeft'], true); await page.clock.runFor(100);
+  const p = await page.evaluate(() => window.__GAME__!.getState().player);
+  expect(p.x).toBeLessThan(20.5); expect(p.y).toBeGreaterThan(20.5);
+  const run = await displayed(page);
+  await verifyPixels(page, info, 'inverted-SW-run', 'run', 'southwest', Math.floor(run.animTimeMs / 112.5) % 6);
+  await page.keyboard.press('KeyE'); await page.clock.runFor(17);
+  await verifyPixels(page, info, 'inverted-SW-punch', 'attack', 'southeast', 0);
 });

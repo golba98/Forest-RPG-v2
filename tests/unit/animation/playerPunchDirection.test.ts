@@ -263,11 +263,13 @@ describe('locked attacks across input and animation transitions', () => {
     expect(s.player.anim).toBe('walk');
   });
 
-  it('keeps melee direction when simultaneous bolt aim changes player facing', () => {
+  it('keeps movement and melee direction while a simultaneous bolt aims independently', () => {
     const { simulation: s } = setup();
     s.spawnEnemy('mantis', 18, 20.5);
     s.step(1 / 60, { ...IDLE_INTENT, moveX: 1, attack: true, skillE: true });
-    expect(s.player.facing).toBe('W');
+    expect(s.player.facing).toBe('E');
+    const bolt = s.getEntities().find(e => e.kind === 'projectile');
+    expect(bolt?.facing).toBe('W');
     expect(s.getPlayerAttack()?.direction).toBe('E');
     expect(s.buildRenderSnapshot().entities.find(e => e.id === s.player.id)?.facing).toBe('E');
   });
@@ -351,5 +353,81 @@ describe('direction under different render schedules', () => {
     expect(render(50).textureAlias).toBe('player_attack_northeast');
     expect(s.getPlayerAttack()?.elapsedMs).toBeCloseTo(50);
     expect(s.player.comboCount).toBe(1);
+  });
+});
+
+describe('independent bolt aim and authoritative swings', () => {
+  for (const d of directions) it(`${d.facing} moving bolt keeps locomotion while aiming behind`, () => {
+    const { simulation: s } = setup();
+    s.spawnEnemy('mantis', 20.5 - d.dx * 3, 20.5 - d.dy * 3);
+    s.step(1 / 60, { ...IDLE_INTENT, moveX: d.dx, moveY: d.dy, sprint: true, skillE: true });
+    expect(s.player.facing).toBe(d.facing);
+    expect(s.player.anim).toBe('run');
+    const shot = s.getEntities().find(e => e.kind === 'projectile');
+    expect(shot?.kind).toBe('projectile');
+    if (shot?.kind !== 'projectile') throw new Error('Missing bolt');
+    expect(Math.sign(shot.vx)).toBe(-d.dx || 0); expect(Math.sign(shot.vy)).toBe(-d.dy || 0);
+    expect(s.buildRenderSnapshot().entities.find(e => e.kind === 'player')?.facing).toBe(d.facing);
+  });
+
+  it('stationary bolt assistance may update resting facing', () => {
+    const { simulation: s } = setup(); s.spawnEnemy('mantis', 17.5, 20.5);
+    s.step(1 / 60, { ...IDLE_INTENT, skillE: true }); expect(s.player.facing).toBe('W');
+  });
+
+  it('exposes immutable swing copies and authoritative combo through missed starts and restore', () => {
+    const { simulation: s } = setup();
+    let prior = 0;
+    for (let n = 0; n < 4; n++) {
+      s.step(.2, { ...IDLE_INTENT, attack: true });
+      const attack = s.getPlayerAttack()!;
+      expect(attack.swingId).toBeGreaterThan(prior); prior = attack.swingId;
+      expect(attack.comboStep).toBe(n % 3 + 1);
+      expect(attack.elapsedMs).toBe(200);
+      expect(s.buildRenderSnapshot().entities.find(e => e.kind === 'player')?.attack).toEqual(attack);
+      s.step(.17, IDLE_INTENT);
+      expect(attack.elapsedMs).toBe(200); // Detached read-only view, not a mutable simulation object.
+    }
+    s.restoreEntities(structuredClone([...s.getEntities()]), .3, 0, 0);
+    s.step(.01, { ...IDLE_INTENT, attack: true });
+    expect(s.getPlayerAttack()!.swingId).toBeGreaterThan(prior);
+    expect(s.getPlayerAttack()!.comboStep).toBe(1);
+  });
+});
+
+describe('held input matrix and seeded timing traces', () => {
+  for (const keys of [['KeyW', 'KeyA', 'KeyS', 'KeyD'], ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight']]) {
+    for (let mask = 0; mask < 16; mask++) it(`${keys[0]} family held mask ${mask}`, () => {
+      const { simulation: s, input, step } = setup();
+      keys.forEach((key, i) => { if (mask & (1 << i)) input.simulateKeyDown(key); });
+      step();
+      const dx = Number(!!(mask & 8)) - Number(!!(mask & 2));
+      const dy = Number(!!(mask & 4)) - Number(!!(mask & 1));
+      expect(Math.sign(s.player.x - 20.5)).toBe(dx); expect(Math.sign(s.player.y - 20.5)).toBe(dy);
+      expect(Math.hypot(s.player.vx, s.player.vy)).toBeCloseTo(dx || dy ? 6.25 : 0);
+    });
+  }
+  for (const hz of [30, 60, 144, 240]) it(`${hz} Hz ten seeded rapid input and boundary traces`, () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const { simulation: s, input, fixed, render } = setup();
+      const loop = new GameLoop({ onFixedUpdate: fixed, onRender: (_alpha, dt) => { render(dt); } });
+      let random = seed, previousId = 0, locked: string | null = null;
+      loop.start(); loop.tick(0);
+      for (let i = 1; i <= hz * 2; i++) {
+        random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
+        const d = directions[random % directions.length]!;
+        for (const key of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE']) input.simulateKeyUp(key);
+        for (const key of d.keys) input.simulateKeyDown(key);
+        if (random & 16) input.simulateKeyDown('KeyE');
+        loop.tick(i * 1000 / hz + (i % 2 ? .001 : -.001));
+        const attack = s.getPlayerAttack();
+        if (attack) {
+          if (attack.swingId !== previousId) { previousId = attack.swingId; locked = attack.direction; }
+          expect(attack.direction).toBe(locked);
+          expect(s.buildRenderSnapshot().entities.find(e => e.kind === 'player')?.facing).toBe(locked);
+        }
+      }
+      loop.stop();
+    }
   });
 });
