@@ -391,7 +391,7 @@ export class Simulation implements ISimulation {
           facing: e.kind === 'player' ? this.getPlayerAttack()?.direction ?? e.facing : e.facing,
           // Player clocks are reset here, so presentation must not infer a
           // later start when the first few attack frames were not rendered.
-          ...(e.kind === 'player' ? { animStartedAtMs: 0 } : {}),
+          ...(e.kind === 'player' ? { animStartedAtMs: 0, attack: this.getPlayerAttack() } : {}),
           dead: !e.alive,
           spriteKey: e.kind === 'enemy' ? e.enemyType : e.kind === 'pickup' ? e.pickupType : e.kind,
           lift:
