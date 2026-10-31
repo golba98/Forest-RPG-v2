@@ -1,7 +1,7 @@
 # World art and loot overhaul
 
 Branch: `feat/world-art-loot-overhaul` · baseline: `58baaf8` · 2026-10-31.
-Worktree: `../18-Forest-RPG-v2-world-art`. No merge, push or deployment.
+Worktree: `../18-Forest-RPG-v2-world-art`. No merge or deployment. PR publication authorized in the follow-up request.
 
 **Current revision:** the initial procedural vegetation was rejected by the user. The selected
 Detailed LPC forest replacement described below supersedes that art; the verified treasure and
@@ -204,3 +204,18 @@ New regression files: `tests/unit/animation/playerRunDirection.test.ts` and
 - `docs/qa/evidence/world-art-loot/`: baseline, Chromium/Firefox captures and generation timings.
 
 - `docs/qa/evidence/lpc-vegetation/`: current Chromium/Firefox gameplay and compatibility captures.
+
+## PR integration handoff
+
+All implementation, licensed source assets, attribution and screenshot evidence are committed.
+The reviewed branch starts at `58baaf8`; target `main` advanced to `ce971fe` with landscape/grove
+art and documentation changes during development. A read-only `git merge-tree` integration check
+found conflicts in `README.md`, `docs/assets/replacements.md`, `docs/rendering.md`,
+`docs/save-format.md`, `src/rendering/PixiRenderer.ts`, `src/simulation/Simulation.ts`,
+`src/world/WorldGenerator.ts`, and `src/world/generation/woodland.ts`.
+
+The PR is published as a draft to preserve the independently tested work and the instruction to
+keep parallel branches separate. Integration must combine the upstream landscape/grove behavior
+with the LPC rendering, canopy reservations and treasure initialization, then rerun save,
+generation and browser checks. The results above apply to this branch, not an untested combined
+revision. Agent 1's separate directional-stability worktree is not included in this PR.
