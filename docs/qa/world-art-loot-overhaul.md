@@ -219,3 +219,25 @@ keep parallel branches separate. Integration must combine the upstream landscape
 with the LPC rendering, canopy reservations and treasure initialization, then rerun save,
 generation and browser checks. The results above apply to this branch, not an untested combined
 revision. Agent 1's separate directional-stability worktree is not included in this PR.
+
+## Complete repository backup
+
+The follow-up request to save everything covers all five registered worktrees and all 19
+pre-existing local branches. Ten previously local-only branches were pushed, including
+`fix/directional-stability`, `checkpoint/directional-punch`, gameplay repair, visual repair,
+integration and earlier agent work. Existing remote branches were preserved. The older local
+`main` head has its own backup ref; remote `main` was not rewound.
+
+Previously uncommitted tracked and non-ignored untracked files were saved in new commits:
+
+- [Main-checkout snapshot: 26 files](https://github.com/golba98/Forest-RPG-v2/commit/085447c5ad7aec83fef112c846c63321322cd4ff), branch `save/all-work-20261031-153832/main`.
+- [Visual-repair snapshot: 15 files](https://github.com/golba98/Forest-RPG-v2/commit/74f81138237071e413b8d5e6b7dfc13e17188bbd), branch `save/all-work-20261031-153832/claude/visual-rendering-repair`.
+
+Temporary Git indexes captured these snapshots without changing either active checkout's files,
+index or branch. All recorded remote commit IDs were checked after an atomic push. The snapshots
+preserve work in progress; this does not claim that those other worktrees passed this branch's tests.
+Generated dependencies, builds and caches remain excluded by the existing Git ignore rules.
+
+[Machine-readable inventory](evidence/all-work-backup-20261031.json) records every original
+branch, its saved commit and remote ref, plus both snapshots' complete file lists. These are
+independent recoverable branches; integration conflicts described above remain a separate step.
