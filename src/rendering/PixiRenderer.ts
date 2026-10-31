@@ -1,3 +1,5 @@
+import { GroveView } from './GroveView';
+import { createSoilChunkArt, type SoilChunkArt } from './SoilArt';
 import { propDepth } from '../world/ObjectSemantics';
 import { surfaceSites, type MoistureView } from '../systems/SurfaceMoisture';
 import { SurfaceWaterLayer } from './effects/SurfaceWaterLayer';
@@ -17,7 +19,7 @@ import type { PlayerInventory, PlayerStats } from '../types/entities';
 import { Camera } from './Camera';
 import { TextureStore } from './TextureStore';
 import { getTileArt, getWorldPropArt, type TileArtLayer } from './terrainArt';
-import { decorAlias, GROUND_PROPS } from './assetCatalog';
+import { decorAlias, GROUND_PROPS, PORTAL_ART_ALIAS } from './assetCatalog';
 import { elevationMask } from './hillAutotile';
 import { Tile } from '../types/tiles';
 import { createWaterTextures, waterEdgeMask, neighbourMaterialMask, WATER_PALETTE } from './waterArt';
@@ -110,6 +112,7 @@ export class PixiRenderer implements IRenderer {
   private impactHoldMs = 0;
   private damageNumbers: Array<{ text: Text; remaining: number }> = [];
   private encounterView = new EncounterView();
+  private groveView = new GroveView();
   private nestView = new NestView();
   interactBinding: () => string = () => 'G';
   private waterMask = new Graphics();
@@ -133,6 +136,7 @@ export class PixiRenderer implements IRenderer {
   /** World-transformed layer drawn above the darkness overlay (fireflies). */
   private nightGlow = new Container();
   private chunks = new Map<string, Container>();
+  private soilChunks = new Map<string, SoilChunkArt>();
   private entities = new Map<string, EntityVisual>();
   private portals = new Map<string, PortalEntry>();
   private objects: Sprite[] = [];
@@ -167,7 +171,7 @@ export class PixiRenderer implements IRenderer {
     this.hurtFilter.brightness(2.4, false);
     this.enemyFilter.brightness(1.18, false);
     this.groundFx.addChild(this.sky.shadows, this.effects.ground);
-    this.root.addChild(this.terrain, this.surfaceWater.view, this.water.view, this.weather.ground, this.bridgeGround, this.weather.deck, this.groundProps, this.encounterView.ground, this.nestView.ground, this.groundFx, this.actors, this.encounterView.effects, this.nestView.particles, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
+    this.root.addChild(this.terrain, this.surfaceWater.view, this.water.view, this.weather.ground, this.bridgeGround, this.weather.deck, this.groundProps, this.groveView.ground, this.nestView.ground, this.groundFx, this.actors, this.encounterView.effects, this.nestView.particles, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
     this.actors.sortableChildren = true;
     this.actors.addChild(this.waterMask, this.waterRipple, this.waterFxMask);
     this.waterRipple.mask = this.waterFxMask;
@@ -225,6 +229,8 @@ export class PixiRenderer implements IRenderer {
   setWorld(world: WorldData): void {
     for (const chunk of this.chunks.values()) chunk.destroy({ children: true });
     this.chunks.clear();
+    for (const soil of this.soilChunks.values()) soil.destroy();
+    this.soilChunks.clear();
     for (const visual of this.entities.values()) { visual.sprite.destroy(); visual.shadow?.destroy(); }
     this.entities.clear();
     for (const { view } of this.portals.values()) view.destroy({ children: true });
@@ -243,6 +249,7 @@ export class PixiRenderer implements IRenderer {
     this.world = world;
     this.weatherPreview = null; this.weather.reset(); this.surfaceWater.reset(); this.water.reset(world);
     this.encounterView.reset();
+    this.groveView.reset();
     this.nestView.reset();
     this.sky.setWorld(world.meta.width, world.meta.height, world.meta.seed, this.fx?.clouds ?? [], world.spawn.x, world.spawn.y);
     for (const bridge of world.bridges ?? []) {
@@ -278,13 +285,24 @@ export class PixiRenderer implements IRenderer {
     const { width, height } = world.meta;
     const key = `${x},${y}`;
     this.chunks.get(key)?.destroy({ children: true });
+    this.soilChunks.get(key)?.destroy();
+    this.soilChunks.delete(key);
+    const soil = createSoilChunkArt(world, x, y, CHUNK);
+    if (soil) this.soilChunks.set(key, soil);
     const chunk = new Container(); chunk.position.set(x * TILE, y * TILE);
     for (let ty = y; ty < Math.min(y + CHUNK, height); ty++) for (let tx = x; tx < Math.min(x + CHUNK, width); tx++) {
       const elevation = elevationMask(world.tiles, width, height, tx, ty);
       const tile = world.tiles[ty * width + tx] ?? 0;
-      const shore = tile === Tile.RIVER ? waterEdgeMask(world.tiles, width, height, tx, ty) : neighbourMaterialMask(world.tiles, width, height, tx, ty, tile === Tile.MUD);
-      for (const layer of getTileArt(tile, tx, ty, elevation, shore)) {
+      const shore = tile === Tile.RIVER ? waterEdgeMask(world.tiles, width, height, tx, ty) : neighbourMaterialMask(world.tiles, width, height, tx, ty);
+      for (const [index, layer] of getTileArt(tile, tx, ty, elevation, shore).entries()) {
         const sprite = this.art(layer); sprite.x += (tx - x) * TILE; sprite.y += (ty - y) * TILE; chunk.addChild(sprite);
+        // Compose the material after its grass base and before flowers/contact shadows.
+        const texture = index === 0 ? soil?.tiles.get(ty * width + tx) : undefined;
+        if (texture) {
+          const material = new Sprite(texture);
+          material.position.set((tx - x) * TILE, (ty - y) * TILE);
+          chunk.addChild(material);
+        }
       }
     }
     // Ground-only chunks have exact integer bounds and nearest cache sampling.
@@ -329,8 +347,10 @@ export class PixiRenderer implements IRenderer {
     this.water.update(dt, this.paused, rect, snapshot.world);
     this.surfaceWater.update(snapshot.world, snapshot.moisture, rect, snapshot.elapsedMs ?? this.visualTime);
 
+    this.groveView.update(snapshot.encounters?.sites ?? [], this.actors, this.textures, fx.glow);
     this.nestView.update(snapshot, this.actors, this.textures, this.visualTime);
     this.renderEntities(snapshot, alpha, dt, player, fx, effects);
+    this.placeholderSprites += this.groveView.placeholderCount(this.textures);
     this.encounterView.update(snapshot, this.visualTime, this.app.screen.width, this.app.screen.height, this.interactBinding(), this.language);
     this.encounterView.hud.visible = this.hudVisible;
 
@@ -549,10 +569,11 @@ export class PixiRenderer implements IRenderer {
   private renderPortal(e: RenderEntityView, x: number, y: number, dt: number, snapshot: RenderSnapshot, player: RenderEntityView | undefined, fx: EffectTextures): boolean {
     let entry = this.portals.get(e.id);
     if (!entry) {
-      const view = this.tag(new PortalView(this.textures.get('portal_forest'), fx), 'portal_forest', 'actors/portal');
+      const view = this.tag(new PortalView(this.textures.get(PORTAL_ART_ALIAS), fx), PORTAL_ART_ALIAS, 'actors/portal');
       entry = { view, machine: new PortalVisualMachine() };
       this.actors.addChild(view); this.portals.set(e.id, entry);
     }
+    if (this.textures.isPlaceholder(entry.view.artTexture)) this.placeholderSprites++;
     const distance = player ? Math.hypot(e.x - player.x, e.y - player.y) : Infinity;
     const state = entry.machine.update({ active: e.active === true, explicit: e.portalState, playerDistance: distance, dtMs: this.paused ? 0 : dt });
     let label: string;
@@ -615,6 +636,7 @@ export class PixiRenderer implements IRenderer {
         bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
       } : null,
       propViews: this.propSprites.size,
+      groveViews: this.groveView.info,
       hilltopViews: (this.world?.props ?? []).filter(p => p.hilltop).flatMap(p => {
         const sprite = this.propSprites.get(p.id);
         return sprite ? [{ id: p.id, x: sprite.x, y: sprite.y, depth: sprite.zIndex, visible: sprite.visible }] : [];
@@ -625,6 +647,7 @@ export class PixiRenderer implements IRenderer {
       placeholderSprites: this.placeholderSprites,
       portalStates: [...this.portals.values()].map(p => p.machine.state),
       portalViews: this.portals.size,
+      portalTextures: [...this.portals].map(([id, { view }]) => ({ id, width: view.artTexture.width, height: view.artTexture.height, placeholder: this.textures.isPlaceholder(view.artTexture) })),
       clouds: this.sky.cloudCount,
       raining: this.weather.raining,
       weather: this.weather.info,
@@ -643,8 +666,11 @@ export class PixiRenderer implements IRenderer {
   worldToScreen(x: number, y: number) { return this.camera.worldToScreen(x, y); }
   screenToWorld(x: number, y: number) { return this.camera.screenToWorld(x, y); }
   destroy(): void {
+    this.groveView.reset();
     this.sky.clear(); this.effects?.clear();
     this.app.destroy(true, { children: true }); this.textures.destroy();
+    for (const soil of this.soilChunks.values()) soil.destroy();
+    this.soilChunks.clear();
     if (this.fx) destroyEffectTextures(this.fx);
   }
 }

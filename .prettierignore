@@ -3,8 +3,5 @@ dist
 coverage
 playwright-report
 test-results
-.agents
 **/worktrees
-CONTINUE.md
-NEXT_STEPS_HANDOFF_REPORT.md
 public/assets

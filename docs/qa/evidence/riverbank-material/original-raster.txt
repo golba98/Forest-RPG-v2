@@ -1,0 +1,45 @@
+import { Tile } from '../types/tiles';
+import { channelTerrain } from '../world/RiverTopology';
+
+export interface SoilWorld {
+  readonly tiles: ArrayLike<number>;
+  readonly meta: { readonly width: number; readonly height: number };
+}
+export const SOIL_TILE_SIZE = 32;
+
+function hash(a: number, b: number): number {
+  let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35);
+  h ^= h >>> 15;
+  return Math.imul(h, 0x27d4eb2d) >>> 0;
+}
+
+/** Extracted baseline raster, before replacing the tile-local distance mask. */
+export function rasterizeSoilTile(world: SoilWorld, tx: number, ty: number): Uint8ClampedArray | null {
+  const w = world.meta.width;
+  if (world.tiles[ty * w + tx] !== Tile.MUD) return null;
+  const offsets = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];
+  let mask = 0;
+  offsets.forEach(([dx, dy], i) => {
+    const nx = tx + dx!, ny = ty + dy!;
+    const tile = nx < 0 || ny < 0 || nx >= w || ny >= world.meta.height ? 0 : world.tiles[ny * w + nx];
+    if (tile === Tile.MUD || channelTerrain(tile ?? 0)) mask |= 1 << i;
+  });
+  const data = new Uint8ClampedArray(4096);
+  for (let y=0;y<32;y++) for(let x=0;x<32;x++) {
+    let d=64;
+    const dry=255^mask;
+    if(dry&1)d=Math.min(d,y+.5);
+    if(dry&4)d=Math.min(d,31.5-x);
+    if(dry&16)d=Math.min(d,31.5-y);
+    if(dry&64)d=Math.min(d,x+.5);
+    if(dry&2)d=Math.min(d,Math.hypot(31.5-x,y+.5));
+    if(dry&8)d=Math.min(d,Math.hypot(31.5-x,31.5-y));
+    if(dry&32)d=Math.min(d,Math.hypot(x+.5,31.5-y));
+    if(dry&128)d=Math.min(d,Math.hypot(x+.5,y+.5));
+    const r=hash(x,y), corner=Math.hypot(Math.max(0,8-x,x-23),Math.max(0,8-y,y-23));
+    if(d<2 || d<5 && r%5>Math.floor(d) || corner>9 && d<8)continue;
+    const c=r%11===0?0x686039:r%3?0x514829:0x595032, i=(y*32+x)*4;
+    data[i]=c>>16;data[i+1]=(c>>8)&255;data[i+2]=c&255;data[i+3]=Math.round((d<6?.7:.94)*255);
+  }
+  return data;
+}

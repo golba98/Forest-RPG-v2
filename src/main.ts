@@ -1,3 +1,4 @@
+import { enableLandscapeDiagnostics } from './world/LandscapeTrace';
 import { Vector2 } from './core/math/Vector2';
 import { EventBus } from './core/events/EventBus';
 import { InputManager } from './core/input/InputManager';
@@ -25,6 +26,7 @@ if (!canvas) throw new Error('Game canvas missing');
 canvas.style.cssText = 'display:block;width:100vw;height:100vh;image-rendering:pixelated';
 const loading = document.querySelector<HTMLElement>('#loading-screen');
 const params = parseLaunchParams(location.search, import.meta.env.DEV);
+enableLandscapeDiagnostics(params.debug);
 const simulation = new Simulation();
 simulation.onPortalChange = (change) => bus.emit('portal:stateChanged', change);
 simulation.onRoundComplete = (status) => bus.emit('round:completed', status);

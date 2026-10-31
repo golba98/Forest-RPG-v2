@@ -4,7 +4,7 @@ import { plateauDecoration, hilltopSpritePlacement } from '../world/HilltopDecor
 import { Tile } from '../types/tiles';
 import type { PropKind, WorldProp } from '../types/world';
 import { decorAlias } from './assetCatalog';
-import { waterBaseAlias, waterEdgeAlias, waterEdges, bankAlias, mudAlias } from './waterArt';
+import { waterBaseAlias, waterEdgeAlias, waterEdges, bankAlias } from './waterArt';
 import { HILL_ATLAS_ALIAS, NB, hillFrame, hillShadowEastFrame, hillShadowFrame, hillStairsFrame, isElevatedTile, reduceMask, type AtlasRect } from './hillAutotile';
 
 /**
@@ -124,7 +124,7 @@ export function getTileArt(tileId: number, x: number, y: number, elevation = 0, 
     // Gentle tone tint breaks up the repeating swell; shoreline overlays sit on top.
     return [fill(waterBaseAlias(h), FULL, toneTint(x, y, 0.18)), ...waterEdges(shore).map((edge) => fill(waterEdgeAlias(edge)))];
   }
-  const layers = tileId === Tile.MUD ? [grass(), fill(mudAlias(shore))] : getGroundArt(tileId, x, y);
+  const layers = getGroundArt(tileId, x, y);
   if (shore && [Tile.GRASS, Tile.FLOWERS].includes(tileId as 1 | 9)) layers.push(fill(bankAlias(shore)));
   const base = layers[0];
   if (base?.alias === GRASS_ALIAS && base.tint === WHITE) layers[0] = grass(toneTint(x, y));
@@ -137,7 +137,8 @@ export function getTileArt(tileId: number, x: number, y: number, elevation = 0, 
 function getGroundArt(tileId: number, x: number, y: number): TileArtLayer[] {
   switch (tileId) {
     case Tile.MUD:
-      return [fill('tile_mud')];
+      // Soil composition is sampled from the world field when building chunks.
+      return [grass()];
     case Tile.GRASS:
       return [grass()];
     case Tile.FLOWERS: {
