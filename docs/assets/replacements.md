@@ -26,6 +26,33 @@ Generation brief: single isolated low decaying woodland stump insect dwelling on
 
 `SurfaceWaterLayer`, `WaterLayer` and `WeatherLayer` draw puddles, crests, splashes and ripples from native world pixels. No downloaded or AI-generated bitmap assets were added for this work. The bridge and nest image assets are unchanged.
 
+## World art and treasure (2026-10-31)
+
+The first procedural vegetation pass was rejected after visual review. It is superseded by the
+user-selected **Detailed LPC forest** artwork. `woodlandArt.ts` has been removed; `lootArt.ts`
+retains its project-authored coin/chest drawing code without changing those mechanics or pixels.
+
+| Asset | Native pixels | Source / production use |
+|---|---|---|
+| Young / compatibility trees | 64×64 | LPC Trees `trees-pale.png`, complete small source trees |
+| Tall / broad trees | 64×96 / 96×128 | LPC Trees, new generator-v12 worlds only |
+| Bushes, logs, stump, upright cut trunk | 32×32 frames | LPC Plants, replaces existing prop slots |
+| Pink/yellow/mixed flowers, ferns, grass, mushrooms | 32×32 frames | LPC Plants, including flower terrain and hilltop detail |
+| Coin | 128×32, four frames | Project-owned runtime drawing, existing currency |
+| Wooden / reinforced chest | Four 32×32 frames each | Project-owned runtime drawing, saved opening states |
+
+LPC source sheets are shipped unmodified in `public/assets/images/environment/lpc/`. Pixel
+rectangles and root anchors are in `src/rendering/vegetationArt.ts`; no source scaling or palette
+conversion is used. Existing original game PNGs remain for provenance/compatibility.
+
+Sources: [LPC Trees](https://opengameart.org/content/lpc-trees) and
+[LPC Flowers / Plants / Fungi / Wood](https://opengameart.org/content/lpc-flowers-plants-fungi-wood).
+Both compilations are distributed under **CC BY-SA 3.0**, by bluecarrot16 and their credited
+contributors. Full original contributor lists, source links, licence text and the modification
+statement ship in the [public attribution folder](../../public/assets/images/environment/lpc/README.md).
+Artwork derivatives must retain that licence; these notices do not change unrelated project-code
+licensing. Source sheets have their original alpha, including translucent contact shadows.
+
 ## Ghost grove pixel art (2026-10-29)
 
 The procedural grey trunk/branches, block stones and schematic mushrooms in
