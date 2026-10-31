@@ -42,7 +42,7 @@ async function verifyPixels(page: Page, info: TestInfo, name: string, anim: stri
   // of SE. Require the actual horizontal mirror, retaining frame order.
   const mirror = anim === 'run' && suffix === 'southwest';
   const source = mirror ? 'southeast' : suffix;
-  expect(sprite.assetId).toBe(`player_${anim}_${source}`);
+  expect(sprite.assetId).toBe(`player_${anim}_${suffix}`);
   const file = `public/assets/images/characters/player/${anim}/${anim}_${source}.png`;
   const metadata = await sharp(file).metadata();
   const count = anim === 'run' ? 6 : 4;
