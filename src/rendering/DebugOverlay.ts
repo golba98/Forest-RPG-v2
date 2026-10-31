@@ -29,8 +29,10 @@ interface HudBounds { readonly x: number; readonly y: number; readonly width: nu
 
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
+  readonly playerSlash?: import('./effects/EffectsLayer').PlayerSlashView | null;
   /** Actual displayed texture and transform, rather than the next requested pose. */
   readonly playerSprite?: {
+    readonly position: { readonly x: number; readonly y: number };
     readonly anim: AnimState;
     readonly facing: Direction;
     readonly animTimeMs: number;

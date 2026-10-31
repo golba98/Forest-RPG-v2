@@ -1,0 +1,136 @@
+{
+  "runningBolt": {
+    "fixture": {
+      "player": [
+        20.5,
+        20.5
+      ],
+      "enemyOffset": [
+        4,
+        4
+      ]
+    },
+    "repeat": 10,
+    "steps": [
+      {
+        "down": [
+          "KeyW",
+          "KeyA",
+          "ShiftLeft"
+        ],
+        "advanceMs": 17
+      },
+      {
+        "tap": "KeyR",
+        "advanceMs": 17,
+        "expect": "NW running pixels; independent bolt aim"
+      },
+      {
+        "tap": "KeyE",
+        "advanceMs": 17,
+        "expect": "new slash ID and combo step"
+      },
+      {
+        "up": [
+          "KeyW",
+          "KeyA"
+        ],
+        "down": [
+          "KeyS",
+          "KeyD"
+        ],
+        "advanceMs": [
+          1,
+          16,
+          33,
+          17
+        ],
+        "expect": "NW slash stays attached at player.y - 12 pixels"
+      },
+      {
+        "tap": "Escape",
+        "advanceMs": 17
+      },
+      {
+        "advanceMs": 100,
+        "expect": "same slash identity, age, origin and angle"
+      },
+      {
+        "tap": "Escape",
+        "advanceMs": 300,
+        "expect": "slash expired"
+      },
+      {
+        "up": [
+          "KeyS",
+          "KeyD",
+          "ShiftLeft"
+        ]
+      }
+    ]
+  },
+  "heldCombinations": {
+    "families": [
+      [
+        "KeyW",
+        "KeyA",
+        "KeyS",
+        "KeyD"
+      ],
+      [
+        "ArrowUp",
+        "ArrowLeft",
+        "ArrowDown",
+        "ArrowRight"
+      ]
+    ],
+    "maskRange": [
+      0,
+      15
+    ],
+    "intervalMs": 100,
+    "expect": "signed displacement from resolved key vector; distance = speed times actual fixed-step duration"
+  },
+  "seededTraces": {
+    "seeds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "hz": [
+      30,
+      60,
+      144,
+      240
+    ],
+    "durationSeconds": 2,
+    "lcg": "state = (imul(state, 1664525) + 1013904223) >>> 0",
+    "directionOrder": [
+      "N",
+      "E",
+      "S",
+      "W",
+      "NW",
+      "NE",
+      "SW",
+      "SE"
+    ],
+    "directionSelection": "state % 8",
+    "attack": "state & 16",
+    "eventTimeMs": "i * 1000 / hz + (i % 2 ? .001 : -.001)",
+    "expect": "Each accepted swing retains its initial direction for that ID"
+  },
+  "liveRAF": {
+    "controlledClock": false,
+    "repeat": 10,
+    "samplesPerRepeat": 5,
+    "sequence": "NW + sprint; R; sample five actual RAF frames; E; reverse SE; verify locked NW punch; release and wait for completion"
+  }
+}

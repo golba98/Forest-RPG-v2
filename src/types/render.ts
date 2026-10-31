@@ -1,4 +1,4 @@
-import type { AnimState, Direction, EntityKind, ProjectileType } from './entities';
+import type { AnimState, Direction, EntityKind, ProjectileType, PlayerAttackView } from './entities';
 import type { WorldData } from './world';
 
 export type WeatherKind = 'clear' | 'leaves' | 'rain' | 'storm';
@@ -15,6 +15,8 @@ export type PortalVisualState = 'locked' | 'reacting' | 'open' | 'transitioning'
  * Coordinates are in tiles; the renderer interpolates prev→current with alpha.
  */
 export interface RenderEntityView {
+  readonly chest?: import('./entities').ChestState;
+  readonly requiredForCompletion?: boolean;
   readonly formation?: number;
   readonly nestEmergence?: { readonly siteId: string; readonly progress: number };
   /** A lifecycle fade already handled this removal; do not replay a death effect. */
@@ -31,6 +33,7 @@ export interface RenderEntityView {
   readonly facing: Direction;
   readonly anim: AnimState;
   readonly animTimeMs: number;
+  readonly attack?: PlayerAttackView | null;
   /** Vertical lift in tiles (jump arc), drawn as upward offset without changing depth. */
   readonly lift: number;
   /** Player is standing in water, not on a bridge or airborne. */

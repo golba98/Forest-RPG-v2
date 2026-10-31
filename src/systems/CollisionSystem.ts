@@ -13,8 +13,12 @@ import { Tile, TILE_PROPERTIES, type TileId, type TileProperties } from '../type
 import { propFootprint } from '../world/ObjectSemantics';
 
 /** Visibility queries may inspect an interaction target through its own base. Movement never bypasses nests. */
-export interface CollisionQueryOptions { readonly ignoreNestId?: string }
+export interface CollisionQueryOptions { readonly ignoreNestId?: string; readonly ignoreChestId?: string }
 export const CONTACT_EPSILON = 1e-9;
+const chestColliders = new WeakMap<CollisionWorld, readonly Collider[]>();
+export function registerChestColliders(world: CollisionWorld, chests: readonly { id: string; x: number; y: number }[]): void {
+  chestColliders.set(world, chests.map(c => ({ ownerId: c.id, source: 'object', shape: 'aabb', classification: 'solid', minX: c.x - 0.38, maxX: c.x + 0.38, minY: c.y + 0.05, maxY: c.y + 0.4 })));
+}
 const indexes = new WeakMap<CollisionWorld, Map<number, Collider[]>>();
 function indexedProps(world: CollisionWorld): Map<number, Collider[]> {
   const cached = indexes.get(world);
@@ -92,6 +96,8 @@ export function queryColliders(
     make('boundary:s', 'boundary', 0, height, width, 1e9),
   ];
   if (profile === 'ghost') return colliders;
+  if (profile !== 'jumping') for (const chest of chestColliders.get(world) ?? [])
+    if (chest.ownerId !== options.ignoreChestId && boundsOverlap(area, chest)) colliders.push(chest);
   if (profile === 'player' || profile === 'jumping')
     for (const site of world.encounterSites ?? []) {
       if (site.kind !== 'nest' || site.id === options.ignoreNestId) continue;

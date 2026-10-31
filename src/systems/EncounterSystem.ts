@@ -55,8 +55,9 @@ export class EncounterSystem {
     return this.ai.debug();
   }
   private attack: PlayerAttack | null = null;
+  private swingSequence = 0;
   getPlayerAttack(): PlayerAttackView | null {
-    return this.attack ? { direction: this.attack.direction, elapsedMs: this.attack.elapsedMs } : null;
+    return this.attack ? { swingId: this.attack.swingId, comboStep: this.attack.comboStep, direction: this.attack.direction, elapsedMs: this.attack.elapsedMs } : null;
   }
   resetPlayerAttack(): void {
     this.attack = null;
@@ -102,9 +103,13 @@ export class EncounterSystem {
       p.stats.stamina -= C.player.attackStaminaCost;
       // Movement intent wins even when collision prevents displacement. Aim
       // assist remains useful when stationary, but never redirects a moving punch.
-      if (intent.moveX === 0 && intent.moveY === 0)
-        this.aimAt(world, p, enemies, C.combat.attackRangeTiles, C.combat.angleToleranceRad);
+      if (intent.moveX === 0 && intent.moveY === 0) {
+        const target = this.aimAt(world, p, enemies, C.combat.attackRangeTiles, C.combat.angleToleranceRad);
+        if (target) p.facing = directionFromVector(target.x - p.x, target.y - p.y, p.facing);
+      }
       this.attack = {
+        swingId: ++this.swingSequence,
+        comboStep: comboHit,
         direction: directionFromVector(intent.moveX, intent.moveY, p.facing),
         elapsedMs: 0,
         pendingStrike: true,
@@ -143,13 +148,15 @@ export class EncounterSystem {
     if (intent.skillE && p.stats.mana >= C.combat.bolt.manaCost) {
       p.stats.mana -= C.combat.bolt.manaCost;
       const target = this.aimAt(world, p, enemies, BOLT_ASSIST_RANGE_TILES, BOLT_ASSIST_CONE_RAD);
-      this.onFeedback?.('bolt', p);
       let [fx, fy] = VECTORS[p.facing];
       if (target) {
         const d = Math.hypot(target.x - p.x, target.y - p.y) || 1;
         fx = (target.x - p.x) / d;
         fy = (target.y - p.y) / d;
       }
+      const aim = directionFromVector(fx, fy, p.facing);
+      if (intent.moveX === 0 && intent.moveY === 0) p.facing = aim;
+      this.onFeedback?.('bolt', p);
       entities.push({
         id: `bolt-${this.sequence++}`,
         kind: 'projectile',
@@ -160,7 +167,7 @@ export class EncounterSystem {
         prevX: p.x,
         prevY: p.y,
         halfSize: 0.12,
-        facing: p.facing,
+        facing: aim,
         anim: 'idle',
         animTimeMs: 0,
         alive: true,
@@ -249,21 +256,12 @@ export class EncounterSystem {
           maxDistance: 10,
         }),
     });
-    for (const e of entities) {
-      if (e.kind === 'pickup' && e.alive && Math.hypot(e.x - p.x, e.y - p.y) < 0.7) {
-        e.alive = false;
-        if (e.pickupType === 'coin') {
-          p.stats.coins++;
-          this.onFeedback?.('coin', p);
-        } else if (e.pickupType === 'health_potion') p.inventory.healthPotions++;
-        else if (e.pickupType === 'speed_potion') p.inventory.speedPotions++;
-      }
-    }
+
   }
   /**
    * Aim assist: when no visible enemy within `reach` lies inside the facing
-   * cone, turn the player toward the nearest visible one in reach. Returns the
-   * enemy that was turned toward, if any.
+   * cone, select the nearest visible one in reach. Selection never writes facing;
+   * callers decide whether stationary resting direction should follow the aim.
    */
   private aimAt(
     world: WorldData,
@@ -286,7 +284,6 @@ export class EncounterSystem {
         nearestDistance = distance;
       }
     }
-    if (nearest && nearestDistance > 1e-6) p.facing = facingToward(nearest.x - p.x, nearest.y - p.y);
     return nearest;
   }
   private cutFlowers(
@@ -416,6 +413,10 @@ export class EncounterSystem {
           animTimeMs: 0,
           alive: true,
         });
+      if (!world.meta.isTutorial && e.enemyType !== 'ghost') {
+        entities.push({ id: `coin-drop:${e.id}`, kind: 'pickup', pickupType: 'coin', value: e.enemyType === 'beetle' ? 5 : 1, requiredForCompletion: false,
+          x: e.x, y: e.y, prevX: e.x, prevY: e.y, halfSize: 0.2, facing: 'S', anim: 'idle', animTimeMs: 0, alive: true });
+      }
       const oldLevel = p.stats.level;
       awardXp(p.stats, e.enemyType === 'beetle' ? 100 : 20);
       if (p.stats.level > oldLevel) this.onFeedback?.('level', p);

@@ -1,0 +1,105 @@
+
+> forest-rpg-v2@2.0.0 test
+> vitest run --minWorkers=1 --maxWorkers=2 --testTimeout=60000
+
+
+ RUN  v2.1.9 /tmp/forest-directional-checkpoint-sa0u9icx
+
+stderr | tests/unit/audio.test.ts > SoundSynthesizer Web Audio Node Graph Simulation > handles AudioContext constructor throwing exception gracefully by disabling audio
+[SoundSynthesizer] AudioContext initialization failed; disabling audio: Error: NotAllowedError: AudioContext construction was disallowed
+    at new ThrowingAudioContext (/tmp/forest-directional-checkpoint-sa0u9icx/tests/unit/audio.test.ts:276:17)
+    at SoundSynthesizer.init (/tmp/forest-directional-checkpoint-sa0u9icx/src/audio/SoundSynthesizer.ts:75:20)
+    at /tmp/forest-directional-checkpoint-sa0u9icx/tests/unit/audio.test.ts:286:24
+    at file:///home/k9-vortex/Development/2-TypeScript/18-Forest%20RPG%20v2-directional-stability/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/k9-vortex/Development/2-TypeScript/18-Forest%20RPG%20v2-directional-stability/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/k9-vortex/Development/2-TypeScript/18-Forest%20RPG%20v2-directional-stability/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/k9-vortex/Development/2-TypeScript/18-Forest%20RPG%20v2-directional-stability/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at runSuite (file:///home/k9-vortex/Development/2-TypeScript/18-Forest%20RPG%20v2-directional-stability/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/k9-vortex/Development/2-TypeScript/18-Forest%20RPG%20v2-directional-stability/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ tests/unit/audio.test.ts (16 tests) 30ms
+ ✓ tests/integration/m2_challenger_stress.test.ts (22 tests) 73ms
+ ✓ tests/unit/animation/playerPunchDirection.test.ts (160 tests) 323ms
+ ✓ tests/unit/simulation/encounter-director.test.ts (21 tests) 379ms
+ ✓ tests/unit/simulation/collision-regression.test.ts (33 tests) 112ms
+ ✓ tests/unit/simulation/ledge-contact.test.ts (19 tests) 137ms
+ ✓ tests/unit/simulation/movement.test.ts (10 tests) 30ms
+ ✓ tests/unit/simulation/shoreline.test.ts (19 tests) 106ms
+ ✓ tests/unit/animation/resolveSpriteFrame.test.ts (38 tests) 2210ms
+   ✓ AnimationDefs integrity > every frame rect stays inside its declared sheet for all states and directions 2199ms
+ ✓ tests/unit/simulation/bridges.test.ts (14 tests) 59ms
+ ✓ tests/unit/core/GameLoop.test.ts (12 tests) 6ms
+ ✓ tests/unit/core/SpatialHashGrid.test.ts (11 tests) 6ms
+ ✓ tests/unit/core/ServiceContainer.test.ts (9 tests) 4ms
+ ✓ tests/unit/core/EventBus.test.ts (8 tests) 6ms
+ ✓ tests/unit/core/InputManager.test.ts (9 tests) 4ms
+ ✓ tests/unit/core/AABB.test.ts (9 tests) 4ms
+ ✓ tests/unit/simulation/ai-regression.test.ts (7 tests) 85ms
+ ✓ tests/unit/simulation/nest-collision.test.ts (20 tests) 311ms
+ ✓ tests/unit/world/rivers.test.ts (6 tests) 3757ms
+   ✓ final selected seeds contain no corner contacts or isolated river cells 3722ms
+ ✓ tests/unit/simulation/encounters.test.ts (8 tests) 24ms
+ ✓ tests/unit/rendering/hillAutotile.test.ts (7 tests) 2808ms
+   ✓ hill autotile > gives every elevated cell of generated worlds an atlas frame 2767ms
+ ✓ tests/unit/world/bridges.test.ts (16 tests) 880ms
+ ✓ tests/unit/rendering/EntityAnimator.test.ts (7 tests) 4ms
+ ✓ tests/unit/rendering/visualManifest.test.ts (5 tests) 1392ms
+   ✓ sprite frame rectangles > are integer rectangles inside their PNG (no sub-pixel sampling or bleeding) 1380ms
+ ✓ tests/unit/simulation/portal-regression.test.ts (4 tests) 20ms
+ ✓ tests/unit/rendering/EffectsLayer.test.ts (4 tests) 7ms
+ ✓ tests/unit/world/topology-regression.test.ts (3 tests) 19455ms
+   ✓ final terrain topology > validates 100 deterministic seeds including lower rows and objective clearance 19452ms
+ ✓ tests/unit/rendering/portalVisualState.test.ts (7 tests) 4ms
+ ✓ tests/unit/simulation/combat-aim.test.ts (5 tests) 19ms
+ ✓ tests/unit/game/IntentMapper.test.ts (7 tests) 3ms
+ ✓ tests/unit/world/encounters.test.ts (4 tests) 8996ms
+   ✓ places one safe nest and deterministic limited groves on 32x32 maps 471ms
+   ✓ places one safe nest and deterministic limited groves on 48x48 maps 545ms
+   ✓ places one safe nest and deterministic limited groves on 150x150 maps 7954ms
+ ✓ tests/unit/world/stairs.test.ts (5 tests) 4691ms
+   ✓ hill stairs > gives every walkable hill top a staircase (seed 1) 1662ms
+   ✓ hill stairs > gives every walkable hill top a staircase (seed 42) 953ms
+   ✓ hill stairs > gives every walkable hill top a staircase (seed 123) 1254ms
+   ✓ hill stairs > gives every walkable hill top a staircase (seed 1337) 412ms
+   ✓ hill stairs > gives every walkable hill top a staircase (seed 9001) 409ms
+ ✓ tests/unit/core/Vector2.test.ts (8 tests) 3ms
+ ✓ tests/unit/rendering/forestTrees.test.ts (3 tests) 5655ms
+   ✓ planForestTrees > covers every solid forest tile in generated worlds and the tutorial 4747ms
+   ✓ planForestTrees > only puts trunks on solid forest tiles 907ms
+ ✓ tests/unit/rendering/waterArt.test.ts (4 tests) 4ms
+ ✓ tests/unit/rendering/hudLayout.test.ts (3 tests) 7ms
+ ✓ tests/unit/simulation/nest-emergence.test.ts (2 tests) 36ms
+ ✓ tests/unit/rendering/wading.test.ts (3 tests) 4ms
+ ✓ tests/unit/rendering/weather.test.ts (2 tests) 95ms
+ ✓ tests/unit/simulation/surface-moisture.test.ts (2 tests) 45ms
+ ✓ tests/unit/core/Interpolation.test.ts (5 tests) 2ms
+stdout | tests/unit/world/generation.test.ts > world generation > is deterministic with a solid border and difficulty counts
+150x150 generation ms: 1549.3825809999998
+
+ ✓ tests/unit/world/generation.test.ts (3 tests) 6874ms
+   ✓ world generation > is deterministic with a solid border and difficulty counts 3230ms
+   ✓ world generation > keeps every traversable tile and objective connected after props 3642ms
+ ✓ tests/unit/rendering/minimap.test.ts (3 tests) 4ms
+ ✓ tests/unit/core/Direction.test.ts (9 tests) 3ms
+ ✓ tests/unit/world/camera.test.ts (2 tests) 3ms
+ ✓ tests/unit/core/RefreshRates.test.ts (5 tests) 5ms
+ ✓ tests/unit/smoke.test.ts (1 test) 2ms
+ ✓ tests/integration/m2_challenger_2_stress.test.ts (8 tests) 261ms
+ ✓ tests/unit/persistence/saves.test.ts (17 tests) 137ms
+ ✓ tests/integration/hilltop-objects.test.ts (24 tests) 1810ms
+   ✓ migrates saved terrain and overlapping actors locally, preserves progress, and reloads without duplicates 415ms
+ ✓ tests/unit/persistence/encounters.test.ts (8 tests) 234ms
+ ✓ tests/unit/game/Game.test.ts (15 tests) 12ms
+ ✓ tests/unit/core/InputManagerGating.test.ts (5 tests) 5ms
+ ✓ tests/unit/persistence/settings.test.ts (3 tests) 6ms
+ ✓ tests/unit/world/spawn-spacing.test.ts (3 tests) 31692ms
+   ✓ enemy spawn spacing > keeps the pack and the boss away from the player and spread out (easy) 11625ms
+   ✓ enemy spawn spacing > keeps the pack and the boss away from the player and spread out (normal) 9974ms
+   ✓ enemy spawn spacing > keeps the pack and the boss away from the player and spread out (hard) 10093ms
+ ✓ tests/unit/persistence/onboarding.test.ts (2 tests) 2ms
+
+ Test Files  56 passed (56)
+      Tests  665 passed (665)
+   Start at  16:54:51
+   Duration  65.31s (transform 868ms, setup 0ms, collect 2.82s, tests 92.84s, environment 1.06s, prepare 2.10s)

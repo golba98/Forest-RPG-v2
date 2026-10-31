@@ -13,6 +13,9 @@ export type AnimState = 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'hurt' | '
 
 /** Transient combat presentation, independent of the player's current movement facing. */
 export interface PlayerAttackView {
+  /** Monotonic within a world; restored attacks are cancelled. */
+  readonly swingId: number;
+  readonly comboStep: number;
   readonly direction: Direction;
   readonly elapsedMs: number;
 }
@@ -122,7 +125,16 @@ export interface ProjectileEntity extends EntityBase {
   maxDistance: number;
 }
 
+export interface ChestState {
+  variant: 'wooden' | 'reinforced';
+  state: 'closed' | 'opening' | 'opened';
+  elapsedMs: number;
+}
+
 export interface PickupEntity extends EntityBase {
+  value?: number;
+  requiredForCompletion?: boolean;
+  chest?: ChestState;
   readonly kind: 'pickup';
   readonly pickupType: PickupType;
 }

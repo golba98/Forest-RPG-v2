@@ -46,5 +46,5 @@ it('samples a deck above water and rejects obstacles rather than floating on the
     ...world,
     props: [{ id: 0, kind: 'tree' as const, tileX: 10, tileY: 10, solid: true }],
   };
-  expect(surfaceSites(blocked).sample(10.5 * 32, 10.5 * 32)).toBeNull();
+  expect(surfaceSites(blocked).sample(10.5 * 32, 10.8 * 32)).toBeNull();
 });

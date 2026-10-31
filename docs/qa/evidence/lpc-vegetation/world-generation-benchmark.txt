@@ -1,0 +1,24 @@
+
+> forest-rpg-v2@2.0.0 benchmark
+> vitest bench --run tests/benchmarks/world.bench.ts
+
+Benchmarking is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v2.1.9 /home/k9-vortex/Development/2-TypeScript/18-Forest-RPG-v2-world-art
+
+
+ RUN  v2.1.9 /home/k9-vortex/Development/2-TypeScript/18-Forest-RPG-v2-world-art
+
+ ✓ tests/benchmarks/world.bench.ts > 150x150 world generation 14942ms
+     name                                      hz     min       max    mean     p75       p99      p995      p999      rme  samples
+   · normal difficulty with varying seeds  1.2260  501.09  1,616.91  815.63  873.03  1,616.91  1,616.91  1,616.91  ±29.52%       10
+
+ BENCH  Summary
+
+  normal difficulty with varying seeds - tests/benchmarks/world.bench.ts > 150x150 world generation
+
+
+ BENCH  Summary
+
+  normal difficulty with varying seeds - tests/benchmarks/world.bench.ts > 150x150 world generation
