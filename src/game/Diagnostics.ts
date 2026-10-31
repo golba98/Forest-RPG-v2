@@ -132,6 +132,7 @@ export function createDiagnostics(
         hurtTimer: p.hurtTimerMs,
         comboCount: p.comboCount,
         direction: p.facing,
+        attackDirection: simulation.getPlayerAttack()?.direction ?? null,
         coins: p.stats.coins,
         potions: { health: p.inventory.healthPotions, speed: p.inventory.speedPotions },
         speedBuffTimer: p.speedBuffMs,

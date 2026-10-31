@@ -3,28 +3,23 @@ import { Tile } from '../types/tiles';
 import { awardXp } from './ProgressionSystem';
 import { Rng } from '../world/Rng';
 import { GAME_CONFIG as C } from '../config/GameConfig';
-import type { Entity, EnemyEntity, PlayerEntity, PlayerIntent, Direction } from '../types/entities';
+import type { Entity, EnemyEntity, PlayerEntity, PlayerIntent, PlayerAttackView } from '../types/entities';
+import { directionFromVector, DIRECTION_VECTORS as VECTORS } from '../core/math/Direction';
 import type { WorldData } from '../types/world';
 import { canOccupy, hasClearPath, moveWithCollision, invalidatePropIndex } from './CollisionSystem';
-
-const VECTORS: Record<Direction, readonly [number, number]> = {
-  N: [0, -1],
-  NE: [Math.SQRT1_2, -Math.SQRT1_2],
-  E: [1, 0],
-  SE: [Math.SQRT1_2, Math.SQRT1_2],
-  S: [0, 1],
-  SW: [-Math.SQRT1_2, Math.SQRT1_2],
-  W: [-1, 0],
-  NW: [-Math.SQRT1_2, -Math.SQRT1_2],
-};
 
 export type CombatFeedback = 'swing' | 'spin' | 'bolt' | 'hurt' | 'coin' | 'level' | 'crush';
 
 /** 8-way facing for a direction vector. */
-export function facingToward(dx: number, dy: number): Direction {
-  const order: readonly Direction[] = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
-  const octant = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
-  return order[(octant + 8) % 8] ?? 'S';
+export const facingToward = directionFromVector;
+
+const ATTACK_DURATION_MS = 360;
+const STRIKE_AT_MS = 120;
+
+interface PlayerAttack extends PlayerAttackView {
+  elapsedMs: number;
+  pendingStrike: boolean;
+  readonly damage: number;
 }
 
 /** Bolt aim assist only kicks in when nothing is within this cone of the facing. */
@@ -58,12 +53,17 @@ export class EncounterSystem {
   getNavigationDebug() {
     return this.ai.debug();
   }
-  private attackRemaining = 0;
+  private attack: PlayerAttack | null = null;
+  getPlayerAttack(): PlayerAttackView | null {
+    return this.attack ? { direction: this.attack.direction, elapsedMs: this.attack.elapsedMs } : null;
+  }
+  resetPlayerAttack(): void {
+    this.attack = null;
+    this.comboRemaining = 0;
+  }
   private sinceDamageMs = 0;
   private regenMs = 0;
   private comboRemaining = 0;
-  private pendingStrike = false;
-  private strikeDamage = 0;
   step(
     world: WorldData,
     p: PlayerEntity,
@@ -88,34 +88,35 @@ export class EncounterSystem {
     p.hurtTimerMs = Math.max(0, p.hurtTimerMs - ms);
     p.stats.mana = Math.min(p.stats.maxMana, p.stats.mana + C.player.manaRegenPerSec * dt);
     this.comboRemaining = Math.max(0, this.comboRemaining - ms);
-    if (this.comboRemaining === 0 && this.attackRemaining <= 0) p.comboCount = 0;
+    if (this.comboRemaining === 0 && !this.attack) p.comboCount = 0;
     const enemies = entities.filter((e): e is EnemyEntity => e.kind === 'enemy' && e.alive && e.combatReady !== false);
     if (
       intent.attack &&
-      this.attackRemaining <= 0 &&
+      !this.attack &&
       p.stats.stamina >= C.player.attackStaminaCost
     ) {
       const comboHit = this.comboRemaining > 0 ? p.comboCount + 1 : 1;
       p.comboCount = comboHit >= 3 ? 0 : comboHit;
       this.comboRemaining = C.combat.comboWindowMs;
-      this.attackRemaining = 360;
-      this.pendingStrike = true;
-      this.strikeDamage =
-        comboHit === 3 ? Math.floor(p.stats.baseDamage * 1.5) + 1 : p.stats.baseDamage;
       p.stats.stamina -= C.player.attackStaminaCost;
-      p.animTimeMs = 0;
-      // Facing only changes while moving, so an enemy that steps up beside the
-      // player could never be hit. Turn toward the nearest one in reach instead.
-      this.aimAt(world, p, enemies, C.combat.attackRangeTiles, C.combat.angleToleranceRad);
+      // Movement intent wins even when collision prevents displacement. Aim
+      // assist remains useful when stationary, but never redirects a moving punch.
+      if (intent.moveX === 0 && intent.moveY === 0)
+        this.aimAt(world, p, enemies, C.combat.attackRangeTiles, C.combat.angleToleranceRad);
+      this.attack = {
+        direction: directionFromVector(intent.moveX, intent.moveY, p.facing),
+        elapsedMs: 0,
+        pendingStrike: true,
+        damage: comboHit === 3 ? Math.floor(p.stats.baseDamage * 1.5) + 1 : p.stats.baseDamage,
+      };
       this.onFeedback?.('swing', p);
     }
-    if (this.attackRemaining > 0) {
-      this.attackRemaining -= ms;
-      p.anim = 'attack';
-      p.animTimeMs = 360 - this.attackRemaining;
-      if (this.pendingStrike && this.attackRemaining <= 240) {
-        this.pendingStrike = false;
-        const [fx, fy] = VECTORS[p.facing];
+    const attack = this.attack;
+    if (attack) {
+      attack.elapsedMs += ms;
+      if (attack.pendingStrike && attack.elapsedMs >= STRIKE_AT_MS) {
+        attack.pendingStrike = false;
+        const [fx, fy] = VECTORS[attack.direction];
         for (const e of enemies) {
           const dx = e.x - p.x,
             dy = e.y - p.y,
@@ -125,10 +126,11 @@ export class EncounterSystem {
             (distance <= C.combat.attackRangeTiles &&
               (dx * fx + dy * fy) / distance >= Math.cos(C.combat.angleToleranceRad))
           )
-            this.hit(world, p, e, this.strikeDamage, entities);
+            this.hit(world, p, e, attack.damage, entities);
         }
         this.cutFlowers(world, p, entities, fx, fy);
       }
+      if (attack.elapsedMs >= ATTACK_DURATION_MS) this.attack = null;
     }
     if (intent.skillQ && p.stats.mana >= C.combat.spin.manaCost) {
       p.stats.mana -= C.combat.spin.manaCost;

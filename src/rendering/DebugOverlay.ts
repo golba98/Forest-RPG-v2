@@ -2,7 +2,7 @@ import { entityFootprint, resolveFootprint } from '../systems/EntityFootprint';
 import { isRaisedSurface } from '../world/HillCollisionGeometry';
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { Tile, TILE_PROPERTIES, type TileId } from '../types/tiles';
-import type { Entity } from '../types/entities';
+import type { Entity, AnimState, Direction } from '../types/entities';
 import type { WorldData } from '../types/world';
 import { PORTAL_ENTER_RADIUS_ASSUMED } from './portalVisualState';
 import type { MinimapMode } from './Minimap';
@@ -29,6 +29,17 @@ interface HudBounds { readonly x: number; readonly y: number; readonly width: nu
 
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
+  /** Actual displayed texture and transform, rather than the next requested pose. */
+  readonly playerSprite?: {
+    readonly anim: AnimState;
+    readonly facing: Direction;
+    readonly animTimeMs: number;
+    readonly assetId: string;
+    readonly frame: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
+    readonly scaleX: number; readonly scaleY: number; readonly rotation: number;
+    readonly transform: { readonly a: number; readonly b: number; readonly c: number; readonly d: number };
+    readonly bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  } | null;
   readonly propViews?: number;
   readonly hilltopViews?: readonly { id: number; x: number; y: number; depth: number; visible: boolean }[];
   readonly playerDepth?: number | undefined;

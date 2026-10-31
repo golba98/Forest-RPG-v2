@@ -63,6 +63,8 @@ interface EntityVisual {
   /** Consecutive swings within the combo window (every third is the finisher). */
   swings: number;
   lastSwingAt: number;
+  /** Clip actually assigned to the sprite, retained during impact frame holds. */
+  displayed: Pick<RenderEntityView, 'anim' | 'facing' | 'animTimeMs'> | null;
 }
 
 interface PortalEntry {
@@ -415,7 +417,7 @@ export class PixiRenderer implements IRenderer {
       let visual = this.entities.get(e.id);
       const isNew = !visual;
       if (!visual) {
-        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false, quietRemoval: false, shadow: null, lastAnim: e.anim, lastAnimTimeMs: e.animTimeMs, swings: 0, lastSwingAt: -Infinity };
+        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false, quietRemoval: false, shadow: null, lastAnim: e.anim, lastAnimTimeMs: e.animTimeMs, swings: 0, lastSwingAt: -Infinity, displayed: null };
         if (e.kind !== 'projectile') {
           visual.shadow = new Sprite(fx.glow);
           visual.shadow.anchor.set(0.5);
@@ -429,13 +431,19 @@ export class PixiRenderer implements IRenderer {
       visual.quietRemoval = e.quietRemoval === true;
       const anim = this.animator.resolve(e.nestEmergence ? { ...e, spriteKey, anim: 'walk', moving: true, animTimeMs: e.nestEmergence.progress * 800 } : spriteKey === e.spriteKey ? e : { ...e, spriteKey }, this.paused ? 0 : dt);
       const f = resolveSpriteFrame(anim);
-      const holdFrame = this.impactHoldMs > 0 && !isNew && (e.kind === 'player' || e.kind === 'enemy');
+      const started = e.anim === 'attack' && (visual.lastAnim !== 'attack' || e.animTimeMs + 1 < visual.lastAnimTimeMs);
+      // Hold a frame within its clip, never an old pose from another facing or
+      // animation. A new swing must display its own first frame immediately.
+      const holdFrame = this.impactHoldMs > 0 && !isNew && !started &&
+        visual.displayed?.anim === anim.anim && visual.displayed.facing === anim.facing &&
+        (e.kind === 'player' || e.kind === 'enemy');
       if (!holdFrame) {
         let texture: Texture;
         if (spriteKey === 'magic_bolt') texture = fx.bolt;
         else if (f.placeholder) texture = this.textures.getPlaceholder();
         else texture = this.textures.getRect(f.textureAlias, f.frame.x, f.frame.y, f.frame.w, f.frame.h);
         sprite.texture = texture;
+        visual.displayed = { anim: anim.anim, facing: anim.facing, animTimeMs: anim.animTimeMs };
         this.spriteInfo.set(sprite, { assetId: spriteKey === 'magic_bolt' ? 'procedural:magic_bolt' : f.textureAlias || 'placeholder', layer: `actors/${e.kind}` });
       }
       if (this.textures.isPlaceholder(sprite.texture)) this.placeholderSprites++;
@@ -492,7 +500,6 @@ export class PixiRenderer implements IRenderer {
 
       // Sword slash when a swing starts (also on a re-swing mid-combo).
       if (e.kind === 'player') {
-        const started = e.anim === 'attack' && (visual.lastAnim !== 'attack' || e.animTimeMs + 1 < visual.lastAnimTimeMs);
         if (started && !this.paused) {
           visual.swings = this.visualTime - visual.lastSwingAt <= COMBO_WINDOW_MS ? visual.swings + 1 : 1;
           visual.lastSwingAt = this.visualTime;
@@ -595,7 +602,18 @@ export class PixiRenderer implements IRenderer {
   getStats() { return { backend: 'webgl' as const, canvasWidth: this.app.canvas.width, canvasHeight: this.app.canvas.height, pixelRatio: this.app.renderer.resolution, visibleChunks: this.visibleChunks, totalChunks: this.chunks.size, renderedEntities: this.renderedEntities, placeholderSprites: this.placeholderSprites }; }
   /** Debug-only counters for visual regression tests. */
   getVisualDebugInfo(): VisualDebugInfo {
+    const player = [...this.entities.values()].find(v => v.kind === 'player');
+    const sprite = player?.sprite;
+    const bounds = sprite?.getBounds();
     return {
+      playerSprite: sprite && player?.displayed && bounds ? {
+        ...player.displayed,
+        assetId: this.spriteInfo.get(sprite)?.assetId ?? 'placeholder',
+        frame: { x: sprite.texture.frame.x, y: sprite.texture.frame.y, w: sprite.texture.frame.width, h: sprite.texture.frame.height },
+        scaleX: sprite.scale.x, scaleY: sprite.scale.y, rotation: sprite.rotation,
+        transform: { a: sprite.worldTransform.a, b: sprite.worldTransform.b, c: sprite.worldTransform.c, d: sprite.worldTransform.d },
+        bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+      } : null,
       propViews: this.propSprites.size,
       hilltopViews: (this.world?.props ?? []).filter(p => p.hilltop).flatMap(p => {
         const sprite = this.propSprites.get(p.id);
