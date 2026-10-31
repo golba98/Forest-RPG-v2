@@ -27,6 +27,11 @@ import { DebugOverlay, type DebugCollider, type SpriteDebugInfo, type VisualDebu
 const TILE = 32;
 const CHUNK = 16;
 const HURT_WHITE_MS = 70;
+/** After the white flash the hurt tint stays red this long, then the sprite blinks for the rest of the invulnerability. */
+const HURT_RED_MS = 220;
+/** Matches EncounterSystem's combo window: swings closer together than this chain. */
+const COMBO_WINDOW_MS = 800;
+const FACING_ANGLE: Readonly<Record<string, number>> = { E: 0, SE: Math.PI / 4, S: Math.PI / 2, SW: (3 * Math.PI) / 4, W: Math.PI, NW: (-3 * Math.PI) / 4, N: -Math.PI / 2, NE: -Math.PI / 4 };
 /** Matches the simulation's death display window (codex/gameplay-repair keeps dead enemies 450 ms). */
 const DEATH_FADE_MS = 450;
 
@@ -38,11 +43,23 @@ interface EntityVisual {
   hurtSince: number;
   /** The snapshot already showed this entity dying (`dead`), so removal needs no fade. */
   diedInView: boolean;
+  /** Soft ground shadow under characters and pickups (ground layer). */
+  shadow: Sprite | null;
+  lastAnim: string;
+  lastAnimTimeMs: number;
+  /** Consecutive swings within the combo window (every third is the finisher). */
+  swings: number;
+  lastSwingAt: number;
 }
 
 interface PortalEntry {
   readonly view: PortalView;
   readonly machine: PortalVisualMachine;
+}
+
+/** Player alpha while blinking out the post-hit invulnerability (~12 Hz). */
+export function hurtBlinkAlpha(sinceHurtMs: number): number {
+  return Math.floor(sinceHurtMs / 42) % 2 === 0 ? 0.35 : 1;
 }
 
 /**
@@ -65,7 +82,6 @@ export class PixiRenderer implements IRenderer {
   lightingEnabled = true;
   particlesEnabled = true;
   hudVisible = true;
-  minimapVisible = true;
   hudScale = 1;
   hudData: { stats: PlayerStats; inventory: PlayerInventory } | null = null;
   /** Dev-only visual diagnostics (off by default). */
@@ -102,6 +118,8 @@ export class PixiRenderer implements IRenderer {
   private ambient: AmbientLayer | null = null;
   private effects: EffectsLayer | null = null;
   private hurtFilter = new ColorMatrixFilter();
+  /** Lifts dark enemy sprites off the grass. */
+  private enemyFilter = new ColorMatrixFilter();
   private debugEntities: (() => readonly Entity[]) | null = null;
   /** Debug-only weather override for previewing rain (null follows the simulation). */
   weatherPreview: 'clear' | 'rain' | null = null;
@@ -121,8 +139,9 @@ export class PixiRenderer implements IRenderer {
     this.ambient = new AmbientLayer(this.fx);
     this.effects = new EffectsLayer(this.actors, this.fx);
     this.hurtFilter.brightness(2.4, false);
+    this.enemyFilter.brightness(1.18, false);
     this.groundFx.addChild(this.sky.shadows, this.weather.ground, this.effects.ground);
-    this.root.addChild(this.terrain, this.groundFx, this.actors, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
+    this.root.addChild(this.terrain, this.groundFx, this.actors, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
     this.actors.sortableChildren = true;
     this.actors.addChild(this.waterMask, this.waterRipple);
     this.nightGlow.addChild(this.ambient.fireflies);
@@ -177,7 +196,7 @@ export class PixiRenderer implements IRenderer {
   setWorld(world: WorldData): void {
     for (const chunk of this.chunks.values()) chunk.destroy({ children: true });
     this.chunks.clear();
-    for (const visual of this.entities.values()) visual.sprite.destroy();
+    for (const visual of this.entities.values()) { visual.sprite.destroy(); visual.shadow?.destroy(); }
     this.entities.clear();
     for (const { view } of this.portals.values()) view.destroy({ children: true });
     this.portals.clear();
@@ -287,7 +306,7 @@ export class PixiRenderer implements IRenderer {
 
     this.performanceText.visible = this.performanceEnabled; this.performanceText.text = `${dt > 0 ? Math.round(1000 / dt) : 0} FPS | ${this.visibleChunks}/${this.chunks.size} chunks`; this.performanceText.position.set(20, this.app.screen.height - 24);
     const screenScale = this.hudScale * Math.max(1, Math.min(2, this.app.screen.height / 1080));
-    this.minimap.visible = this.hudVisible && this.minimapVisible; this.minimap.scale.set(screenScale); this.minimap.position.set(this.app.screen.width - 144 * screenScale, 20 * screenScale); this.minimap.setView(rect); this.minimap.update(snapshot);
+    this.minimap.visible = this.hudVisible && this.minimap.currentMode !== 'hidden'; this.minimap.layout(this.app.screen.width, this.app.screen.height, screenScale); this.minimap.setView(rect); this.minimap.update(snapshot);
     if (this.hud) { this.hud.scale.set(screenScale); this.hud.visible = this.hudVisible; if (this.hudData) this.hud.update(this.hudData.stats, this.hudData.inventory, this.language); }
     if (this.debugOverlay.getFlags().enabled) {
       this.debugOverlay.update({
@@ -314,7 +333,13 @@ export class PixiRenderer implements IRenderer {
       let visual = this.entities.get(e.id);
       const isNew = !visual;
       if (!visual) {
-        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false };
+        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false, shadow: null, lastAnim: e.anim, lastAnimTimeMs: e.animTimeMs, swings: 0, lastSwingAt: -Infinity };
+        if (e.kind !== 'projectile') {
+          visual.shadow = new Sprite(fx.glow);
+          visual.shadow.anchor.set(0.5);
+          visual.shadow.tint = 0x000000;
+          this.groundFx.addChild(visual.shadow);
+        }
         this.actors.addChild(visual.sprite); this.entities.set(e.id, visual);
       }
       const sprite = visual.sprite;
@@ -351,14 +376,41 @@ export class PixiRenderer implements IRenderer {
         sprite.scale.set(sx * (1 - 0.4 * t), sy * (1 - 0.4 * t));
       }
 
-      // Hurt: a short white flash, then a red tint with a small recoil shake.
+      // Hurt: a short white flash, a brief red tint, then (player) a blink for
+      // the rest of the invulnerability instead of staying solid red.
       if (e.hurtFlash) {
         if (visual.hurtSince < 0) visual.hurtSince = this.visualTime;
         const since = this.visualTime - visual.hurtSince;
-        sprite.filters = since < HURT_WHITE_MS ? [this.hurtFilter] : null;
-        sprite.tint = since < HURT_WHITE_MS ? 0xffffff : 0xff8080;
+        const white = since < HURT_WHITE_MS, red = !white && since < HURT_RED_MS;
+        sprite.filters = white ? [this.hurtFilter] : e.kind === 'enemy' ? [this.enemyFilter] : null;
+        sprite.tint = red || (e.kind === 'enemy' && !white) ? 0xff8080 : 0xffffff;
+        if (e.kind === 'player' && !white && !red) sprite.alpha *= hurtBlinkAlpha(since);
         if (e.kind === 'enemy' && since < 160) sprite.x += Math.sin(since / 18) * 1.5;
-      } else { visual.hurtSince = -1; sprite.filters = null; sprite.tint = e.dead ? 0xffc4c4 : 0xffffff; }
+      } else {
+        visual.hurtSince = -1;
+        sprite.filters = e.kind === 'enemy' ? [this.enemyFilter] : null;
+        sprite.tint = e.dead ? 0xffc4c4 : 0xffffff;
+      }
+
+      // Ground shadow: stays on the ground during a jump and shrinks with height.
+      if (visual.shadow) {
+        const groundY = (e.prevY + (e.y - e.prevY) * alpha) * TILE + (e.kind === 'pickup' ? 9 : 8);
+        const w = Math.max(14, Math.min(46, Math.abs(sprite.width) * 0.7)) * (1 - Math.min(0.5, e.lift * 0.3));
+        visual.shadow.position.set(x, groundY);
+        visual.shadow.scale.set(w / 64, (w * 0.34) / 64);
+        visual.shadow.alpha = 0.42 * sprite.alpha;
+      }
+
+      // Sword slash when a swing starts (also on a re-swing mid-combo).
+      if (e.kind === 'player') {
+        const started = e.anim === 'attack' && (visual.lastAnim !== 'attack' || e.animTimeMs + 1 < visual.lastAnimTimeMs);
+        if (started && !this.paused) {
+          visual.swings = this.visualTime - visual.lastSwingAt <= COMBO_WINDOW_MS ? visual.swings + 1 : 1;
+          visual.lastSwingAt = this.visualTime;
+          effects.slash(x, y - 12, FACING_ANGLE[e.facing] ?? Math.PI / 2, visual.swings % 3 === 0);
+        }
+      }
+      visual.lastAnim = e.anim; visual.lastAnimTimeMs = e.animTimeMs;
 
       if (e.kind === 'player') {
         if (e.submerged) {
@@ -389,6 +441,7 @@ export class PixiRenderer implements IRenderer {
         else if (visual.kind === 'pickup') effects.burst(s.x, s.y, visual.spriteKey === 'coin' ? 0xffd84a : 0xf0f0ff, 8, s.zIndex + 1);
         else if (visual.kind === 'projectile') effects.burst(s.x, s.y, visual.spriteKey === 'acid' ? 0x9be04a : 0x8fe3ff, 5, s.zIndex + 1, 0.04);
       }
+      visual.shadow?.destroy();
       s.destroy(); this.entities.delete(id);
     }
     for (const [id, entry] of this.portals) if (!alive.has(id)) { entry.view.destroy({ children: true }); this.portals.delete(id); }
@@ -429,10 +482,23 @@ export class PixiRenderer implements IRenderer {
 
   showDamage(x: number, y: number, amount: number): void {
     this.impactHoldMs = 55;
+    // Impact: sparks and a small ring where the blow landed.
+    this.effects?.burst(x * TILE, y * TILE - 10, 0xfff1b0, 9, y * TILE + 50, 0.09);
+    this.effects?.ring(x * TILE, y * TILE - 10, 18, 0xffffff, 180);
     const text = new Text({ text: String(amount), style: { fontFamily: 'Georgia', fontSize: 18, fontWeight: 'bold', fill: 0xffe1a4, stroke: { color: 0x341816, width: 3 } } });
     text.anchor.set(0.5, 1); text.position.set(x * TILE, y * TILE - 28); text.zIndex = y * TILE + 100;
     this.actors.addChild(text); this.damageNumbers.push({ text, remaining: 700 });
   }
+  /** One-off combat effects triggered by the game layer (tile coordinates). */
+  playEffect(kind: 'spin', x: number, y: number): void {
+    if (kind === 'spin') this.effects?.ring(x * TILE, y * TILE - 8, 3.5 * TILE, 0xbfe8ff, 320);
+  }
+
+  /** M key: radar → full map → hidden. */
+  cycleMinimap(): void {
+    this.minimap.cycle();
+  }
+
   shake(magnitude: number, durationMs: number): void { if (this.cameraShakeEnabled) this.camera.shake(magnitude, durationMs); }
   setZoom(zoom: number | 'auto'): void { this.camera.setZoom(zoom); }
   getCamera() { return this.camera.getView(); }
@@ -446,6 +512,7 @@ export class PixiRenderer implements IRenderer {
       clouds: this.sky.cloudCount,
       raining: this.weather.raining,
       effects: this.effects?.activeCount ?? 0,
+      minimapMode: this.minimap.currentMode,
       transitionActive: this.effects?.transitionActive ?? false,
       actorChildren: this.actors.children.length,
       projectiles: [...this.entities.values()].filter(v => v.kind === 'projectile').length,

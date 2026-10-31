@@ -20,11 +20,17 @@ interface Brain {
   phase: 'none' | 'windup' | 'strike' | 'recover';
   lunge: number;
   struck: boolean;
+  /** Ranged enemy is backing off; stays true until it reaches KITE_RELEASE. */
+  kiting: boolean;
 }
 export interface EnemyActions {
   hurt(): void;
   shoot(enemy: EnemyEntity, dx: number, dy: number): void;
 }
+/** Ranged enemies back off inside KITE_TRIGGER until past KITE_RELEASE, and hold position up to KITE_HOLD (tiles). */
+const KITE_TRIGGER = 2.5;
+const KITE_RELEASE = 3.5;
+const KITE_HOLD = 6;
 /** Decisions and routes live per-world; no renderer or DOM dependencies. */
 export class EnemyAISystem {
   private brains = new Map<string, Brain>();
@@ -93,6 +99,7 @@ export class EnemyAISystem {
           phase: 'none',
           lunge: 0,
           struck: false,
+          kiting: false,
         };
         this.brains.set(e.id, b);
       }
@@ -186,10 +193,20 @@ export class EnemyAISystem {
         continue;
       }
       b.phase = 'none';
-      if (visible && ranged && distance < 2.5) {
-        this.setState(e, 'flee', 'walk');
-        this.flee(world, e, p, dt, 2.1, profile);
-        continue;
+      if (visible && ranged) {
+        // Keep a firing band instead of chasing into flee range and back out
+        // again every few frames (the old 2.5-tile threshold had no hysteresis).
+        if (distance < KITE_TRIGGER) b.kiting = true;
+        else if (distance > KITE_RELEASE) b.kiting = false;
+        if (b.kiting) {
+          this.setState(e, 'flee', 'walk');
+          this.flee(world, e, p, dt, 2.1, profile);
+          continue;
+        }
+        if (distance <= KITE_HOLD) {
+          this.setState(e, 'recover', 'idle');
+          continue;
+        }
       }
       if (visible && distance < 0.8) {
         this.setState(e, 'recover', 'idle');

@@ -20,6 +20,17 @@ const VECTORS: Record<Direction, readonly [number, number]> = {
 
 export type CombatFeedback = 'swing' | 'spin' | 'bolt' | 'hurt' | 'coin' | 'level' | 'crush';
 
+/** 8-way facing for a direction vector. */
+export function facingToward(dx: number, dy: number): Direction {
+  const order: readonly Direction[] = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+  const octant = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
+  return order[(octant + 8) % 8] ?? 'S';
+}
+
+/** Bolt aim assist only kicks in when nothing is within this cone of the facing. */
+const BOLT_ASSIST_CONE_RAD = 0.45;
+const BOLT_ASSIST_RANGE_TILES = 8;
+
 /** Fixed-step encounter state. Created fresh for each world. */
 export class EncounterSystem {
   constructor(
@@ -92,6 +103,9 @@ export class EncounterSystem {
         comboHit === 3 ? Math.floor(p.stats.baseDamage * 1.5) + 1 : p.stats.baseDamage;
       p.stats.stamina -= C.player.attackStaminaCost;
       p.animTimeMs = 0;
+      // Facing only changes while moving, so an enemy that steps up beside the
+      // player could never be hit. Turn toward the nearest one in reach instead.
+      this.aimAt(world, p, enemies, C.combat.attackRangeTiles, C.combat.angleToleranceRad);
       this.onFeedback?.('swing', p);
     }
     if (this.attackRemaining > 0) {
@@ -124,8 +138,14 @@ export class EncounterSystem {
     }
     if (intent.skillE && p.stats.mana >= C.combat.bolt.manaCost) {
       p.stats.mana -= C.combat.bolt.manaCost;
+      const target = this.aimAt(world, p, enemies, BOLT_ASSIST_RANGE_TILES, BOLT_ASSIST_CONE_RAD);
       this.onFeedback?.('bolt', p);
-      const [fx, fy] = VECTORS[p.facing];
+      let [fx, fy] = VECTORS[p.facing];
+      if (target) {
+        const d = Math.hypot(target.x - p.x, target.y - p.y) || 1;
+        fx = (target.x - p.x) / d;
+        fy = (target.y - p.y) / d;
+      }
       entities.push({
         id: `bolt-${this.sequence++}`,
         kind: 'projectile',
@@ -235,6 +255,35 @@ export class EncounterSystem {
         else if (e.pickupType === 'speed_potion') p.inventory.speedPotions++;
       }
     }
+  }
+  /**
+   * Aim assist: when no visible enemy within `reach` lies inside the facing
+   * cone, turn the player toward the nearest visible one in reach. Returns the
+   * enemy that was turned toward, if any.
+   */
+  private aimAt(
+    world: WorldData,
+    p: PlayerEntity,
+    enemies: readonly EnemyEntity[],
+    reach: number,
+    cone: number,
+  ): EnemyEntity | null {
+    const [fx, fy] = VECTORS[p.facing];
+    let nearest: EnemyEntity | null = null;
+    let nearestDistance = Infinity;
+    for (const e of enemies) {
+      const dx = e.x - p.x,
+        dy = e.y - p.y,
+        distance = Math.hypot(dx, dy);
+      if (distance > reach || !hasClearPath(world, p.x, p.y, e.x, e.y)) continue;
+      if (distance > 1e-6 && (dx * fx + dy * fy) / distance >= Math.cos(cone)) return null;
+      if (distance < nearestDistance) {
+        nearest = e;
+        nearestDistance = distance;
+      }
+    }
+    if (nearest && nearestDistance > 1e-6) p.facing = facingToward(nearest.x - p.x, nearest.y - p.y);
+    return nearest;
   }
   private cutFlowers(
     world: WorldData,

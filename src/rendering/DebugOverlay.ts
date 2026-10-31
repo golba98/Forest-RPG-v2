@@ -3,6 +3,7 @@ import { TILE_PROPERTIES, type TileId } from '../types/tiles';
 import type { Entity } from '../types/entities';
 import type { WorldData } from '../types/world';
 import { PORTAL_ENTER_RADIUS_ASSUMED } from './portalVisualState';
+import type { MinimapMode } from './Minimap';
 
 const TILE = 32;
 const MAX_BOUNDS = 600;
@@ -28,6 +29,7 @@ export interface VisualDebugInfo {
   /** Rain is currently visible (fading counts). */
   readonly raining: boolean;
   readonly effects: number;
+  readonly minimapMode: MinimapMode;
   readonly transitionActive: boolean;
   readonly actorChildren: number;
   /** Projectile sprites drawn this frame. */
