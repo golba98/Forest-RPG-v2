@@ -13,7 +13,7 @@ export function roundStatus(entities: readonly Entity[], complete = false, pendi
   for (const e of entities)
     if (e.alive) {
       if (e.kind === 'enemy' && e.enemyType !== 'ghost') enemiesRemaining++;
-      else if (e.kind === 'pickup' && e.pickupType === 'coin') coinsRemaining++;
+      else if (e.kind === 'pickup' && e.pickupType === 'coin' && e.requiredForCompletion !== false) coinsRemaining++;
     }
   return {
     complete: complete || (enemiesRemaining === 0 && coinsRemaining === 0),

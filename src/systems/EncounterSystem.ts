@@ -256,16 +256,7 @@ export class EncounterSystem {
           maxDistance: 10,
         }),
     });
-    for (const e of entities) {
-      if (e.kind === 'pickup' && e.alive && Math.hypot(e.x - p.x, e.y - p.y) < 0.7) {
-        e.alive = false;
-        if (e.pickupType === 'coin') {
-          p.stats.coins++;
-          this.onFeedback?.('coin', p);
-        } else if (e.pickupType === 'health_potion') p.inventory.healthPotions++;
-        else if (e.pickupType === 'speed_potion') p.inventory.speedPotions++;
-      }
-    }
+
   }
   /**
    * Aim assist: when no visible enemy within `reach` lies inside the facing
@@ -422,6 +413,10 @@ export class EncounterSystem {
           animTimeMs: 0,
           alive: true,
         });
+      if (!world.meta.isTutorial && e.enemyType !== 'ghost') {
+        entities.push({ id: `coin-drop:${e.id}`, kind: 'pickup', pickupType: 'coin', value: e.enemyType === 'beetle' ? 5 : 1, requiredForCompletion: false,
+          x: e.x, y: e.y, prevX: e.x, prevY: e.y, halfSize: 0.2, facing: 'S', anim: 'idle', animTimeMs: 0, alive: true });
+      }
       const oldLevel = p.stats.level;
       awardXp(p.stats, e.enemyType === 'beetle' ? 100 : 20);
       if (p.stats.level > oldLevel) this.onFeedback?.('level', p);
