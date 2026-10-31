@@ -256,3 +256,9 @@ patch. PR #12 is independently based on current main and passed 84 focused tests
 checks and the production build; lint reports five existing landscape warnings. The other
 workstreams retain their original test evidence and draft integration notes. Historical backup
 branches remain available in the full inventory; no backup was deleted.
+
+## Resolved integration
+
+Current stack: #12 → #9 → #10 → #8. #11's saved visual snapshot is incorporated: its reconciled file tree equals #10's, with original history preserved. All original PR heads have backup refs under `save/pre-conflict-resolution/`. No PR has been merged into main.
+
+Combined verification: 788 unit/integration tests; all 104 browser scenarios passed across the selections documented in [the resolution note](../development/notes/pr-conflict-resolution.md), including the four corrected alias assertions. Typecheck and production build pass; lint has zero errors and five existing landscape warnings. The static v10 fixtures are preserved and load-compatibility checks replace obsolete v10-generation expectations. See the resolution note for the reservation, trace, renderer and combat reconciliation decisions.

@@ -1,0 +1,30 @@
+[
+  {
+    "browser": "chromium",
+    "samples": 35,
+    "movementFacings": [
+      "NW",
+      "NE",
+      "SE",
+      "SW"
+    ],
+    "attackDirections": [
+      "NW"
+    ],
+    "mismatches": 0
+  },
+  {
+    "browser": "firefox",
+    "samples": 34,
+    "movementFacings": [
+      "NW",
+      "NE",
+      "SE",
+      "SW"
+    ],
+    "attackDirections": [
+      "NW"
+    ],
+    "mismatches": 0
+  }
+]

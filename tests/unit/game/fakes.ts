@@ -111,6 +111,9 @@ export class FakeSimulation implements ISimulation {
   getEntities(): readonly Entity[] {
     return [this.player];
   }
+  getPlayerAttack(): null {
+    return null;
+  }
   buildRenderSnapshot(): RenderSnapshot {
     return {
       world: this.world,

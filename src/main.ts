@@ -1,3 +1,4 @@
+import { enableLandscapeDiagnostics } from './world/LandscapeTrace';
 import { Vector2 } from './core/math/Vector2';
 import { EventBus } from './core/events/EventBus';
 import { InputManager } from './core/input/InputManager';
@@ -25,6 +26,7 @@ if (!canvas) throw new Error('Game canvas missing');
 canvas.style.cssText = 'display:block;width:100vw;height:100vh;image-rendering:pixelated';
 const loading = document.querySelector<HTMLElement>('#loading-screen');
 const params = parseLaunchParams(location.search, import.meta.env.DEV);
+enableLandscapeDiagnostics(params.debug);
 const simulation = new Simulation();
 simulation.onPortalChange = (change) => bus.emit('portal:stateChanged', change);
 simulation.onRoundComplete = (status) => bus.emit('round:completed', status);
@@ -60,7 +62,7 @@ simulation.onHit = (enemy, damage) => {
 simulation.onFeedback = (kind, p, enemy) => {
   const position = new Vector2(p.x, p.y);
   if (kind === 'swing')
-    bus.emit('player:attackSwing', { direction: p.facing, comboStep: p.comboCount || 3 });
+    bus.emit('player:attackSwing', { direction: simulation.getPlayerAttack()?.direction ?? p.facing, comboStep: simulation.getPlayerAttack()?.comboStep ?? (p.comboCount || 3) });
   else if (kind === 'spin' || kind === 'bolt') {
     bus.emit('player:castSpell', {
       spellId: kind === 'spin' ? 'spin' : 'projectile',

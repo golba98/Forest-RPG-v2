@@ -1,0 +1,13 @@
+
+> forest-rpg-v2@2.0.0 test
+> vitest run tests/unit/core/InputManagerGating.test.ts
+
+
+ RUN  v4.1.12 /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2
+
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  16:52:15
+   Duration  334ms (transform 49ms, setup 0ms, import 59ms, tests 7ms, environment 143ms)
+

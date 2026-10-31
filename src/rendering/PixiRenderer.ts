@@ -1,6 +1,9 @@
 import { createLootTextures } from './lootArt';
 import { VEGETATION, vegetationFor, type VegetationFrame } from './vegetationArt';
 import { LootView } from './LootView';
+
+import { GroveView } from './GroveView';
+import { createSoilChunkArt, type SoilChunkArt } from './SoilArt';
 import { propDepth } from '../world/ObjectSemantics';
 import { surfaceSites, type MoistureView } from '../systems/SurfaceMoisture';
 import { SurfaceWaterLayer } from './effects/SurfaceWaterLayer';
@@ -20,7 +23,7 @@ import type { PlayerInventory, PlayerStats } from '../types/entities';
 import { Camera } from './Camera';
 import { TextureStore } from './TextureStore';
 import { getTileArt, getWorldPropArt, type TileArtLayer } from './terrainArt';
-import { decorAlias, GROUND_PROPS } from './assetCatalog';
+import { decorAlias, GROUND_PROPS, PORTAL_ART_ALIAS } from './assetCatalog';
 import { elevationMask } from './hillAutotile';
 import { Tile } from '../types/tiles';
 import { createWaterTextures, waterEdgeMask, neighbourMaterialMask, WATER_PALETTE } from './waterArt';
@@ -44,8 +47,6 @@ const CHUNK = 16;
 const HURT_WHITE_MS = 70;
 /** After the white flash the hurt tint stays red this long, then the sprite blinks for the rest of the invulnerability. */
 const HURT_RED_MS = 220;
-/** Matches EncounterSystem's combo window: swings closer together than this chain. */
-const COMBO_WINDOW_MS = 800;
 const FACING_ANGLE: Readonly<Record<string, number>> = { E: 0, SE: Math.PI / 4, S: Math.PI / 2, SW: (3 * Math.PI) / 4, W: Math.PI, NW: (-3 * Math.PI) / 4, N: -Math.PI / 2, NE: -Math.PI / 4 };
 /** Matches the simulation's death display window (codex/gameplay-repair keeps dead enemies 450 ms). */
 const DEATH_FADE_MS = 450;
@@ -63,9 +64,9 @@ interface EntityVisual {
   shadow: Sprite | null;
   lastAnim: string;
   lastAnimTimeMs: number;
-  /** Consecutive swings within the combo window (every third is the finisher). */
-  swings: number;
-  lastSwingAt: number;
+  lastSwingId: number | null;
+  /** Clip actually assigned to the sprite, retained during impact frame holds. */
+  displayed: Pick<RenderEntityView, 'anim' | 'facing' | 'animTimeMs'> | null;
 }
 
 interface PortalEntry {
@@ -112,6 +113,7 @@ export class PixiRenderer implements IRenderer {
   private impactHoldMs = 0;
   private damageNumbers: Array<{ text: Text; remaining: number }> = [];
   private encounterView = new EncounterView();
+  private groveView = new GroveView();
   private nestView = new NestView();
   interactBinding: () => string = () => 'G';
   private waterMask = new Graphics();
@@ -135,6 +137,7 @@ export class PixiRenderer implements IRenderer {
   /** World-transformed layer drawn above the darkness overlay (fireflies). */
   private nightGlow = new Container();
   private chunks = new Map<string, Container>();
+  private soilChunks = new Map<string, SoilChunkArt>();
   private entities = new Map<string, EntityVisual>();
   private portals = new Map<string, PortalEntry>();
   private objects: Sprite[] = [];
@@ -169,7 +172,7 @@ export class PixiRenderer implements IRenderer {
     this.hurtFilter.brightness(2.4, false);
     this.enemyFilter.brightness(1.18, false);
     this.groundFx.addChild(this.sky.shadows, this.effects.ground);
-    this.root.addChild(this.terrain, this.surfaceWater.view, this.water.view, this.weather.ground, this.bridgeGround, this.weather.deck, this.groundProps, this.encounterView.ground, this.nestView.ground, this.groundFx, this.actors, this.encounterView.effects, this.nestView.particles, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
+    this.root.addChild(this.terrain, this.surfaceWater.view, this.water.view, this.weather.ground, this.bridgeGround, this.weather.deck, this.groundProps, this.groveView.ground, this.nestView.ground, this.groundFx, this.actors, this.encounterView.effects, this.nestView.particles, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
     this.actors.sortableChildren = true;
     this.actors.addChild(this.waterMask, this.waterRipple, this.waterFxMask);
     this.waterRipple.mask = this.waterFxMask;
@@ -228,6 +231,8 @@ export class PixiRenderer implements IRenderer {
   setWorld(world: WorldData): void {
     for (const chunk of this.chunks.values()) chunk.destroy({ children: true });
     this.chunks.clear();
+    for (const soil of this.soilChunks.values()) soil.destroy();
+    this.soilChunks.clear();
     for (const visual of this.entities.values()) { visual.sprite.destroy(); visual.shadow?.destroy(); }
     this.entities.clear();
     for (const { view } of this.portals.values()) view.destroy({ children: true });
@@ -249,6 +254,7 @@ export class PixiRenderer implements IRenderer {
     this.lootView.container.zIndex = 1e8;
     this.weatherPreview = null; this.weather.reset(); this.surfaceWater.reset(); this.water.reset(world);
     this.encounterView.reset();
+    this.groveView.reset();
     this.nestView.reset();
     this.sky.setWorld(world.meta.width, world.meta.height, world.meta.seed, this.fx?.clouds ?? [], world.spawn.x, world.spawn.y);
     for (const bridge of world.bridges ?? []) {
@@ -291,13 +297,24 @@ export class PixiRenderer implements IRenderer {
     const { width, height } = world.meta;
     const key = `${x},${y}`;
     this.chunks.get(key)?.destroy({ children: true });
+    this.soilChunks.get(key)?.destroy();
+    this.soilChunks.delete(key);
+    const soil = createSoilChunkArt(world, x, y, CHUNK);
+    if (soil) this.soilChunks.set(key, soil);
     const chunk = new Container(); chunk.position.set(x * TILE, y * TILE);
     for (let ty = y; ty < Math.min(y + CHUNK, height); ty++) for (let tx = x; tx < Math.min(x + CHUNK, width); tx++) {
       const elevation = elevationMask(world.tiles, width, height, tx, ty);
       const tile = world.tiles[ty * width + tx] ?? 0;
-      const shore = tile === Tile.RIVER ? waterEdgeMask(world.tiles, width, height, tx, ty) : neighbourMaterialMask(world.tiles, width, height, tx, ty, tile === Tile.MUD);
-      for (const layer of getTileArt(tile, tx, ty, elevation, shore)) {
+      const shore = tile === Tile.RIVER ? waterEdgeMask(world.tiles, width, height, tx, ty) : neighbourMaterialMask(world.tiles, width, height, tx, ty);
+      for (const [index, layer] of getTileArt(tile, tx, ty, elevation, shore).entries()) {
         const sprite = this.art(layer); sprite.x += (tx - x) * TILE; sprite.y += (ty - y) * TILE; chunk.addChild(sprite);
+        // Compose the material after its grass base and before flowers/contact shadows.
+        const texture = index === 0 ? soil?.tiles.get(ty * width + tx) : undefined;
+        if (texture) {
+          const material = new Sprite(texture);
+          material.position.set((tx - x) * TILE, (ty - y) * TILE);
+          chunk.addChild(material);
+        }
       }
     }
     // Ground-only chunks have exact integer bounds and nearest cache sampling.
@@ -342,8 +359,10 @@ export class PixiRenderer implements IRenderer {
     this.water.update(dt, this.paused, rect, snapshot.world);
     this.surfaceWater.update(snapshot.world, snapshot.moisture, rect, snapshot.elapsedMs ?? this.visualTime);
 
+    this.groveView.update(snapshot.encounters?.sites ?? [], this.actors, this.textures, fx.glow);
     this.nestView.update(snapshot, this.actors, this.textures, this.visualTime);
     this.renderEntities(snapshot, alpha, dt, player, fx, effects);
+    this.placeholderSprites += this.groveView.placeholderCount(this.textures);
     this.encounterView.update(snapshot, this.visualTime, this.app.screen.width, this.app.screen.height, this.interactBinding(), this.language);
     this.encounterView.hud.visible = this.hudVisible;
 
@@ -418,6 +437,7 @@ export class PixiRenderer implements IRenderer {
     this.lootView.update(snapshot, this.paused ? 0 : dt, effects);
     this.waterMask.clear(); this.waterRipple.clear(); this.waterFxMask.clear(); effects.ground.clear();
     this.wading = null;
+    effects.syncPlayerSlash(null);
     this.animator.beginFrame();
     const alive = new Set<string>(); this.renderedEntities = snapshot.entities.length; this.placeholderSprites = 0;
     let entering = false;
@@ -431,7 +451,7 @@ export class PixiRenderer implements IRenderer {
       let visual = this.entities.get(e.id);
       const isNew = !visual;
       if (!visual) {
-        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false, quietRemoval: false, shadow: null, lastAnim: e.anim, lastAnimTimeMs: e.animTimeMs, swings: 0, lastSwingAt: -Infinity };
+        visual = { sprite: new Sprite(), kind: e.kind, spriteKey, hurtSince: -1, diedInView: false, quietRemoval: false, shadow: null, lastAnim: e.anim, lastAnimTimeMs: e.animTimeMs, lastSwingId: null, displayed: null };
         if (e.kind !== 'projectile') {
           visual.shadow = new Sprite(fx.glow);
           visual.shadow.anchor.set(0.5);
@@ -445,7 +465,14 @@ export class PixiRenderer implements IRenderer {
       visual.quietRemoval = e.quietRemoval === true;
       const anim = this.animator.resolve(e.nestEmergence ? { ...e, spriteKey, anim: 'walk', moving: true, animTimeMs: e.nestEmergence.progress * 800 } : spriteKey === e.spriteKey ? e : { ...e, spriteKey }, this.paused ? 0 : dt);
       const f = resolveSpriteFrame(anim);
-      const holdFrame = this.impactHoldMs > 0 && !isNew && (e.kind === 'player' || e.kind === 'enemy');
+      const started = e.kind === 'player'
+        ? !!e.attack && e.attack.swingId !== visual.lastSwingId
+        : e.anim === 'attack' && (visual.lastAnim !== 'attack' || e.animTimeMs + 1 < visual.lastAnimTimeMs);
+      // Hold a frame within its clip, never an old pose from another facing or
+      // animation. A new swing must display its own first frame immediately.
+      const holdFrame = this.impactHoldMs > 0 && !isNew && !started &&
+        visual.displayed?.anim === anim.anim && visual.displayed.facing === anim.facing &&
+        (e.kind === 'player' || e.kind === 'enemy');
       if (!holdFrame) {
         let texture: Texture;
         if (e.chest) texture = this.textures.get(`woodland_chest_${e.chest.variant}_${e.chest.state === 'closed' ? 0 : e.chest.state === 'opened' ? 3 : Math.min(2, 1 + Math.floor(e.chest.elapsedMs / 300))}`);
@@ -453,6 +480,7 @@ export class PixiRenderer implements IRenderer {
         else if (f.placeholder) texture = this.textures.getPlaceholder();
         else texture = this.textures.getRect(f.textureAlias, f.frame.x, f.frame.y, f.frame.w, f.frame.h);
         sprite.texture = texture;
+        visual.displayed = { anim: anim.anim, facing: anim.facing, animTimeMs: anim.animTimeMs };
         this.spriteInfo.set(sprite, { assetId: spriteKey === 'magic_bolt' ? 'procedural:magic_bolt' : f.textureAlias || 'placeholder', layer: `actors/${e.kind}` });
       }
       if (this.textures.isPlaceholder(sprite.texture)) this.placeholderSprites++;
@@ -509,14 +537,15 @@ export class PixiRenderer implements IRenderer {
         visual.shadow.alpha = e.nestEmergence ? 0 : 0.42 * sprite.alpha;
       }
 
-      // Sword slash when a swing starts (also on a re-swing mid-combo).
+      // The simulation owns swing identity, combo and age. Following the same
+      // interpolated origin as the actor keeps moving attacks aligned.
       if (e.kind === 'player') {
-        const started = e.anim === 'attack' && (visual.lastAnim !== 'attack' || e.animTimeMs + 1 < visual.lastAnimTimeMs);
-        if (started && !this.paused) {
-          visual.swings = this.visualTime - visual.lastSwingAt <= COMBO_WINDOW_MS ? visual.swings + 1 : 1;
-          visual.lastSwingAt = this.visualTime;
-          effects.slash(x, y - 12, FACING_ANGLE[e.facing] ?? Math.PI / 2, visual.swings % 3 === 0);
-        }
+        effects.syncPlayerSlash(e.attack ? {
+          swingId: e.attack.swingId, comboStep: e.attack.comboStep,
+          x, y: y - 12, angle: FACING_ANGLE[e.attack.direction] ?? Math.PI / 2,
+          age: e.attack.elapsedMs,
+        } : null);
+        visual.lastSwingId = e.attack?.swingId ?? null;
       }
       visual.lastAnim = e.anim; visual.lastAnimTimeMs = e.animTimeMs;
 
@@ -561,10 +590,11 @@ export class PixiRenderer implements IRenderer {
   private renderPortal(e: RenderEntityView, x: number, y: number, dt: number, snapshot: RenderSnapshot, player: RenderEntityView | undefined, fx: EffectTextures): boolean {
     let entry = this.portals.get(e.id);
     if (!entry) {
-      const view = this.tag(new PortalView(this.textures.get('portal_forest'), fx), 'portal_forest', 'actors/portal');
+      const view = this.tag(new PortalView(this.textures.get(PORTAL_ART_ALIAS), fx), PORTAL_ART_ALIAS, 'actors/portal');
       entry = { view, machine: new PortalVisualMachine() };
       this.actors.addChild(view); this.portals.set(e.id, entry);
     }
+    if (this.textures.isPlaceholder(entry.view.artTexture)) this.placeholderSprites++;
     const distance = player ? Math.hypot(e.x - player.x, e.y - player.y) : Infinity;
     const state = entry.machine.update({ active: e.active === true, explicit: e.portalState, playerDistance: distance, dtMs: this.paused ? 0 : dt });
     let label: string;
@@ -614,8 +644,22 @@ export class PixiRenderer implements IRenderer {
   getStats() { return { backend: 'webgl' as const, canvasWidth: this.app.canvas.width, canvasHeight: this.app.canvas.height, pixelRatio: this.app.renderer.resolution, visibleChunks: this.visibleChunks, totalChunks: this.chunks.size, renderedEntities: this.renderedEntities, placeholderSprites: this.placeholderSprites }; }
   /** Debug-only counters for visual regression tests. */
   getVisualDebugInfo(): VisualDebugInfo {
+    const player = [...this.entities.values()].find(v => v.kind === 'player');
+    const sprite = player?.sprite;
+    const bounds = sprite?.getBounds();
     return {
+      playerSlash: this.effects?.getPlayerSlash() ?? null,
+      playerSprite: sprite && player?.displayed && bounds ? {
+        ...player.displayed,
+        position: { x: sprite.x, y: sprite.y },
+        assetId: this.spriteInfo.get(sprite)?.assetId ?? 'placeholder',
+        frame: { x: sprite.texture.frame.x, y: sprite.texture.frame.y, w: sprite.texture.frame.width, h: sprite.texture.frame.height },
+        scaleX: sprite.scale.x, scaleY: sprite.scale.y, rotation: sprite.rotation,
+        transform: { a: sprite.worldTransform.a, b: sprite.worldTransform.b, c: sprite.worldTransform.c, d: sprite.worldTransform.d },
+        bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+      } : null,
       propViews: this.propSprites.size,
+      groveViews: this.groveView.info,
       hilltopViews: (this.world?.props ?? []).filter(p => p.hilltop).flatMap(p => {
         const sprite = this.propSprites.get(p.id);
         return sprite ? [{ id: p.id, x: sprite.x, y: sprite.y, depth: sprite.zIndex, visible: sprite.visible }] : [];
@@ -626,6 +670,7 @@ export class PixiRenderer implements IRenderer {
       placeholderSprites: this.placeholderSprites,
       portalStates: [...this.portals.values()].map(p => p.machine.state),
       portalViews: this.portals.size,
+      portalTextures: [...this.portals].map(([id, { view }]) => ({ id, width: view.artTexture.width, height: view.artTexture.height, placeholder: this.textures.isPlaceholder(view.artTexture) })),
       clouds: this.sky.cloudCount,
       raining: this.weather.raining,
       weather: this.weather.info,
@@ -644,8 +689,11 @@ export class PixiRenderer implements IRenderer {
   worldToScreen(x: number, y: number) { return this.camera.worldToScreen(x, y); }
   screenToWorld(x: number, y: number) { return this.camera.screenToWorld(x, y); }
   destroy(): void {
+    this.groveView.reset();
     this.sky.clear(); this.effects?.clear();
     this.app.destroy(true, { children: true }); this.textures.destroy();
+    for (const soil of this.soilChunks.values()) soil.destroy();
+    this.soilChunks.clear();
     if (this.fx) destroyEffectTextures(this.fx);
   }
 }

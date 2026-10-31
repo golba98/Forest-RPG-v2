@@ -13,6 +13,7 @@ import { bridgeFixture } from '../../fixtures/bridge-world';
 import { Tile } from '../../../src/types/tiles';
 import { PLAYER_FOOTPRINT } from '../../../src/systems/EntityFootprint';
 import { moveWithCollision } from '../../../src/systems/CollisionSystem';
+import { IDLE_INTENT } from '../../../src/types/entities';
 let game: Game;
 let sim: Simulation;
 let saves: SaveManager;
@@ -37,6 +38,16 @@ beforeEach(async () => {
   saves = new SaveManager(localStorage, game, sim);
 });
 afterEach(() => game.destroy());
+it('loads a mid-punch save without a stale attack or pending strike', () => {
+  sim.step(1 / 60, { ...IDLE_INTENT, moveX: -1, moveY: -1, attack: true });
+  expect(sim.getPlayerAttack()?.direction).toBe('NW');
+  saves.save('punch');
+  saves.load('punch');
+  expect(sim.getPlayerAttack()).toBeNull();
+  expect(sim.player.anim).toBe('idle');
+  sim.step(1 / 60, { ...IDLE_INTENT, moveX: 1, moveY: -1, attack: true });
+  expect(sim.getPlayerAttack()?.direction).toBe('NE');
+});
 it('round-trips bridge structures and a player on the deck without regenerating terrain', () => {
   const { world, bridge } = bridgeFixture();
   game.loadWorld(world);

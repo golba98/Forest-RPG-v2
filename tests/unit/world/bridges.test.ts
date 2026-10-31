@@ -1,3 +1,4 @@
+import { LandscapePlan } from '../../../src/world/LandscapePlan';
 import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from '../../../src/config/GameConfig';
 import { Tile } from '../../../src/types/tiles';
@@ -73,7 +74,7 @@ it('protects the complete deck and approach from trees, canopies and decorations
   for (let y = f.minY - 4; y < f.maxY + 4; y++)
     for (let x = f.minX - 4; x < f.maxX + 4; x++)
       if (grid.get(x, y) === Tile.GRASS) grid.set(x, y, Tile.FOREST);
-  const trees = placeWoodland(grid, new Rng(13), world.spawn, [bridge]);
+  const trees = placeWoodland(grid, new Rng(13), world.spawn, new LandscapePlan({ ...world, tiles: grid.tiles }, 'woodland'));
   const props = placeProps(grid, world.spawn, world.portal, new Rng(14), true, trees, [bridge]);
   for (const p of [...trees, ...props]) {
     const bounds =

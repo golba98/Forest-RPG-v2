@@ -1,29 +1,59 @@
 # Forest RPG V2
 
-A browser-based pixel-art RPG built with strict TypeScript, PixiJS 8 and Vite. Explore seeded forests, fight their inhabitants, collect coins and open the portal to the next world. A training glade introduces the controls on the first visit; it can be replayed or disabled in settings.
+![Version 2.0.0](https://img.shields.io/badge/version-2.0.0-527a38)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
+![PixiJS 8](https://img.shields.io/badge/PixiJS-8-e72264)
+![Vite 7](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)
 
-Use Node 20+ and npm 10+:
+A pixel-art action RPG for the browser, built with TypeScript, PixiJS, and Vite. Explore procedurally generated forests, battle enemies, and level up your character. Collect coins and defeat each world's non-ghost enemies to unlock the portal to the next world.
+
+![Forest RPG V2 gameplay showing the player exploring a woodland with trees, flowers, and a minimap](docs/qa/evidence/grove-art/after/chromium-seed-42.png)
+
+## Features
+
+- Seeded forests with rivers, bridges, cliffs, and walkable hilltops.
+- Day and night, changing weather, and ghosts after dark.
+- Melee combos, spin attacks, magic bolts, and enemies with distinct behaviors.
+- Character upgrades, health and speed potions, and progression between worlds.
+- A training glade, remappable controls, and local saves with file import and export.
+
+## Play locally
+
+Requires Node.js `^20.19.0`, `^22.12.0`, or `>=24.0.0`, npm 10 or later, and a browser with WebGL support.
 
 ```sh
-npm install
+git clone https://github.com/golba98/Forest-RPG-v2.git
+cd Forest-RPG-v2
+npm ci
 npm run dev
 ```
 
-Move with WASD or the arrow keys, sprint with Shift, jump with Space, attack with E or left click, spin with Q, cast a bolt with R, use potions with 1 and 2, and pause with Escape. C or I opens character progression; M toggles the minimap. Controls can be remapped in settings.
+Open [localhost:3000](http://localhost:3000) to play.
 
-Save from the pause menu, continue from the main menu, or export and import a save. Progress and settings are stored locally in the browser. The game can also offer a compatible original-game autosave for migration.
+## Controls
 
-```sh
-npm run typecheck
-npm run lint
-npm test
-npm run build
-npm run test:e2e
-npm run benchmark
-```
+| Action                | Control                |
+| --------------------- | ---------------------- |
+| Move                  | WASD or arrow keys     |
+| Sprint / dash         | Shift                  |
+| Jump                  | Space                  |
+| Melee attack          | E or left mouse button |
+| Spin attack           | Q                      |
+| Magic bolt            | R                      |
+| Interact              | G                      |
+| Health potion         | 1                      |
+| Speed potion          | 2                      |
+| Character progression | C or I                 |
+| Toggle minimap        | M                      |
+| Fullscreen            | F                      |
+| Pause                 | Escape                 |
 
-Playwright serves the production build on port 4173, so run the build first. To open a deterministic diagnostic session locally, use `/?debug=1&autostart=1&seed=123`; add `tutorial=1` for the training glade. Diagnostics and the command terminal are available in development or with `debug=1`.
+Gameplay controls can be remapped in settings. Save from the pause menu and choose **Continue** from the main menu to resume. Progress is stored in your browser; export a save to keep a separate copy or move it to another browser.
 
-See [implementation status](docs/implementation-status.md), [architecture](docs/architecture.md), [gameplay](docs/gameplay-systems.md), [testing](docs/testing.md), [performance](docs/performance.md), and [deployment](docs/deployment.md). This project has not been deployed.
+For build commands, tests, and technical guides, see the [development documentation](docs/development/README.md).
 
-Forest vegetation includes LPC artwork under CC BY-SA 3.0. See the [source and full contributor credits](public/assets/images/environment/lpc/README.md) and [asset replacement notes](docs/assets/replacements.md).
+## Credits
+
+Ghost-grove artwork uses [LPC Flowers / Plants / Fungi / Wood](https://opengameart.org/content/lpc-flowers-plants-fungi-wood) by bluecarrot16 and contributors under **CC BY-SA 3.0**. See the [complete credits and adaptation notice](public/assets/licenses/grove/NOTICE.txt) for source details and the changes made to those assets.
+
+Forest vegetation includes LPC artwork under CC BY-SA 3.0. See the [full credits](public/assets/images/environment/lpc/README.md).

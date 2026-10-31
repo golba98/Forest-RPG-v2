@@ -1,0 +1,10 @@
+{
+  "title": "[LPC] Flowers / Plants / Fungi / Wood",
+  "source": "https://opengameart.org/content/lpc-flowers-plants-fungi-wood",
+  "download": "https://opengameart.org/sites/default/files/lpc-flowers-plants-fungi-wood.zip",
+  "license": "CC-BY-SA-3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+  "archiveSha256": "ec3e039bd872757b8424a0d11c1818eca0286fd1dc0322d276462a46b0f0948f",
+  "plantsSha256": "35317691a1b4c2ef5469c9971c56fc5e3134c8cf47847a3f4f9bbe653394c0cb",
+  "modifications": "Lossless native-resolution crops and transparent padding only; no recoloring, scaling, AI generation, or redrawing."
+}

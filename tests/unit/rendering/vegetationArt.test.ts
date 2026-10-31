@@ -1,3 +1,4 @@
+import { LandscapePlan } from '../../../src/world/LandscapePlan';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
@@ -57,7 +58,7 @@ it('actual native canopy bounds stay outside bridge reservations', () => {
     for (let x = 10; x < 30; x++) {
       if (grid.get(x, y) === Tile.GRASS) grid.set(x, y, Tile.FOREST);
     }
-  const props = placeWoodland(grid, new Rng(42), world.spawn, [bridge]);
+  const props = placeWoodland(grid, new Rng(42), world.spawn, new LandscapePlan(world, 'woodland'));
   expect(props.length).toBeGreaterThan(0);
   for (const prop of props) {
     const frame = vegetationFor(prop, { ...world, props })!;

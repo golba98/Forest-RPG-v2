@@ -1,6 +1,7 @@
+import { LandscapePlan } from '../LandscapePlan';
+import { reachableFrom } from '../LandscapeAccess';
 import type { Bounds } from '../../types/gameplay';
 import { intersectsReservations } from '../EncounterPlacement';
-import { canOccupy } from '../../systems/CollisionSystem';
 import { Tile } from '../../types/tiles';
 import type { EnemyType } from '../../types/entities';
 import type { EnemySpawn, PickupSpawn, PropKind, TilePoint, WorldBridge, WorldProp } from '../../types/world';
@@ -270,14 +271,11 @@ export function planSpawns(
     props,
     bridges,
   };
-  const groundReached = floodFill(grid, spawn, (x, y) =>
-    canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3, 'groundEnemy'),
-  );
+  const access = new LandscapePlan(collisionWorld, 'access');
+  const groundReached = reachableFrom(access, spawn, 'groundEnemy');
   const solidProp = new Uint8Array(grid.width * grid.height);
   for (const p of props) if (p.solid) solidProp[p.tileY * grid.width + p.tileX] = 1;
-  const reached = floodFill(grid, spawn, (x, y) =>
-    canOccupy(collisionWorld, x + 0.5, y + 0.5, 0.3),
-  );
+  const reached = reachableFrom(access, spawn);
   if (!reached[portal.y * grid.width + portal.x]) return null;
 
   const available: TilePoint[] = [];

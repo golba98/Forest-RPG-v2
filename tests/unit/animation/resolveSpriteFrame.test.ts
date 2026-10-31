@@ -274,8 +274,11 @@ describe('AnimationDefs integrity', () => {
     expect(missing).toEqual([]);
   });
 
-  it('references 40 player sheet aliases (5 anims × 8 directions)', () => {
-    expect(listReferencedAliases().filter((a) => a.startsWith('player_'))).toHaveLength(40);
+  it('references 40 player sheets with mirrored southwest run frames', () => {
+    const aliases = listReferencedAliases().filter((a) => a.startsWith('player_'));
+    expect(aliases).toHaveLength(40);
+    expect(aliases).toContain('player_run_southeast');
+    expect(aliases).toContain('player_run_southwest');
   });
 
   it('declared sheet sizes match the PNG files on disk', () => {
@@ -333,4 +336,14 @@ describe('AnimationDefs integrity', () => {
       }
     }
   });
+});
+
+it('mirrors all six duplicated southwest run frames without reversing their order', () => {
+  for (let frame = 0; frame < 6; frame++) {
+    const ref = resolveSpriteFrame({ spriteKey: 'player', anim: 'run', facing: 'SW', animTimeMs: frame * 112.5 });
+    expect(ref.textureAlias).toBe('player_run_southwest');
+    expect(ref.flipX).toBe(true);
+    expect(ref.frame.x).toBe(frame * 20);
+    expect(ref.frame.w).toBe(20);
+  }
 });
