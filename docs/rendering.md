@@ -40,3 +40,27 @@ to ignored per-test output directories (see [testing](testing.md)).
 Punch presentation uses the simulation's locked attack direction, swing ID, combo and elapsed time. Slashes follow the interpolated player origin and do not restart after missed frames. The shipped southwest running strip duplicates southeast artwork; `AnimationDefs` selects and mirrors individual southeast frames without reversing frame order. Pixel regression tests use independently mirrored references.
 
 The bottom HUD uses the pure `hudLayout` function with viewport size, UI scale and safe-area insets. It shows existing resources, progression and potion shortcuts. The minimap cycles through radar, full and hidden modes. Browser rendering checks cover resizing, effects lifetime, pause/resume, world replacement and map controls.
+
+## Woodland art and treasure
+
+World-art overhaul: `vegetationArt.ts` selects native source rectangles from the licensed LPC
+Trees and LPC Flowers / Plants / Fungi / Wood atlases. Tree frames are 64×64 (young/compact),
+64×96 (tall) and 96×128 (broad); plant frames are 32×32. Explicit root anchors align with the
+existing narrow trunk footprints and ground-depth convention. Canopies remain passable. Transparent
+logs now sort with actors; all solid props use their ground-contact depth, matching character feet.
+Source alpha includes contact shadows; no resizing, smoothing, recolouring or generated substitute
+art is applied. Atlas views share cached sources through `TextureStore.getRect` and are destroyed
+without freeing the shared source. Attribution and CC BY-SA 3.0 travel with the public assets.
+
+Generator v12 reserves the larger native canopy envelope around encounters, bridges and stairs.
+Earlier saves use complete compact source trees without moving props or rewriting terrain. River
+banks favor broad trees and ferns; dry floor slots vary between flowers, grass and mushrooms.
+Pink/yellow flowers, terrain flower cells and hilltop vegetation all use LPC frames. Population
+sizes are not increased. Bridges, hilltop boulders and their placement remain unchanged.
+
+`lootArt.ts` retains the project-authored coin spin and four-frame wooden/reinforced chest art
+from the preceding overhaul. The rejected procedural vegetation implementation was removed.
+
+`LootView` observes committed balances for a transient +N label and chest particles. Interaction
+hints share the simulation reach check. Opening animations read saved simulation progress;
+particles and floating labels are cosmetic and are reset on world load.

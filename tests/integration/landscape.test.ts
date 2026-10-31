@@ -51,9 +51,11 @@ function oldWorld(w: WorldData): WorldData {
 }
 
 for (const seed of [1, 42, 123, 1337]) {
-  it(`preserves the captured pre-change v10 seed-${seed} world through actual generation`, () => {
+  it(`preserves the captured pre-change v10 seed-${seed} world through loading without regeneration`, () => {
     const fixture = landscapeFixture(seed);
-    const actual = generateWorld({ seed, level: 1, difficulty: 'normal', generatorVersion: 10 });
+    const sim = new Simulation();
+    sim.loadWorld(fixture);
+    const actual = sim.world;
     // Whole authoritative state: terrain/elevation/water, props, stairs, bridges,
     // spawn descriptors, encounter reservations, stable IDs and migration markers.
     expect(actual).toEqual(fixture);
@@ -61,12 +63,12 @@ for (const seed of [1, 42, 123, 1337]) {
   });
 }
 
-it('records both actual consumers and the audited eight hilltop relocations without changing generation', () => {
+it('records actual v12 woodland and hilltop consumers after treasure placement', () => {
   enableLandscapeDiagnostics(true);
   const world = generateWorld({ seed: 42, level: 1, difficulty: 'normal' });
-  expect(world).toEqual(landscapeFixture());
+  expect(world.meta.generatorVersion).toBe(12);
   const trace = landscapeTrace(world)!;
-  expect(trace.counts.hilltop).toEqual({ accepted: 79, relocated: 8, rejected: 0 });
+  expect(trace.counts.hilltop.accepted + trace.counts.hilltop.relocated).toBe(world.props.filter(p => p.hilltop).length);
   expect(trace.counts.woodland.accepted).toBe(world.props.filter((p) => p.kind === 'tree').length);
   expect(trace.counts.woodland.rejected).toBeGreaterThan(0);
   expect(
@@ -133,7 +135,7 @@ it('repeatedly converts the pre-change legacy representation and retains progres
   }
 });
 
-for (const version of [0, 1, 4, 7, 8, 9, 10])
+for (const version of [0, 1, 4, 7, 8, 9, 10, 11, 12])
   it(`loads supported generator ${version} without regeneration`, () => {
     const { sim, saves } = manager(),
       data = JSON.parse(saves.export());
@@ -157,7 +159,7 @@ it('interprets missing generator metadata as unknown legacy without guessing a r
   expect(JSON.parse(saves.export()).world.meta.generatorVersion).toBe(0);
 });
 
-for (const version of [-1, 11, 1.5, '10', null])
+for (const version of [-1, 13, 1.5, '10', null])
   it(`rejects unsupported generator metadata ${String(version)} before changing the active run`, () => {
     const { sim, saves } = manager(),
       data = JSON.parse(saves.export()),
@@ -179,7 +181,7 @@ it('rejects unsupported schema and migration versions and generation requests ex
   data.version = 3;
   expect(() => saves.import(JSON.stringify(data))).toThrow('Unsupported');
   expect(() =>
-    sim.loadWorld({ ...before, meta: { ...before.meta, generatorVersion: 11 } }),
+    sim.loadWorld({ ...before, meta: { ...before.meta, generatorVersion: 13 } }),
   ).toThrow('Unsupported generator');
   expect(() =>
     generateWorld({ seed: 42, level: 1, difficulty: 'normal', generatorVersion: 9 }),

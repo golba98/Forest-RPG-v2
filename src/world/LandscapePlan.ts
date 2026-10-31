@@ -163,8 +163,7 @@ export class LandscapePlan {
     return this.stairs.some((p) => Math.abs(p.x - at.x) <= 2 && Math.abs(p.y - at.y) <= 2);
   }
   /** Legacy woodland protection only; random density/spacing remains owned by woodland. */
-  woodlandRejection(at: TilePoint): string | null {
-    const area = { minX: at.x - 1, minY: at.y - 1, maxX: at.x + 2, maxY: at.y + 1 };
+  woodlandRejection(at: TilePoint, area: Bounds = { minX: at.x - 1, minY: at.y - 1, maxX: at.x + 2, maxY: at.y + 1 }): string | null {
     const conflict = this.conflicts(area, ['encounter', 'bridge'])[0];
     if (conflict) return conflict.id;
     if (this.protectedStairAt(at)) return 'stair-approach';

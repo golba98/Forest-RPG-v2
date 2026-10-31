@@ -46,6 +46,12 @@ When a browser fixture replaces an entire world, clear incompatible saved encoun
 
 The landscape JSON files are authoritative regression inputs captured before generation changes, not disposable test output. See their [capture contract](../tests/fixtures/landscape/README.md). Do not regenerate them merely to make a failing assertion pass.
 
+## Woodland artwork and loot
+
+`tests/unit/rendering/vegetationArt.test.ts` checks native source frames and artwork rules. Treasure placement, collection and persistence are covered by `tests/unit/world/treasure.test.ts`, `tests/unit/simulation/loot.test.ts` and persistence tests.
+
+After building, run `npx playwright test tests/e2e/world-art-loot.spec.ts --workers=1` to verify native trees, depth, chest rewards and save/reload in both browsers.
+
 ## Captures and reports
 
 Playwright screenshots, traces, attachments and videos live under ignored `test-results/`, isolated by test, browser and retry. The HTML report is in ignored `playwright-report/`; open it with `npx playwright show-report`. Both folders may be replaced by the next run.
