@@ -141,7 +141,7 @@ The regression assertions are in `tests/e2e/visual-rendering.spec.ts`.
 
 `window.__RENDER_DEBUG__` exposes `setFlags`, `getFlags` and `getInfo` for tests. The overlay is off by default.
 
-## 4. Test results (this branch)
+## 4. Earlier visual-repair test results (historical)
 
 | Check | Result |
 |---|---|
@@ -164,3 +164,123 @@ Resizing (800×600, 1920×1080), camera movement (teleports and pans), regenerat
 - **East/west hill walls are thin rims, not faces.** The top-down ¾ convention shows faces only on south edges. RAMP tiles have no cliff-aware art; the current generator never produces RAMP tiles.
 - **Cloud look:** the cloud PNGs are low-resolution pixel art. Soft-focus scaling reads as high clouds, but a dedicated larger cloud asset would look better.
 - **Human visual sign-off is still needed.** Automated checks prove that states, counts and positions are correct; art quality at every zoom and resolution is a judgement call.
+
+## 6. Minimap and combat-effects follow-up — 2026-10-28
+
+Completed in `.claude/worktrees/visual-repair` on `claude/visual-rendering-repair`.
+Claude's existing minimap, combat effects, aim assist and AI changes are preserved.
+
+The slash and spin were already wired correctly. Installing Playwright's clock
+**before navigation**, advancing it explicitly, and freezing it for screenshots
+captures both effects at 80 ms. The regression tests check canvas pixels as well
+as effect counts, including the white slashes, gold third-hit finisher and blue
+spin ring. Separate fights exercise melee impacts and the player's white flash,
+red tint and alternating invulnerability opacity.
+
+Two defects were reproduced and fixed:
+
+- `EffectsLayer.clear()` left an active portal transition and its drawing alive.
+  Clearing now resets the transition too; portal entry still starts a fresh one
+  after the world changes. A unit test failed before this fix and passes afterward.
+- The tutorial's viewport is larger than its world, so the full-map camera frame
+  extended across the surrounding HUD. Its rectangle now represents the visible
+  intersection with the world. A browser pixel test failed before the fix and
+  passes afterward.
+
+The debug-only `getInfo()` result now includes read-only `minimapMode`.
+No production renderer or simulation interface changed. New effects-layer tests
+cover geometry, expansion, expiration, pause/resume, sprite cleanup and transition
+cleanup. Browser checks also cover M cycling, player centering, the off-map portal
+arrow, the full-map viewport frame, regeneration, and layouts at 800×600,
+1280×720 and 1920×1080.
+
+| Final check | Result |
+|---|---|
+| Typecheck (included in `npm run build`) | Pass |
+| `npm run lint` | Pass |
+| `npm test -- --reporter=dot` | **38 files, 312 tests pass** |
+| `npm run build` | Pass; existing Pixi bundle size warning remains |
+| `npx playwright test tests/e2e/visual-rendering.spec.ts --workers=1` | **20 / 20 pass**, 10 each in Chromium and Firefox |
+
+Run these commands from the visual-repair worktree. Use `npm run dev` for local
+play; use **E** for melee, **Q** for spin, and **M** to cycle minimap modes.
+The complete unrelated gameplay/browser suite was not rerun for this follow-up.
+
+Screenshots are attached by name in `playwright-report/index.html` and saved in
+the corresponding `test-results/visual-rendering-*` directories, separately per
+browser. Evidence includes `slash-{1,2,3}-80ms.png`, `spin-80ms.png`,
+`melee-impact-160ms.png`, `hurt-white-flash.png`, `hurt-red-tint.png`,
+`hurt-blink-{a,b}.png`, `minimap-radar.png`, `minimap-full-{800,1280,1920}.png`,
+and `tutorial-full-map.png`. The finisher, spin, hurt tint, radar arrow and corrected
+tutorial panel were also inspected visually. Generated captures and reports remain
+ignored build/test artifacts.
+
+## 7. Shared forest-and-gold menu theme — 2026-10-28
+
+All menu surfaces now follow the HUD/minimap palette: forest-green panels,
+cream text, muted gold borders and moss-green selections. ForestPixel headings
+and main actions use the bundled font; settings labels and values use readable
+monospace text with fallbacks for translated characters. The woodland video
+and its poster fallback remain behind the main menu.
+
+`src/ui/theme.css` now contains shared tokens and component styles instead of
+overlapping settings/main-menu overrides. `src/ui/GameShell.ts` supplies common
+panel/action classes and structured settings rows. Main menu, pause, welcome,
+character, victory and game-over use the same panel/button treatment. Settings
+retains its five categories, scrolling body, and persistent header/footer.
+
+Content scaling uses font/spacing variables rather than whole-panel `zoom`.
+Narrow layouts use horizontally scrolling category navigation, stacked settings
+rows and stacked footer actions. Labels wrap without horizontal content overflow.
+Desktop navigation scales wide enough for the translated category names.
+Native controls and their labels remain intact, with at least 44 px interaction
+targets (checkboxes use their surrounding label row).
+
+Two related interaction issues were corrected: focus trapping now skips hidden
+and disabled controls, and a failed menu video no longer substitutes its poster
+behind settings opened over a paused world. Menu touch scrolling is enabled
+without changing the canvas interaction policy during gameplay.
+
+| Final check | Result |
+|---|---|
+| Typecheck (included in `npm run build`) | Pass |
+| `npm run lint` | Pass |
+| `npm test -- --reporter=dot` | **38 files, 312 tests pass** |
+| `npm run build` | Pass; existing Pixi bundle size warning remains |
+| Menu theme, presentation, onboarding and localization browser suites | **30 / 30 pass**, 15 each in Chromium and Firefox |
+| Touch scrolling, Chromium mobile emulation at 390×844 | Pass; a swipe moved the settings body from scroll position 0 to 265 |
+
+Browser coverage checks all five settings categories at 1920×1080, 1280×720,
+800×600 and 390×844; Compact/Default/Large UI scales; English/Spanish/German;
+footer reachability; keyboard focus; rebinding and cancellation; resets;
+persistence; onboarding; returning to gameplay; and blocked-video fallback.
+Main, pause, welcome, character and game-over captures use ordinary UI flows.
+Victory was inspected through the existing `onSceneChanged('victory')` hook in
+a temporary browser-only fixture; this change does not add a victory trigger.
+
+Before/after captures were inspected together at matching viewport sizes.
+Representative raw PNGs are retained locally under `docs/qa/screens/menu-theme/`
+(ignored QA artifacts). Full per-category/per-browser captures are attached to
+`playwright-report/index.html` and stored under `test-results/menu-theme-*`.
+
+| Surface | Before | After |
+|---|---|---|
+| Main menu, 1920×1080 | [Before](screens/menu-theme/before-main-menu.png) | [After](screens/menu-theme/after-main-menu.png) |
+| Settings, 1920×1080 | [Before](screens/menu-theme/before-settings.png) | [After](screens/menu-theme/after-settings.png) |
+| Pause, 800×600 | [Before](screens/menu-theme/before-pause.png) | [After](screens/menu-theme/after-pause.png) |
+
+Additional inspected captures: [800 px settings](screens/menu-theme/after-settings-800.png),
+[German controls at Large scale on a narrow screen](screens/menu-theme/after-settings-small-german.png),
+[welcome](screens/menu-theme/after-welcome.png), [character](screens/menu-theme/after-character.png),
+[game over](screens/menu-theme/after-game-over.png), and [victory](screens/menu-theme/after-victory.png).
+
+Reproduce from `.claude/worktrees/visual-repair`:
+
+```sh
+npm run dev
+npm run build
+npx playwright test tests/e2e/menu-theme.spec.ts tests/e2e/presentation.spec.ts tests/e2e/onboarding.spec.ts tests/e2e/localization.spec.ts --workers=1
+```
+
+The renderer, gameplay, settings storage schema and existing test IDs are
+unchanged by this menu pass. No dependencies or production image assets were added.

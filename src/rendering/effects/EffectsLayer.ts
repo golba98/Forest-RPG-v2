@@ -16,6 +16,24 @@ interface Transient {
 }
 
 const DEATH_MS = 380;
+const SLASH_MS = 170;
+
+interface Arc {
+  readonly x: number;
+  readonly y: number;
+  readonly angle: number;
+  readonly big: boolean;
+  age: number;
+}
+
+interface Ring {
+  readonly x: number;
+  readonly y: number;
+  readonly radius: number;
+  readonly color: number;
+  readonly life: number;
+  age: number;
+}
 
 /**
  * Short-lived, renderer-only feedback: enemy death fades, pickup sparkles,
@@ -27,7 +45,11 @@ export class EffectsLayer {
   readonly ground = new Graphics();
   /** Screen-space portal transition; insert above the world, below the HUD. */
   readonly transition = new Graphics();
+  /** World-space strokes above the actors (sword slashes, spin rings). */
+  readonly overlay = new Graphics();
   private readonly items: Transient[] = [];
+  private readonly arcs: Arc[] = [];
+  private readonly rings: Ring[] = [];
   private transitionMs = -1;
 
   constructor(private readonly parent: Container, private readonly fx: EffectTextures) {}
@@ -69,6 +91,16 @@ export class EffectsLayer {
     this.add(s, 220, 0, 0, 0.7, 0.3);
   }
 
+  /** Sword slash: a bright arc sweeping ~140° around `angle` (radians). The third combo hit is bigger and gold. */
+  slash(x: number, y: number, angle: number, big: boolean): void {
+    this.arcs.push({ x, y, angle, big, age: 0 });
+  }
+
+  /** Expanding ring (spin attack, impacts). */
+  ring(x: number, y: number, radius: number, color: number, life: number): void {
+    this.rings.push({ x, y, radius, color, life, age: 0 });
+  }
+
   startTransition(): void {
     this.transitionMs = 0;
   }
@@ -95,6 +127,34 @@ export class EffectsLayer {
       }
     }
 
+    this.overlay.clear();
+    for (let i = this.arcs.length - 1; i >= 0; i--) {
+      const a = this.arcs[i];
+      if (!a) continue;
+      a.age += dt;
+      const t = Math.min(1, a.age / SLASH_MS);
+      const radius = a.big ? 50 : 40;
+      const sweep = (a.big ? 170 : 140) * (Math.PI / 180);
+      // The leading edge sweeps across the arc while the trail fades behind it.
+      const start = a.angle - sweep / 2;
+      const head = start + sweep * Math.min(1, t * 1.6);
+      const tail = start + sweep * Math.max(0, t * 1.6 - 0.55);
+      const color = a.big ? 0xffd86a : 0xffffff;
+      if (head > tail) {
+        this.overlay.arc(a.x, a.y, radius, tail, head).stroke({ width: a.big ? 7 : 5, color, alpha: 0.85 * (1 - t) });
+        this.overlay.arc(a.x, a.y, radius - 7, tail, head).stroke({ width: 2, color, alpha: 0.45 * (1 - t) });
+      }
+      if (t >= 1) this.arcs.splice(i, 1);
+    }
+    for (let i = this.rings.length - 1; i >= 0; i--) {
+      const r = this.rings[i];
+      if (!r) continue;
+      r.age += dt;
+      const t = Math.min(1, r.age / r.life);
+      this.overlay.circle(r.x, r.y, r.radius * (0.25 + 0.75 * t)).stroke({ width: 4 * (1 - t) + 1, color: r.color, alpha: 0.8 * (1 - t) });
+      if (t >= 1) this.rings.splice(i, 1);
+    }
+
     this.transition.clear();
     if (this.transitionMs >= 0) {
       this.transitionMs += dtMs;
@@ -111,11 +171,16 @@ export class EffectsLayer {
   clear(): void {
     for (const item of this.items) item.sprite.destroy();
     this.items.length = 0;
+    this.arcs.length = 0;
+    this.rings.length = 0;
+    this.transitionMs = -1;
+    this.transition.clear();
+    this.overlay.clear();
     this.ground.clear();
   }
 
   get activeCount(): number {
-    return this.items.length;
+    return this.items.length + this.arcs.length + this.rings.length;
   }
 
   private add(sprite: Sprite, life: number, vx: number, vy: number, alpha: number, endScale: number): void {

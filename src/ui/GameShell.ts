@@ -26,13 +26,12 @@ export class GameShell implements Shell {
     this.panel.setAttribute('role', 'dialog'); this.panel.setAttribute('aria-modal', 'true'); this.panel.setAttribute('aria-label', 'Forest RPG menu');
     this.video.src = '/assets/video/menu_vid.webm'; this.video.poster = '/assets/images/background/woodland_menu.webp';
     this.video.muted = true; this.video.loop = true; this.video.playsInline = true;
-    this.video.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:9;pointer-events:none';
+    this.video.className = 'menu-backdrop';
     document.body.append(this.video, this.panel);
-    this.panel.style.background = 'linear-gradient(#06120b33,#06120b88)';
     this.panel.addEventListener('keydown', e => {
       if (e.code === 'Escape') { e.preventDefault(); if (this.panel.dataset.screen === 'settings' || this.panel.dataset.screen === 'welcome') this.onSceneChanged(this.game.currentScene); else if (this.game.currentScene === 'paused') this.game.resume(); }
       if (e.code !== 'Tab') return;
-      const controls = [...this.panel.querySelectorAll<HTMLElement>('button,input,select')];
+      const controls = [...this.panel.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)')].filter(control => control.getClientRects().length > 0);
       const first = controls[0], last = controls.at(-1);
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
@@ -53,11 +52,14 @@ export class GameShell implements Shell {
     if (scene === 'playing') { this.previousFocus?.focus(); return; }
     this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.panel.dataset.screen = scene;
-    this.panel.replaceChildren(); const box = document.createElement('div'); this.panel.append(box);
+    this.panel.dataset.backdrop = scene === 'menu' ? 'menu' : 'world';
+    this.panel.replaceChildren(); const box = document.createElement('div'); box.className = `menu-panel action-panel${scene === 'menu' ? ' main-menu-panel' : ''}`; this.panel.append(box);
     const title = document.createElement('h1'); title.textContent = scene === 'menu' ? 'Forest RPG V2' : scene === 'paused' ? 'Paused' : scene === 'victory' ? 'Victory' : 'Game Over'; title.textContent = this.t(title.textContent ?? ''); box.append(title);
     if (scene === 'menu') { const subtitle = document.createElement('p'); subtitle.className = 'menu-subtitle'; subtitle.textContent = this.t('A journey through the wild'); box.append(subtitle); }
     const button = (label: string, id: string, action: () => void) => {
-      const el = document.createElement('button'); el.textContent = this.t(label); el.dataset.testid = id; el.onclick = action; box.append(el);
+      const el = document.createElement('button'); el.textContent = this.t(label); el.dataset.testid = id; el.onclick = action;
+      if (id === 'resume-button' || id === 'continue-button' || (id === 'new-game-button' && !(scene === 'menu' && this.saves?.exists()))) el.className = 'menu-button--primary';
+      box.append(el);
     };
     if (scene === 'menu' && this.saves?.exists()) button('Continue', 'continue-button', () => this.withSave(() => this.saves?.load()));
     if (scene === 'paused') button('Resume', 'resume-button', () => this.game.resume());
@@ -75,6 +77,7 @@ export class GameShell implements Shell {
     if (!this.simulation || this.game.currentScene !== 'playing') return;
     this.game.pause(); this.panel.dataset.screen = 'character';
     const box = this.panel.firstElementChild; if (!box) return;
+    box.className = 'menu-panel action-panel';
     const render = () => {
       if (!this.simulation) return;
       box.replaceChildren(); const stats = this.simulation.player.stats;
@@ -85,7 +88,7 @@ export class GameShell implements Shell {
         const button = document.createElement('button'); button.textContent = `${text}  +`; button.disabled = stats.statPoints === 0 || (stat === 'health' && stats.maxHealth >= 20);
         button.onclick = () => { this.simulation?.allocateStat(stat); render(); }; box.append(button);
       }
-      const close = document.createElement('button'); close.textContent = 'Resume'; close.onclick = () => this.game.resume(); box.append(close); close.focus();
+      const close = document.createElement('button'); close.className = 'menu-button--primary'; close.textContent = 'Resume'; close.onclick = () => this.game.resume(); box.append(close); close.focus();
     };
     render();
   }
@@ -111,14 +114,25 @@ export class GameShell implements Shell {
     }
     this.panel.dataset.screen = 'welcome';
     const box = this.panel.firstElementChild; if (!box) return; box.replaceChildren();
+    box.className = 'menu-panel action-panel';
     const h = document.createElement('h1'); h.textContent = this.t('Welcome to the forest'); box.append(h);
     const p = document.createElement('p'); p.textContent = this.t('Learn to explore, fight and open the portal in a short training glade.'); box.append(p);
-    const start = document.createElement('button'); start.textContent = this.t('Start tutorial'); start.onclick = () => { this.onboarding.value.seen = true; this.onboarding.save(); this.game.startNewGame({ tutorial: true }); }; box.append(start);
+    const start = document.createElement('button'); start.className = 'menu-button--primary'; start.textContent = this.t('Start tutorial'); start.onclick = () => { this.onboarding.value.seen = true; this.onboarding.save(); this.game.startNewGame({ tutorial: true }); }; box.append(start);
     const skip = document.createElement('button'); skip.textContent = this.t('Skip for now'); skip.onclick = () => { this.onboarding.value.seen = true; this.onboarding.save(); this.game.startNewGame({ difficulty: this.settings.value.difficulty }); }; box.append(skip);
-    const label = document.createElement('label'); label.textContent = this.t('Don’t show automatically again'); const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.onchange = () => { this.settings.value.tutorials = !checkbox.checked; this.persist(); }; label.append(checkbox); box.append(label); start.focus();
+    const label = document.createElement('label'); label.className = 'menu-choice'; label.textContent = this.t('Don’t show automatically again'); const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.onchange = () => { this.settings.value.tutorials = !checkbox.checked; this.persist(); }; label.append(checkbox); box.append(label); start.focus();
+  }
+  private settingRow(section: HTMLElement, text: string): HTMLLabelElement {
+    const row = document.createElement('label');
+    row.className = 'setting-row';
+    const name = document.createElement('span');
+    name.className = 'setting-label';
+    name.textContent = this.t(text);
+    row.append(name); section.append(row);
+    return row;
   }
   private showSettings(scene: SceneState): void {
     const box = this.panel.firstElementChild; if (!box) return; box.replaceChildren(); this.panel.dataset.screen = 'settings';
+    box.className = 'menu-panel settings-panel';
     const heading = document.createElement('h1'); heading.textContent = this.t('Settings'); box.append(heading);
     const layout = document.createElement('div'); layout.className = 'settings-layout'; box.append(layout);
     const navigation = document.createElement('nav'); navigation.className = 'settings-nav'; navigation.setAttribute('aria-label', 'Settings sections'); layout.append(navigation);
@@ -132,16 +146,16 @@ export class GameShell implements Shell {
     };
     const display = group('Display'), gameplay = group('Gameplay'), audio = group('Audio'), access = group('Accessibility');
     for (const [key, text, section] of [['lighting','Lighting',display], ['clouds','Clouds',display], ['particles','Ambient particles',display], ['showStars','Stars at night',display], ['shake','Camera shake',display], ['fireflies','Fireflies',display], ['performance','Performance overlay',display], ['hud','Show HUD',gameplay], ['tutorials','Show tutorials',gameplay], ['invertY','Invert Y axis',gameplay]] as const) {
-      const label = document.createElement('label'); label.textContent = this.t(text); const control = document.createElement('input'); control.type = 'checkbox'; control.checked = this.settings.value[key]; control.onchange = () => { this.settings.value[key] = control.checked; this.persist(); }; label.append(control); section.append(label);
+      const label = this.settingRow(section, text); label.classList.add('setting-row--toggle'); const control = document.createElement('input'); control.type = 'checkbox'; control.checked = this.settings.value[key]; control.onchange = () => { this.settings.value[key] = control.checked; this.persist(); }; label.append(control);
     }
     for (const [key, text] of [['masterVolume','Master volume'], ['musicVolume','Music volume'], ['sfxVolume','Effects volume']] as const) {
-      const label = document.createElement('label'); label.textContent = this.t(text); const control = document.createElement('input'); control.type = 'range'; control.min = '0'; control.max = '1'; control.step = '.05'; control.value = String(this.settings.value[key]); const output = document.createElement('output'); output.textContent = `${Math.round(Number(control.value) * 100)}%`; control.oninput = () => { this.settings.value[key] = Number(control.value); output.textContent = `${Math.round(Number(control.value) * 100)}%`; this.persist(); }; label.append(control, output); audio.append(label);
+      const label = this.settingRow(audio, text); const value = document.createElement('span'); value.className = 'setting-value'; const control = document.createElement('input'); control.type = 'range'; control.min = '0'; control.max = '1'; control.step = '.05'; control.value = String(this.settings.value[key]); const output = document.createElement('output'); output.textContent = `${Math.round(Number(control.value) * 100)}%`; control.oninput = () => { this.settings.value[key] = Number(control.value); output.textContent = `${Math.round(Number(control.value) * 100)}%`; this.persist(); }; value.append(control, output); label.append(value);
     }
     const select = (section: HTMLElement, text: string, choices: Array<[string,string]>, current: string, change: (v: string) => void) => {
-      const label = document.createElement('label'); label.textContent = this.t(text); const control = document.createElement('select'); for (const [value, title] of choices) control.append(new Option(this.t(title), value)); control.value = current; control.onchange = () => { change(control.value); this.persist(); }; label.append(control); section.append(label);
+      const label = this.settingRow(section, text); const control = document.createElement('select'); for (const [value, title] of choices) control.append(new Option(this.t(title), value)); control.value = current; control.onchange = () => { change(control.value); this.persist(); }; label.append(control);
     };
     select(display, 'Frame limit', [60,120,144,170,240,0].map(n => [String(n), n ? `${n} FPS` : 'Unlimited']), String(this.settings.value.maxFps), v => this.settings.value.maxFps = Number(v));
-    const sensitivity = document.createElement('label'); sensitivity.textContent = this.t('Movement sensitivity'); const slider = document.createElement('input'); slider.type = 'range'; slider.min = '1'; slider.max = '10'; slider.step = '1'; slider.value = String(this.settings.value.sensitivity); const sensitivityValue = document.createElement('output'); sensitivityValue.textContent = slider.value; slider.oninput = () => { this.settings.value.sensitivity = Number(slider.value); sensitivityValue.textContent = slider.value; this.persist(); }; sensitivity.append(slider, sensitivityValue); gameplay.append(sensitivity);
+    const sensitivity = this.settingRow(gameplay, 'Movement sensitivity'); const sensitivityControls = document.createElement('span'); sensitivityControls.className = 'setting-value'; const slider = document.createElement('input'); slider.type = 'range'; slider.min = '1'; slider.max = '10'; slider.step = '1'; slider.value = String(this.settings.value.sensitivity); const sensitivityValue = document.createElement('output'); sensitivityValue.textContent = slider.value; slider.oninput = () => { this.settings.value.sensitivity = Number(slider.value); sensitivityValue.textContent = slider.value; this.persist(); }; sensitivityControls.append(slider, sensitivityValue); sensitivity.append(sensitivityControls);
     select(gameplay, 'Difficulty (next world)', [['easy','Easy'],['normal','Normal'],['hard','Hard']], this.settings.value.difficulty, v => { if (v === 'easy' || v === 'normal' || v === 'hard') this.settings.value.difficulty = v; });
     select(access, 'Language', LANGUAGES.map(language => [language, language]), this.settings.value.language, value => {
       if (LANGUAGES.some(language => language === value)) { this.settings.value.language = value as Language; document.documentElement.lang = languageCode(this.settings.value.language); queueMicrotask(() => { this.showSettings(scene); const tab = this.panel.querySelectorAll<HTMLButtonElement>('.settings-tab')[3]; tab?.click(); tab?.focus(); }); }
@@ -151,8 +165,8 @@ export class GameShell implements Shell {
     const controls = group('Controls');
     const actions: Array<[InputAction, string]> = [['moveUp','Move up'],['moveDown','Move down'],['moveLeft','Move left'],['moveRight','Move right'],['sprint','Sprint'],['jump','Jump'],['dash','Dash'],['attack','Attack'],['skillQ','Spin'],['skillE','Magic bolt'],['potionHealth','Health potion'],['potionSpeed','Speed potion'],['pause','Pause']];
     for (const [action, name] of actions) {
-      const label = document.createElement('label'); label.textContent = this.t(name);
-      const key = document.createElement('button'); key.textContent = String(this.input?.getKeybinds()[action]?.[0] ?? 'Unbound');
+      const label = this.settingRow(controls, name);
+      const key = document.createElement('button'); key.className = 'key-binding'; key.textContent = String(this.input?.getKeybinds()[action]?.[0] ?? 'Unbound');
       key.onclick = () => {
         this.cancelCapture?.();
         key.textContent = this.t('Press a key…');
@@ -171,14 +185,14 @@ export class GameShell implements Shell {
         };
         this.cancelCapture = () => { window.removeEventListener('keydown', capture, true); key.textContent = String(this.input?.getKeybinds()[action]?.[0] ?? 'Unbound'); };
         window.addEventListener('keydown', capture, true);
-      }; label.append(key); controls.append(label);
+      }; label.append(key);
     }
     const restore = document.createElement('button'); restore.textContent = this.t('Reset controls'); restore.onclick = () => { this.input?.resetToDefaults(); this.input?.saveToStorage(); this.showSettings(scene); }; controls.append(restore);
     const replay = document.createElement('button'); replay.textContent = this.t('Replay tutorial'); replay.onclick = () => this.game.startNewGame({ tutorial: true }); gameplay.append(replay);
     const fullscreen = document.createElement('button'); fullscreen.textContent = this.t('Toggle fullscreen'); fullscreen.onclick = () => { void this.game.toggleFullscreen(); }; display.append(fullscreen);
     const footer = document.createElement('footer'); footer.className = 'settings-footer'; box.append(footer);
     const reset = document.createElement('button'); reset.textContent = this.t('Reset settings'); reset.onclick = () => { this.settings.reset(); this.applySettings(); this.showSettings(scene); }; footer.append(reset);
-    const back = document.createElement('button'); back.textContent = this.t('Back'); back.onclick = () => this.onSceneChanged(scene); footer.append(back); navigation.querySelector('button')?.focus();
+    const back = document.createElement('button'); back.className = 'menu-button--primary'; back.textContent = this.t('Back'); back.onclick = () => this.onSceneChanged(scene); footer.append(back); navigation.querySelector('button')?.focus();
   }
   private persist(): void { const saved = this.settings.save(); this.applySettings(); if (!saved) { const notice = document.createElement('p'); notice.setAttribute('role', 'status'); notice.textContent = 'Preferences apply for this session but could not be saved.'; this.panel.firstElementChild?.append(notice); } }
 }
