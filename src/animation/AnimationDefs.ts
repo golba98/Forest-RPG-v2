@@ -140,11 +140,6 @@ const WALK_H: HeightTable = { N: 19, NE: 19, E: 20, SE: 21, S: 22, SW: 21, W: 20
 const RUN_H: HeightTable = { N: 20, NE: 18, E: 22, SE: 20, S: 21, SW: 20, W: 22, NW: 18 };
 // The shipped southwest run PNG duplicates southeast byte-for-byte. Mirror
 // each southeast frame (not the whole strip, which would reverse frame order).
-const RUN_SHEETS = playerSheets('run', 120, RUN_H);
-const PLAYER_RUN_SHEETS: Readonly<Record<Direction, DirectionalSheet>> = {
-  ...RUN_SHEETS,
-  SW: { ...RUN_SHEETS.SW, flipX: true },
-};
 const JUMP_H: HeightTable = { N: 20, NE: 20, E: 21, SE: 20, S: 21, SW: 20, W: 21, NW: 20 };
 const ATTACK_H: HeightTable = { N: 92, NE: 96, E: 97, SE: 113, S: 121, SW: 113, W: 97, NW: 96 };
 const RUN_SHEETS = playerSheets('run', 120, RUN_H);
