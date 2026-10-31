@@ -137,9 +137,9 @@ The dense legacy grass pattern, coarse grove landmark and bright cliff rims rema
 
 The final Git commit is the authoritative inventory. New modules cover woodland/loot art, loot presentation, loot simulation and treasure placement. Existing edits are limited to the integration points above, tree semantics/generation, portal completion, regression assertions and rendering/save documentation. New unit and browser tests, the dedicated Playwright configuration and this evidence/report complete the workstream.
 
-### Southwest-running correction
+### Southwest-running correction — separate PR #12
 
-Resolved in the follow-up requested by the user. `run_southwest.png` and `run_southeast.png`
+The fix is now isolated in [PR #12](https://github.com/golba98/Forest-RPG-v2/pull/12), with its code and focused tests removed from the world-art PR to allow independent review. `run_southwest.png` and `run_southeast.png`
 contain identical decoded pixels, both facing southeast. `AnimationDefs.ts` now mirrors each
 southwest run frame through the existing `flipX` renderer path. Frame sequence, timing, source
 PNGs, movement vectors and the separate punch mapping are preserved.
@@ -241,3 +241,18 @@ Generated dependencies, builds and caches remain excluded by the existing Git ig
 [Machine-readable inventory](evidence/all-work-backup-20261031.json) records every original
 branch, its saved commit and remote ref, plus both snapshots' complete file lists. These are
 independent recoverable branches; integration conflicts described above remain a separate step.
+
+## Separate pull requests
+
+- [#8 — Woodland artwork and persistent treasure](https://github.com/golba98/Forest-RPG-v2/pull/8).
+- [#9 — Player direction/punch checkpoint, including all 26 main-checkout files](https://github.com/golba98/Forest-RPG-v2/pull/9).
+- [#10 — Later facing/attack stability, stacked on #9](https://github.com/golba98/Forest-RPG-v2/pull/10).
+- [#11 — All 15 visual-repair follow-up files](https://github.com/golba98/Forest-RPG-v2/pull/11).
+- [#12 — Standalone southwest-running artwork correction](https://github.com/golba98/Forest-RPG-v2/pull/12).
+
+PR #9's head has exactly the same tree as the saved main-working-copy snapshot. PR #11 compares
+the visual follow-up against its original visual-repair branch, showing its complete 15-file
+patch. PR #12 is independently based on current main and passed 84 focused tests, both browser
+checks and the production build; lint reports five existing landscape warnings. The other
+workstreams retain their original test evidence and draft integration notes. Historical backup
+branches remain available in the full inventory; no backup was deleted.
