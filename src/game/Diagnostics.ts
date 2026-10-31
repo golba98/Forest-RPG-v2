@@ -9,6 +9,7 @@ import type {
 import type { IRenderer } from '../types/render';
 import type { ISimulation } from '../types/simulation';
 import type { Game } from './Game';
+import { inspectLandscape } from '../world/LandscapeInspector';
 
 /**
  * Optional hooks for features owned by other layers (terminal, persistence, UI).
@@ -132,6 +133,7 @@ export function createDiagnostics(
         hurtTimer: p.hurtTimerMs,
         comboCount: p.comboCount,
         direction: p.facing,
+        attackDirection: simulation.getPlayerAttack()?.direction ?? null,
         coins: p.stats.coins,
         potions: { health: p.inventory.healthPotions, speed: p.inventory.speedPotions },
         speedBuffTimer: p.speedBuffMs,
@@ -155,6 +157,7 @@ export function createDiagnostics(
 
   return {
     getState,
+    getLandscapeDebug: (x, y, includeAccess) => inspectLandscape(simulation.world, x, y, includeAccess),
     getGameplayDebug: () => simulation.getGameplayDebug?.() ?? null,
     stepSimulation: (fixedDeltaSec) => game.stepOnce(fixedDeltaSec),
     pauseSimulation: () => game.pause(),

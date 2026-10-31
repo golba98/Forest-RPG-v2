@@ -1,0 +1,342 @@
+[
+  {
+    "repeat": 0,
+    "samples": [
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      }
+    ],
+    "punch": {
+      "facing": "NW",
+      "asset": "player_attack_northeast"
+    }
+  },
+  {
+    "repeat": 1,
+    "samples": [
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      }
+    ],
+    "punch": {
+      "facing": "NW",
+      "asset": "player_attack_northeast"
+    }
+  },
+  {
+    "repeat": 2,
+    "samples": [
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      }
+    ],
+    "punch": {
+      "facing": "NW",
+      "asset": "player_attack_northeast"
+    }
+  },
+  {
+    "repeat": 3,
+    "samples": [
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      }
+    ],
+    "punch": {
+      "facing": "NW",
+      "asset": "player_attack_northeast"
+    }
+  },
+  {
+    "repeat": 4,
+    "samples": [
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      }
+    ],
+    "punch": {
+      "facing": "NW",
+      "asset": "player_attack_northeast"
+    }
+  },
+  {
+    "repeat": 5,
+    "samples": [
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      }
+    ],
+    "punch": {
+      "facing": "NW",
+      "asset": "player_attack_northeast"
+    }
+  },
+  {
+    "repeat": 6,
+    "samples": [
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      }
+    ],
+    "punch": {
+      "facing": "NW",
+      "asset": "player_attack_northeast"
+    }
+  },
+  {
+    "repeat": 7,
+    "samples": [
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      }
+    ],
+    "punch": {
+      "facing": "NW",
+      "asset": "player_attack_northeast"
+    }
+  },
+  {
+    "repeat": 8,
+    "samples": [
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      }
+    ],
+    "punch": {
+      "facing": "NW",
+      "asset": "player_attack_northeast"
+    }
+  },
+  {
+    "repeat": 9,
+    "samples": [
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      },
+      {
+        "facing": "NW",
+        "anim": "run",
+        "asset": "player_run_northwest"
+      }
+    ],
+    "punch": {
+      "facing": "NW",
+      "asset": "player_attack_northeast"
+    }
+  }
+]

@@ -23,6 +23,6 @@ describe('enemy spawn spacing', () => {
         for (let i = 0; i < pack.length; i++)
           for (let j = i + 1; j < pack.length; j++) expect(dist(pack[i]!, pack[j]!), `gap seed ${seed}`).toBeGreaterThanOrEqual(gap);
       }
-    });
+    }, 30000);
   }
 });

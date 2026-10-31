@@ -6,6 +6,12 @@ export const WORLD_GENERATOR_VERSION = 12;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
+/** Continuous world position in tile units; distinguish actor anchors from foot contact at call sites. */
+export interface WorldPosition {
+  readonly x: number;
+  readonly y: number;
+}
+
 /** Integer tile coordinate. */
 export interface TilePoint {
   readonly x: number;
@@ -101,6 +107,8 @@ export interface WorldData {
 }
 
 export interface WorldGenOptions {
+  /** Defaults to v10. Historical algorithms are load-only, never silently substituted. */
+  readonly generatorVersion?: number;
   readonly seed: number;
   readonly level: number;
   readonly difficulty: Difficulty;

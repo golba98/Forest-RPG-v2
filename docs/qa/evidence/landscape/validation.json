@@ -1,0 +1,53 @@
+{
+  "milestone": 2,
+  "baselineCommit": "58baaf85064efd55fce239e3f0e05ec35276c940",
+  "baselineCapturedBeforeGenerationChanges": true,
+  "seeds": [1, 42, 123, 1337],
+  "configuration": { "width": 150, "height": 150, "level": 1, "difficulty": "normal", "generatorVersion": 10 },
+  "preservation": {
+    "completeAuthoritativeWorldsEqual": true,
+    "terrainElevationWaterStairsEqual": true,
+    "propsAndArtSourcesEqual": true,
+    "bridgesEqual": true,
+    "spawnAndEncounterPlansEqual": true,
+    "reservationsReconstructEquivalently": true,
+    "seed42HilltopObjects": { "total": 87, "atSource": 79, "relocated": 8, "omitted": 0 },
+    "hillReference": { "x": 70, "y": 96 },
+    "groundReference": { "x": 87, "y": 37 }
+  },
+  "checks": {
+    "fullVitest": { "passed": 540, "files": 57 },
+    "affectedRecheck": { "passed": 71, "files": 4 },
+    "finalLandscapeRecheck": { "passed": 31, "files": 2 },
+    "playwright": { "passed": 52, "browsers": ["chromium", "firefox"] },
+    "compactTerminalRecheck": { "passed": 2, "browsers": ["chromium", "firefox"] },
+    "typecheck": "passed",
+    "lint": "passed",
+    "build": "passed; existing Pixi bundle-size advisory",
+    "diffCheck": "passed",
+    "environment": "TMPDIR=/dev/shm avoids error -122 in default temporary-cache storage"
+  },
+  "visualReview": {
+    "viewport": { "width": 1280, "height": 720 },
+    "seed": 42,
+    "renderer": "actual WebGL",
+    "inspected": ["01-seed42-hill.png", "02-player-behind.png", "03-player-in-front.png", "04-stairs.png", "05-river-bridge.png", "06-terminal.png", "07-terminal-firefox.png"],
+    "chunkCoverage": "visibility cycling with retained caches, plus full destruction/rebuild on save load; no physical cache eviction"
+  },
+  "performance": {
+    "samplesPerSeed": 5,
+    "comparableSerialHarness": true,
+    "configurationAndWorldHashesMatch": true,
+    "materialRegression": false,
+    "investigationThreshold": "median increase over both 10 percent and 5 ms",
+    "largestCurrentLoadOrImportMedianIncreaseMs": 0.47,
+    "rawSamples": "performance.json"
+  },
+  "limitations": [
+    "Representative visual scenes use seed 42; numeric preservation covers all four captured worlds.",
+    "Historical generator versions are load-only; this build generates version 10.",
+    "Diagnostic traces are bounded and transient; static explanations do not replay actor recovery or woodland density/spacing.",
+    "No GPU, maximum-map diagnostic-heap, or physical chunk-eviction measurement.",
+    "Later landform, watercourse, permanent-pond, woodland-distribution and artwork changes remain out of scope."
+  ]
+}

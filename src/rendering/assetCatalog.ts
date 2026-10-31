@@ -1,3 +1,4 @@
+import { GROVE_ASSETS } from './groveArt';
 import type { Direction } from '../types/entities';
 import type { PropKind } from '../types/world';
 import { HILL_ATLAS_ALIAS, HILL_ATLAS_SRC } from './hillAutotile';
@@ -17,6 +18,10 @@ export const MANIFEST_BUNDLES = ['boot', 'world', 'entities'] as const;
 
 /** Bundle the TextureStore registers for assets missing from the manifest. */
 export const RENDERER_EXTRA_BUNDLE = 'rendering_extras';
+
+/** Renderer-owned portal art must also load with older/regenerated asset manifests. */
+export const PORTAL_ART_ALIAS = 'portal_forest';
+export const PORTAL_ART_SRC = 'assets/images/objects/portal_forest.png';
 
 export const PLAYER_SHEET_ANIMS = ['idle', 'walk', 'run', 'jump', 'attack'] as const;
 export type PlayerSheetAnim = (typeof PLAYER_SHEET_ANIMS)[number];
@@ -107,6 +112,8 @@ export function rendererExtraAssets(): CatalogAsset[] {
   }
   for (let i = 1; i <= 4; i++) assets.push({ alias: `cloud_${i}`, src: `assets/images/objects/clouds/cloud_${i}.png` });
   for (const layer of ['body', 'front', 'ground', 'cleared']) assets.push({ alias: `nest_${layer}`, src: `assets/images/objects/nest/nest_${layer}.png` });
+  assets.push(...GROVE_ASSETS);
   assets.push({ alias: HILL_ATLAS_ALIAS, src: HILL_ATLAS_SRC });
+  assets.push({ alias: PORTAL_ART_ALIAS, src: PORTAL_ART_SRC });
   return assets;
 }

@@ -1,4 +1,7 @@
 import { collectLoot, prepareLoot } from '../systems/LootSystem';
+
+import { landscapeFor } from '../world/LandscapePlan';
+import { normalizeWorldCompatibility } from '../world/WorldCompatibility';
 import { prepareHilltopObjects } from '../world/HilltopObjects';
 import { SurfaceMoisture, surfaceSites } from '../systems/SurfaceMoisture';
 import type { WeatherKind } from '../types/render';
@@ -81,7 +84,8 @@ export class Simulation implements ISimulation {
     };
   }
   loadWorld(world: WorldData): void {
-    world = prepareHilltopObjects(prepareEncounterWorld(world));
+    world = prepareHilltopObjects(prepareEncounterWorld(normalizeWorldCompatibility(world)));
+    landscapeFor(world);
     this.encounters = new EncounterSystem(
       (enemy, damage) => this.onHit?.(enemy, damage),
       new Rng(world.meta.seed),
@@ -166,16 +170,24 @@ export class Simulation implements ISimulation {
     this.time = (this.time + dt / C.dayNight.cycleSec) % 1;
     this.moisture.step(dt * 1000, this.getWeather() === 'rain' || this.getWeather() === 'storm');
     const night = this.time >= C.dayNight.nightStart || this.time < C.dayNight.nightEnd;
-    movePlayer(
+    const effectiveIntent = this.invertY ? { ...intent, moveY: -intent.moveY } : intent;
+    const locomotion = movePlayer(
       this.world,
       this.player,
-      this.invertY ? { ...intent, moveY: -intent.moveY } : intent,
+      effectiveIntent,
       dt,
       this.sensitivity,
     );
     const encounterInteraction = intent.interact === true && !!this.director.presentation(this.player, this.entities).interaction;
     this.director.step(this.player, this.entities, intent, dt, night, this.encounters.getNavigationDebug());
-    this.encounters.step(this.world, this.player, this.entities, intent, dt);
+    this.encounters.step(this.world, this.player, this.entities, effectiveIntent, dt);
+    // One owner selects the player clip and clock; movement cannot restart an
+    // active punch and combat cannot replace its direction on a later step.
+    const attack = this.getPlayerAttack();
+    this.player.animTimeMs = attack
+      ? attack.elapsedMs
+      : this.player.anim === locomotion ? this.player.animTimeMs + dt * 1000 : 0;
+    this.player.anim = attack ? 'attack' : locomotion;
     this.director.afterCombat(this.player, this.entities);
     collectLoot(this.world, this.player, this.entities, dt, intent.interact === true && !encounterInteraction, () => this.onFeedback?.('coin', this.player));
     this.portal.step(this.player, this.entities, dt, this.director.pendingBosses(this.entities));
@@ -221,6 +233,12 @@ export class Simulation implements ISimulation {
     if (!player) throw new Error('Save has no player');
     this.entities = entities;
     this.player = player;
+    this.encounters.resetPlayerAttack();
+    if (player.anim === 'attack') {
+      player.anim = player.isJumping ? 'jump' : 'idle';
+      player.animTimeMs = 0;
+      player.comboCount = 0;
+    }
     this.time = time;
     this.elapsedMs = elapsedMs;
     this.moisture.restore(runtime?.moisture);
@@ -362,6 +380,9 @@ export class Simulation implements ISimulation {
   getTimeOfDay(): number {
     return this.time;
   }
+  getPlayerAttack() {
+    return this.encounters.getPlayerAttack();
+  }
   buildRenderSnapshot(): RenderSnapshot {
     const darkness = Math.max(0, Math.cos(this.time * Math.PI * 2)) * 0.8;
     return {
@@ -375,6 +396,10 @@ export class Simulation implements ISimulation {
         .filter((e) => e.alive || (e.kind === 'enemy' && e.anim === 'death' && e.animTimeMs < 450))
         .map((e) => ({
           ...e,
+          facing: e.kind === 'player' ? this.getPlayerAttack()?.direction ?? e.facing : e.facing,
+          // Player clocks are reset here, so presentation must not infer a
+          // later start when the first few attack frames were not rendered.
+          ...(e.kind === 'player' ? { animStartedAtMs: 0, attack: this.getPlayerAttack() } : {}),
           dead: !e.alive,
           spriteKey: e.kind === 'enemy' ? e.enemyType : e.kind === 'pickup' ? e.pickupType : e.kind,
           lift:

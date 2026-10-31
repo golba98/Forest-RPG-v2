@@ -1,3 +1,4 @@
+import { GROVE_ASSETS } from './groveArt';
 import { ANIMATION_DEFS, type ClipDef, type SpriteSetDef } from '../animation/AnimationDefs';
 import { DECOR_KINDS, GROUND_PROPS, decorAlias } from './assetCatalog';
 import { HILL_ATLAS_ALIAS, HILL_ATLAS_SRC } from './hillAutotile';
@@ -179,6 +180,15 @@ export function buildVisualManifest(): VisualAssetEntry[] {
     renderOffset: { x: 0, y: -10 }, tileFootprint: { w: 3, h: 2.5 },
     depthAnchor: layer === 'ground' ? 'none' : 'foot', layer: layer === 'ground' ? 'ground-fx' : 'actors',
     solidFootprint: 'player-only stepped nest base; upper projections and padding excluded',
+  });
+  for (const asset of GROVE_ASSETS) entries.push({
+    id: asset.alias, alias: asset.alias, path: asset.src,
+    texture: { w: asset.width, h: asset.height }, frame: { w: asset.width, h: asset.height },
+    anchor: { x: 0.5, y: 1 }, renderOffset: { x: 0, y: 8 },
+    tileFootprint: { w: asset.width / TILE, h: asset.height / TILE },
+    depthAnchor: asset.alias === 'grove_stump' ? 'foot' : 'none',
+    layer: asset.alias === 'grove_stump' ? 'actors' : 'ground-fx',
+    solidFootprint: 'none; grove artwork does not add collision',
   });
   entries.push(...sheetEntries());
   return entries;

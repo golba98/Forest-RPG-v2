@@ -29,6 +29,7 @@ export interface PlayerState {
   hurtTimer: number;
   comboCount: number;
   direction: Direction;
+  attackDirection: Direction | null;
   coins: number;
   potions: {
     health: number;
@@ -165,6 +166,8 @@ export interface LegacySettingsPayload {
 }
 
 export interface GameDiagnosticsGateway {
+  /** Continuous ground-contact coordinates in tiles. Access replay is opt-in and potentially expensive. */
+  getLandscapeDebug(x: number, y: number, includeAccess?: boolean): import('../world/LandscapeInspector').LandscapeInspection;
   getState(): GameSnapshot;
   getGameplayDebug(): import('./gameplay').GameplayDebug | null;
   stepSimulation(fixedDeltaSec?: number): void;

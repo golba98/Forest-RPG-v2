@@ -18,6 +18,15 @@ interface Transient {
 const DEATH_MS = 380;
 const SLASH_MS = 170;
 
+export interface PlayerSlashView {
+  readonly swingId: number;
+  readonly comboStep: number;
+  readonly x: number;
+  readonly y: number;
+  readonly angle: number;
+  readonly age: number;
+}
+
 interface Arc {
   readonly x: number;
   readonly y: number;
@@ -48,7 +57,7 @@ export class EffectsLayer {
   /** World-space strokes above the actors (sword slashes, spin rings). */
   readonly overlay = new Graphics();
   private readonly items: Transient[] = [];
-  private readonly arcs: Arc[] = [];
+  private playerSlash: PlayerSlashView | null = null;
   private readonly rings: Ring[] = [];
   private transitionMs = -1;
 
@@ -91,9 +100,13 @@ export class EffectsLayer {
     this.add(s, 220, 0, 0, 0.7, 0.3);
   }
 
-  /** Sword slash: a bright arc sweeping ~140° around `angle` (radians). The third combo hit is bigger and gold. */
-  slash(x: number, y: number, angle: number, big: boolean): void {
-    this.arcs.push({ x, y, angle, big, age: 0 });
+  /** Authoritative attack age prevents late frames from replaying an expired arc. */
+  syncPlayerSlash(slash: PlayerSlashView | null): void {
+    this.playerSlash = slash && slash.age >= 0 && slash.age < SLASH_MS ? { ...slash } : null;
+  }
+
+  getPlayerSlash(): PlayerSlashView | null {
+    return this.playerSlash ? { ...this.playerSlash } : null;
   }
 
   /** Expanding ring (spin attack, impacts). */
@@ -128,24 +141,7 @@ export class EffectsLayer {
     }
 
     this.overlay.clear();
-    for (let i = this.arcs.length - 1; i >= 0; i--) {
-      const a = this.arcs[i];
-      if (!a) continue;
-      a.age += dt;
-      const t = Math.min(1, a.age / SLASH_MS);
-      const radius = a.big ? 50 : 40;
-      const sweep = (a.big ? 170 : 140) * (Math.PI / 180);
-      // The leading edge sweeps across the arc while the trail fades behind it.
-      const start = a.angle - sweep / 2;
-      const head = start + sweep * Math.min(1, t * 1.6);
-      const tail = start + sweep * Math.max(0, t * 1.6 - 0.55);
-      const color = a.big ? 0xffd86a : 0xffffff;
-      if (head > tail) {
-        this.overlay.arc(a.x, a.y, radius, tail, head).stroke({ width: a.big ? 7 : 5, color, alpha: 0.85 * (1 - t) });
-        this.overlay.arc(a.x, a.y, radius - 7, tail, head).stroke({ width: 2, color, alpha: 0.45 * (1 - t) });
-      }
-      if (t >= 1) this.arcs.splice(i, 1);
-    }
+    if (this.playerSlash) this.drawSlash({ ...this.playerSlash, big: this.playerSlash.comboStep === 3 });
     for (let i = this.rings.length - 1; i >= 0; i--) {
       const r = this.rings[i];
       if (!r) continue;
@@ -168,10 +164,25 @@ export class EffectsLayer {
     }
   }
 
+  private drawSlash(a: Arc): void {
+    const t = Math.min(1, a.age / SLASH_MS);
+    const radius = a.big ? 50 : 40;
+    const sweep = (a.big ? 170 : 140) * (Math.PI / 180);
+    // The leading edge sweeps across the arc while the trail fades behind it.
+    const start = a.angle - sweep / 2;
+    const head = start + sweep * Math.min(1, t * 1.6);
+    const tail = start + sweep * Math.max(0, t * 1.6 - 0.55);
+    const color = a.big ? 0xffd86a : 0xffffff;
+    if (head > tail) {
+      this.overlay.arc(a.x, a.y, radius, tail, head).stroke({ width: a.big ? 7 : 5, color, alpha: 0.85 * (1 - t) });
+      this.overlay.arc(a.x, a.y, radius - 7, tail, head).stroke({ width: 2, color, alpha: 0.45 * (1 - t) });
+    }
+  }
+
   clear(): void {
     for (const item of this.items) item.sprite.destroy();
     this.items.length = 0;
-    this.arcs.length = 0;
+    this.playerSlash = null;
     this.rings.length = 0;
     this.transitionMs = -1;
     this.transition.clear();
@@ -180,7 +191,7 @@ export class EffectsLayer {
   }
 
   get activeCount(): number {
-    return this.items.length + this.arcs.length + this.rings.length;
+    return this.items.length + this.rings.length + (this.playerSlash ? 1 : 0);
   }
 
   private add(sprite: Sprite, life: number, vx: number, vy: number, alpha: number, endScale: number): void {

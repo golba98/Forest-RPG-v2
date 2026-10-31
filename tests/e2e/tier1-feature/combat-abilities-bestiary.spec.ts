@@ -10,15 +10,16 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { boot } from '../helpers/directional-fixture';
+import { loadEncounterWorld, bossAtWall } from '../helpers/encounter-contract';
 import { GameDriver } from '../helpers/game-driver';
 
 test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
   let driver: GameDriver;
 
   test.beforeEach(async ({ page }) => {
-    driver = new GameDriver(page);
-    await driver.launchGame({ tutorial: false });
-    await driver.waitForEngineReady();
+    driver = new GameDriver(page, '', true);
+    await boot(page, [], { shake: true });
   });
 
   test('T1.3.1 — 3-Hit melee combo: 1st/2nd hits deal base damage, 3rd hit deals critical 1.5x+1 damage and kicks camera shake', async () => {
@@ -29,19 +30,19 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
 
     // Hit 1
     await driver.performMeleeAttack();
-    await driver.page.waitForTimeout(390);
+    await driver.page.clock.runFor(390);
     const hit1State = await driver.getState();
     expect(hit1State.player.comboCount).toBe(1);
 
     // Hit 2
     await driver.performMeleeAttack();
-    await driver.page.waitForTimeout(390);
+    await driver.page.clock.runFor(390);
     const hit2State = await driver.getState();
     expect(hit2State.player.comboCount).toBe(2);
 
     // Hit 3 (Critical Hit)
     await driver.performMeleeAttack();
-    await driver.page.waitForTimeout(100);
+    await driver.page.clock.runFor(100);
     const hit3State = await driver.getState();
     // 3rd hit resets combo to 0 and triggers enhanced camera shake (2.5)
     expect(hit3State.player.comboCount).toBe(0);
@@ -49,11 +50,12 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
 
   test('T1.3.2 — Combo reset: exceeding 800ms attack window resets combo count back to 0', async () => {
     await driver.performMeleeAttack();
-    const hit1State = await driver.getState();
-    expect(hit1State.player.comboCount).toBe(1);
+    // Input is consumed on the next fixed step, which may follow mouseup.
+    await driver.page.clock.runFor(17);
+    expect((await driver.getState()).player.comboCount).toBe(1);
 
     // Wait > 800ms without attacking
-    await driver.page.waitForTimeout(900);
+    await driver.page.clock.runFor(900);
 
     const expiredState = await driver.getState();
     expect(expiredState.player.comboCount).toBe(0);
@@ -79,7 +81,7 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
 
     // Cast Magic Projectile (Key R)
     await driver.castSkill('E');
-    await driver.page.waitForTimeout(80);
+    await driver.page.clock.runFor(80);
 
     const postCast = await driver.getState();
     expect(postCast.player.mana).toBeLessThanOrEqual(initial.player.mana - 19);
@@ -120,7 +122,7 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
 
     // Attack toward mantis pushing it against solid wall at x: 0
     await driver.performMeleeAttack();
-    await driver.page.waitForTimeout(150);
+    await driver.page.clock.runFor(150);
 
     const enemies = (await driver.getState()).enemies;
     const nearbyEnemy = enemies.find((e) => e.id === target?.id);
@@ -135,7 +137,7 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
 
     // Damage mantis to exactly 1 HP
     await driver.executeDebugCommand(`/damage_enemy ${mantis?.id} 2`);
-    await driver.page.waitForTimeout(100);
+    await driver.page.clock.runFor(100);
 
     const panickingState = await driver.getState();
     const updatedMantis = panickingState.enemies.find((e) => e.id === mantis?.id);
@@ -151,48 +153,35 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
 
     // Reduce Maggot HP to 1
     await driver.executeDebugCommand(`/damage_enemy ${maggot?.id} 1`);
-    await driver.page.waitForTimeout(100);
+    await driver.page.clock.runFor(100);
 
     const panickingState = await driver.getState();
     const updatedMaggot = panickingState.enemies.find((e) => e.id === maggot?.id);
     expect(updatedMaggot?.isPanicking).toBe(true);
   });
 
-  test('T1.3.8 — Bestiary Beetle Boss AI: persistent aggro, immune to crush instakill, resists knockback', async () => {
-    await driver.executeDebugCommand('/spawn beetle 4 0');
-    const state = await driver.getState();
-    const boss = state.enemies.find((e) => e.type === 'beetle');
-    expect(boss).toBeDefined();
-    expect(boss?.maxHealth).toBeGreaterThanOrEqual(15);
-    expect(boss?.immuneToCrush).toBe(true);
-    expect(boss?.resistsKnockback).toBe(true);
-
-    // Attack beetle boss
-    await driver.performMeleeAttack();
-    await driver.page.waitForTimeout(100);
-
-    const postAttackBoss = (await driver.getState()).enemies.find((e) => e.id === boss?.id);
-    // Boss takes damage but is not crushed
-    expect(postAttackBoss?.health).toBeGreaterThan(0);
+  test('T1.3.8 — staged boss emerges, accepts damage and resists wall knockback', async () => {
+    await bossAtWall(driver.page);
   });
 
-  test('T1.3.9 — Bestiary Ghost AI: phases through obstacles, blue point-light, despawns at dawn', async () => {
-    // Set time to night
-    await driver.executeDebugCommand('/time night');
-    await driver.executeDebugCommand('/spawn ghost 3 0');
-
-    const nightState = await driver.getState();
-    const ghost = nightState.enemies.find((e) => e.type === 'ghost');
-    expect(ghost).toBeDefined();
-
-    // Transition time to dawn
-    await driver.executeDebugCommand('/time dawn');
-    await driver.page.waitForTimeout(200);
-
-    const dawnState = await driver.getState();
-    const despawnedGhost = dawnState.enemies.find((e) => e.id === ghost?.id);
-    // Ghost must despawn at dawn
-    expect(despawnedGhost).toBeUndefined();
+  test('T1.3.9 — grove ghost forms, survives dawn and enters cooldown on defeat', async () => {
+    await loadEncounterWorld(driver.page);
+    await driver.page.evaluate(() => {
+      window.__GAME__!.setDaylightRatio(.95);
+      window.__GAME__!.setPlayerPosition(33, 39.2875);
+    });
+    await driver.page.clock.runFor(450);
+    const forming = await driver.page.evaluate(() => window.__GAME__!.getGameplayDebug()!.encounters!.groves[0]!);
+    expect(forming.members).toHaveLength(1); expect(forming.members[0]!.status).toBe('forming');
+    await driver.page.clock.runFor(750);
+    expect(await driver.page.evaluate(() => window.__GAME__!.getGameplayDebug()!.encounters!.groves[0]!.members[0]!.status)).toBe('active');
+    await driver.executeDebugCommand('/time dawn'); await driver.page.clock.runFor(300);
+    const ghost = (await driver.getState()).enemies.find(e => e.type === 'ghost')!;
+    expect(ghost.health).toBeGreaterThan(0);
+    await driver.page.evaluate(g => window.__GAME__!.setPlayerPosition(g.x, g.y), ghost);
+    for (let i = 0; i < 3; i++) { await driver.castSkill('Q'); await driver.page.clock.runFor(300); }
+    const cleared = await driver.page.evaluate(() => window.__GAME__!.getGameplayDebug()!.encounters!.groves[0]!);
+    expect(cleared.phase).toBe('cooldown'); expect(cleared.cooldownMs).toBeGreaterThan(88000);
   });
 
   test('T1.3.10 — XP progression & Level-up: defeating enemy awards XP, 100 XP triggers level-up', async () => {
@@ -203,7 +192,7 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
 
     // Grant 100 XP via debug command
     await driver.executeDebugCommand('/xp 100');
-    await driver.page.waitForTimeout(100);
+    await driver.page.clock.runFor(100);
 
     const levelUpState = await driver.getState();
     expect(levelUpState.player.level).toBe(2);

@@ -88,3 +88,12 @@ Units:
 | `nest_front` | `assets/images/objects/nest/nest_front.png` | 96×80 | 96×80 | (0.5, 0.65) | (0, -10) | 3×2.5 | foot | actors | — | player-only stepped nest base; upper projections and padding excluded |
 | `nest_ground` | `assets/images/objects/nest/nest_ground.png` | 96×80 | 96×80 | (0.5, 0.65) | (0, -10) | 3×2.5 | none | ground-fx | — | player-only stepped nest base; upper projections and padding excluded |
 | `nest_cleared` | `assets/images/objects/nest/nest_cleared.png` | 96×80 | 96×80 | (0.5, 0.65) | (0, -10) | 3×2.5 | foot | actors | — | player-only stepped nest base; upper projections and padding excluded |
+
+## Ghost groves
+
+`grove_stump`: 64×48 native frame, bottom-centre anchor, unit scale, actor layer
+sorted at the ground contact minus the shared character foot offset.
+`grove_mushroom_{1,2,3}`: 16×16 native padded frames, bottom-centre anchors, unit
+scale in the ground-decoration layer. All are transparent PNGs loaded through
+renderer extras. None adds a collider. Source, exact crop provenance and
+attribution are recorded in `replacements.md` and the public grove license notice.

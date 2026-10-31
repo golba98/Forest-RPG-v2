@@ -2,7 +2,7 @@ import { entityFootprint, resolveFootprint } from '../systems/EntityFootprint';
 import { isRaisedSurface } from '../world/HillCollisionGeometry';
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { Tile, TILE_PROPERTIES, type TileId } from '../types/tiles';
-import type { Entity } from '../types/entities';
+import type { Entity, AnimState, Direction } from '../types/entities';
 import type { WorldData } from '../types/world';
 import { PORTAL_ENTER_RADIUS_ASSUMED } from './portalVisualState';
 import type { MinimapMode } from './Minimap';
@@ -29,6 +29,20 @@ interface HudBounds { readonly x: number; readonly y: number; readonly width: nu
 
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
+  readonly playerSlash?: import('./effects/EffectsLayer').PlayerSlashView | null;
+  /** Actual displayed texture and transform, rather than the next requested pose. */
+  readonly playerSprite?: {
+    readonly position: { readonly x: number; readonly y: number };
+    readonly anim: AnimState;
+    readonly facing: Direction;
+    readonly animTimeMs: number;
+    readonly assetId: string;
+    readonly frame: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
+    readonly scaleX: number; readonly scaleY: number; readonly rotation: number;
+    readonly transform: { readonly a: number; readonly b: number; readonly c: number; readonly d: number };
+    readonly bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  } | null;
+  readonly groveViews?: readonly { id: string; x: number; y: number; width: number; height: number; scaleX: number; scaleY: number; depth: number; fungi: number }[];
   readonly propViews?: number;
   readonly hilltopViews?: readonly { id: number; x: number; y: number; depth: number; visible: boolean }[];
   readonly playerDepth?: number | undefined;
@@ -41,6 +55,7 @@ export interface VisualDebugInfo {
   readonly placeholderSprites: number;
   readonly portalStates: readonly string[];
   readonly portalViews: number;
+  readonly portalTextures?: readonly { id: string; width: number; height: number; placeholder: boolean }[];
   readonly clouds: number;
   /** Rain is currently visible (fading counts). */
   readonly raining: boolean;

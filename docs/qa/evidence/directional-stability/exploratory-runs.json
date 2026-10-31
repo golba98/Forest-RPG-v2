@@ -1,0 +1,194 @@
+{
+  "note": "Exploratory runs, including explicitly interrupted runs; not the final validation. First focused run ended with SIGTERM and emitted no JSON report.",
+  "runs": [
+    {
+      "name": "baseline-browser",
+      "stats": {
+        "startTime": "2026-10-31T14:12:21.385Z",
+        "duration": 216771.562,
+        "expected": 47,
+        "skipped": 245,
+        "unexpected": 4,
+        "flaky": 0
+      },
+      "failures": [
+        {
+          "file": "bridges.spec.ts",
+          "title": "seed 1: natural crossings and regeneration cleanup",
+          "browser": "firefox",
+          "errors": [
+            "Test timeout of 30000ms exceeded.",
+            "Error: keyboard.up: Target page, context or browser has been closed\n\n  42 |   await page.keyboard.down(forward);\n  43 |   await page.clock.runFor(duration);\n> 44 |   await page.keyboard.up(forward);\n     |                       ^\n  45 |   const end = await page.evaluate(() => window.__GAME__!.getState().player);\n  46 |   expect(end[axis] - start[axis]).toBeGreaterThan(bridge.span + 2.8);\n  47 |   await page.keyboard.down(reverse);\n    at traverse (/home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/bridges.spec.ts:44:23)\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/bridges.spec.ts:150:7"
+          ]
+        },
+        {
+          "file": "bridges.spec.ts",
+          "title": "seed 42: natural crossings and regeneration cleanup",
+          "browser": "firefox",
+          "errors": [
+            "Test timeout of 30000ms exceeded.",
+            "Error: keyboard.up: Target page, context or browser has been closed\n\n  42 |   await page.keyboard.down(forward);\n  43 |   await page.clock.runFor(duration);\n> 44 |   await page.keyboard.up(forward);\n     |                       ^\n  45 |   const end = await page.evaluate(() => window.__GAME__!.getState().player);\n  46 |   expect(end[axis] - start[axis]).toBeGreaterThan(bridge.span + 2.8);\n  47 |   await page.keyboard.down(reverse);\n    at traverse (/home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/bridges.spec.ts:44:23)\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/bridges.spec.ts:150:7"
+          ]
+        },
+        {
+          "file": "bridges.spec.ts",
+          "title": "seed 456: natural crossings and regeneration cleanup",
+          "browser": "firefox",
+          "errors": [
+            "Test timeout of 30000ms exceeded.",
+            "Error: keyboard.up: Target page, context or browser has been closed\n\n  47 |   await page.keyboard.down(reverse);\n  48 |   await page.clock.runFor(duration);\n> 49 |   await page.keyboard.up(reverse);\n     |                       ^\n  50 |   const returned = await page.evaluate(() => window.__GAME__!.getState().player);\n  51 |   expect(returned[axis]).toBeCloseTo(start[axis], 0);\n  52 | }\n    at traverse (/home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/bridges.spec.ts:49:23)\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/bridges.spec.ts:150:7"
+          ]
+        },
+        {
+          "file": "gameplay-repair.spec.ts",
+          "title": "seed regeneration replaces collision diagnostics and preserves lower terrain data",
+          "browser": "firefox",
+          "errors": [
+            "Test timeout of 30000ms exceeded."
+          ]
+        }
+      ],
+      "complete": false
+    },
+    {
+      "name": "focused2-browser",
+      "stats": {
+        "startTime": "2026-10-31T14:24:02.346Z",
+        "duration": 147285.46800000002,
+        "expected": 67,
+        "skipped": 58,
+        "unexpected": 5,
+        "flaky": 0
+      },
+      "failures": [
+        {
+          "file": "tier1-feature/simulation-movement-physics.spec.ts",
+          "title": "T1.2.1 \u2014 continuous eight-direction displacement has normalized speed",
+          "browser": "firefox",
+          "errors": [
+            "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 1.25\nReceived: 1.354166666666682\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.10416666666668206\n\n  15 |     const dy = Number(keys.includes('KeyS')) - Number(keys.includes('KeyW'));\n  16 |     expect(Math.sign(p.x - 20.5)).toBe(dx); expect(Math.sign(p.y - 20.5)).toBe(dy);\n> 17 |     expect(Math.hypot(p.x - 20.5, p.y - 20.5)).toBeCloseTo(C.player.walkSpeed * .2, 6);\n     |                                                ^\n  18 |     for (const key of keys) await page.keyboard.up(key);\n  19 |   }\n  20 | });\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/tier1-feature/simulation-movement-physics.spec.ts:17:48"
+          ]
+        },
+        {
+          "file": "tier1-feature/simulation-movement-physics.spec.ts",
+          "title": "T1.2.3 \u2014 exhausted stamina regenerates while sprint remains locked for four seconds",
+          "browser": "firefox",
+          "errors": [
+            "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 46.8\nReceived: 47.00000000000013\n\nExpected precision:    5\nExpected difference: < 0.000005\nReceived difference:   0.20000000000013074\n\n  34 |   await page.clock.runFor(3900);\n  35 |   const locked = await page.evaluate(() => window.__GAME__!.getState().player);\n> 36 |   expect(locked.stamina).toBeCloseTo(C.player.staminaRegenPerSec * 3.9, 5);\n     |                          ^\n  37 |   expect(locked.isSprinting).toBe(false);\n  38 |   await page.clock.runFor(150);\n  39 |   expect(await page.evaluate(() => window.__GAME__!.getState().player.isSprinting)).toBe(true);\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/tier1-feature/simulation-movement-physics.spec.ts:36:26"
+          ]
+        },
+        {
+          "file": "tier2-boundary/boundary-combat-ai.spec.ts",
+          "title": "T2.3.4 \u2014 ordinary enemy strikes respect the 800 ms immunity window",
+          "browser": "firefox",
+          "errors": [
+            "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 9\nReceived: 6\n\n  83 |     await driver.page.clock.runFor(250);\n  84 |     const first = await driver.getState();\n> 85 |     expect(first.player.health).toBe(9); expect(first.player.hurtTimer).toBeGreaterThan(700);\n     |                                 ^\n  86 |     // A fresh attacker delivers another ordinary strike within the first hurt window.\n  87 |     await driver.executeDebugCommand('/spawn mantis -0.5 0');\n  88 |     await driver.page.clock.runFor(250);\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/tier2-boundary/boundary-combat-ai.spec.ts:85:33"
+          ]
+        },
+        {
+          "file": "tier2-boundary/boundary-simulation-movement.spec.ts",
+          "title": "T2.2.3 \u2014 Zero stamina boundary: stamina never goes below 0 and prevents sprint engagement",
+          "browser": "firefox",
+          "errors": [
+            "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 3.6\nReceived: 3.800000000000001\n\nExpected precision:    5\nExpected difference: < 0.000005\nReceived difference:   0.20000000000000107\n\n  61 |     await driver.page.clock.runFor(300);\n  62 |     const after = await driver.getState();\n> 63 |     expect(after.player.stamina).toBeCloseTo(3.6, 5); // Regeneration continues during lockout.\n     |                                  ^\n  64 |     expect(after.player.stamina).toBeGreaterThanOrEqual(0);\n  65 |     expect(after.player.isSprinting).toBe(false);\n  66 |   });\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/tier2-boundary/boundary-simulation-movement.spec.ts:63:34"
+          ]
+        },
+        {
+          "file": "tier2-boundary/boundary-simulation-movement.spec.ts",
+          "title": "T2.2.4 \u2014 Delta time clamping: long frame pause (5000ms delay) clamps dt to 50ms and prevents spiral-of-death",
+          "browser": "firefox",
+          "errors": [
+            "Test timeout of 30000ms exceeded.",
+            "Error: page.evaluate: Test timeout of 30000ms exceeded.\n\n  70 |\n  71 |     // Emulate tab backgrounding / huge GC pause by freezing thread for 2000ms\n> 72 |     await driver.page.evaluate(() => {\n     |                       ^\n  73 |       const start = performance.now();\n  74 |       while (performance.now() - start < 100) {\n  75 |         // Synchronous spin to trigger delta spike\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/tier2-boundary/boundary-simulation-movement.spec.ts:72:23"
+          ]
+        }
+      ],
+      "complete": false
+    },
+    {
+      "name": "repair-check",
+      "stats": {
+        "startTime": "2026-10-31T14:27:13.219Z",
+        "duration": 29989.094999999998,
+        "expected": 12,
+        "skipped": 0,
+        "unexpected": 4,
+        "flaky": 0
+      },
+      "failures": [
+        {
+          "file": "player-directions.spec.ts",
+          "title": "SW movement, all punch frames, and stationary punch",
+          "browser": "firefox",
+          "errors": [
+            "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 0\nReceived: -0\n\n  29 |   expect(Math.sign(sprite!.transform.a)).toBe(mirror ? -1 : 1);\n  30 |   expect(sprite!.transform.d).toBeGreaterThan(0);\n> 31 |   expect(sprite!.transform.b).toBe(0);\n     |                               ^\n  32 |   expect(sprite!.transform.c).toBe(0);\n  33 |   return sprite!;\n  34 | }\n    at displayed (/home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/player-directions.spec.ts:31:31)\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/player-directions.spec.ts:104:20"
+          ]
+        },
+        {
+          "file": "player-directions.spec.ts",
+          "title": "inverted Y follows effective movement for run pixels and locked punch",
+          "browser": "firefox",
+          "errors": [
+            "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 0\nReceived: -0\n\n  29 |   expect(Math.sign(sprite!.transform.a)).toBe(mirror ? -1 : 1);\n  30 |   expect(sprite!.transform.d).toBeGreaterThan(0);\n> 31 |   expect(sprite!.transform.b).toBe(0);\n     |                               ^\n  32 |   expect(sprite!.transform.c).toBe(0);\n  33 |   return sprite!;\n  34 | }\n    at displayed (/home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/player-directions.spec.ts:31:31)\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/player-directions.spec.ts:386:15"
+          ]
+        },
+        {
+          "file": "player-directions.spec.ts",
+          "title": "SW movement, all punch frames, and stationary punch",
+          "browser": "chromium",
+          "errors": [
+            "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 0\nReceived: -0\n\n  29 |   expect(Math.sign(sprite!.transform.a)).toBe(mirror ? -1 : 1);\n  30 |   expect(sprite!.transform.d).toBeGreaterThan(0);\n> 31 |   expect(sprite!.transform.b).toBe(0);\n     |                               ^\n  32 |   expect(sprite!.transform.c).toBe(0);\n  33 |   return sprite!;\n  34 | }\n    at displayed (/home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/player-directions.spec.ts:31:31)\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/player-directions.spec.ts:104:20"
+          ]
+        },
+        {
+          "file": "player-directions.spec.ts",
+          "title": "inverted Y follows effective movement for run pixels and locked punch",
+          "browser": "chromium",
+          "errors": [
+            "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 0\nReceived: -0\n\n  29 |   expect(Math.sign(sprite!.transform.a)).toBe(mirror ? -1 : 1);\n  30 |   expect(sprite!.transform.d).toBeGreaterThan(0);\n> 31 |   expect(sprite!.transform.b).toBe(0);\n     |                               ^\n  32 |   expect(sprite!.transform.c).toBe(0);\n  33 |   return sprite!;\n  34 | }\n    at displayed (/home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/player-directions.spec.ts:31:31)\n    at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2-directional-stability/tests/e2e/player-directions.spec.ts:386:15"
+          ]
+        }
+      ],
+      "complete": true
+    },
+    {
+      "name": "sw-check",
+      "stats": {
+        "startTime": "2026-10-31T14:28:13.209Z",
+        "duration": 11857.217,
+        "expected": 4,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "failures": [],
+      "complete": true
+    },
+    {
+      "name": "gap-check",
+      "stats": {
+        "startTime": "2026-10-31T14:30:39.624Z",
+        "duration": 4128.267,
+        "expected": 2,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "failures": [],
+      "complete": true
+    },
+    {
+      "name": "complete-interrupted",
+      "stats": {
+        "startTime": "2026-10-31T14:29:02.886Z",
+        "duration": 96068.211,
+        "expected": 32,
+        "skipped": 274,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "failures": [],
+      "complete": false
+    }
+  ]
+}

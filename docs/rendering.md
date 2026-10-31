@@ -1,5 +1,14 @@
 # Rendering
 
+Portal asset loading: `assetCatalog` registers the existing `portal_forest.png`
+through renderer extras when an older manifest omits it; the asset-regeneration
+script also retains the alias. Omitting that entry previously reproduced the
+magenta/black missing-art checker. Portal views now contribute to
+`placeholderSprites`, and debug `portalTextures` reports the actual bound texture
+dimensions and fallback status. The original portal artwork and state effects
+are unchanged. `tests/e2e/portal-assets.spec.ts` checks both manifest variants,
+save/reload, actual checker pixels, and deliberate image-load failure.
+
 PixiJS renders cached terrain chunks, depth-sorted entities and props, light, weather and the HUD. Terrain uses nearest-neighbor sampling and integer camera scaling. Sprite animation resolves frames from sprite sheets; the camera follows the interpolated player.
 
 Hills are autotiled from elevation topology with a generated, project-owned cliff tileset (`scripts/build-hill-tileset.mjs`): every 8-neighbour configuration has a frame (plateau top, rims, south cliff faces, inner/outer corners, contact shadow). Forest trees are planned so every solid forest tile is visibly covered. Entities animate through `EntityAnimator` (clip restarts on state change, attack telegraphs, hurt flash, death fade); portals through `PortalView` (locked / reacting / open / transitioning, see `docs/contracts/visual-contract.md`). Press F3 in debug builds for the collider / sprite-bounds overlay.
@@ -35,3 +44,15 @@ from the preceding overhaul. The rejected procedural vegetation implementation w
 `LootView` observes committed balances for a transient +N label and chest particles. Interaction
 hints share the simulation reach check. Opening animations read saved simulation progress;
 particles and floating labels are cosmetic and are reset on world load.
+
+Bank soil uses a continuous material field (`soilMaterial.ts`) reconstructed from
+saved cell centres. Water supports a bank up to the shoreline but cannot create
+soil on its own. Soil/grass transitions and pigment sample world coordinates,
+including across chunk boundaries; terrain IDs and movement rules remain
+authoritative and unchanged. `SoilArt` packs only affected low-ground tiles into
+a sparse chunk atlas. It is composed after grass and before flowers/contact
+shadows, and released on chunk replacement, world load and renderer teardown.
+This replaces the old nearly opaque `soil_patch_*` stamps and their tile-local
+clipping, rather than adding a covering effect. Water, cliff, stair and bridge
+art retain their own surface geometry. Regression evidence and before/after
+captures are under `qa/evidence/riverbank-material/`.

@@ -181,18 +181,17 @@ export function edgeDistance(mask: number, x: number, y: number): number {
   if (mask & NB.NW) d = Math.min(d, Math.hypot(x + 0.5, y + 0.5));
   return d;
 }
-export function neighbourMaterialMask(tiles: ArrayLike<number>, width: number, height: number, x: number, y: number, mud = false): number {
+export function neighbourMaterialMask(tiles: ArrayLike<number>, width: number, height: number, x: number, y: number): number {
   let mask = 0;
   for (const [dx, dy, bit] of OFFSETS) {
     const nx = x + dx, ny = y + dy;
     if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
     const tile = tiles[ny * width + nx] ?? 0;
-    if (channelTerrain(tile) || mud && tile === Tile.MUD) mask |= bit;
+    if (channelTerrain(tile)) mask |= bit;
   }
   return mask;
 }
 export const bankAlias = (mask: number): string => `river_bank_${mask}`;
-export const mudAlias = (mask: number): string => `soil_patch_${mask}`;
 
 
 /** Every water texture by alias. Browser-only (uses canvas). */
@@ -208,15 +207,7 @@ export function createWaterTextures(): Map<string, Texture> {
         if (d < 1.2 || d < 3 && r % 3 === 0) px(x, y, r % 2 ? 0x635c35 : 0x59613b, 0.85);
       }
     }));
-    out.set(mudAlias(mask), canvas(px => {
-      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-        const r = h2(x, y), distance = edgeDistance(255 ^ mask, x, y);
-        // Rounded exposed corners and dithered grass fringes preserve texture beneath.
-        const corner = Math.hypot(Math.max(0, 8 - x, x - 23), Math.max(0, 8 - y, y - 23));
-        if (distance < 2 || distance < 5 && r % 5 > Math.floor(distance) || corner > 9 && distance < 8) continue;
-        px(x, y, r % 11 === 0 ? 0x686039 : r % 3 ? 0x514829 : 0x595032, distance < 6 ? 0.7 : 0.94);
-      }
-    }));
+
   }
   return out;
 }

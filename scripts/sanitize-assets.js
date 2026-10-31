@@ -621,6 +621,7 @@ function generateManifest() {
           { alias: 'item_coin_anim', src: 'assets/images/items/coin_anim.png' },
           { alias: 'portal_active', src: 'assets/images/objects/portal_active.png' },
           { alias: 'portal_inactive', src: 'assets/images/objects/portal_inactive.png' },
+          { alias: 'portal_forest', src: 'assets/images/objects/portal_forest.png' },
         ],
       },
     ],
