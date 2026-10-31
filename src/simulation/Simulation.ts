@@ -1,3 +1,5 @@
+import { landscapeFor } from '../world/LandscapePlan';
+import { normalizeWorldCompatibility } from '../world/WorldCompatibility';
 import { prepareHilltopObjects } from '../world/HilltopObjects';
 import { SurfaceMoisture, surfaceSites } from '../systems/SurfaceMoisture';
 import type { WeatherKind } from '../types/render';
@@ -80,7 +82,8 @@ export class Simulation implements ISimulation {
     };
   }
   loadWorld(world: WorldData): void {
-    world = prepareHilltopObjects(prepareEncounterWorld(world));
+    world = prepareHilltopObjects(prepareEncounterWorld(normalizeWorldCompatibility(world)));
+    landscapeFor(world);
     this.encounters = new EncounterSystem(
       (enemy, damage) => this.onHit?.(enemy, damage),
       new Rng(world.meta.seed),

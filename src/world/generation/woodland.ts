@@ -1,13 +1,14 @@
-import type { Bounds } from '../../types/gameplay';
-import { intersectsReservations } from '../EncounterPlacement';
 import { Tile } from '../../types/tiles';
-import type { TilePoint, WorldBridge, WorldProp } from '../../types/world';
-import { intersectsBridgeReservation } from '../BridgeGeometry';
+import type { TilePoint, WorldProp } from '../../types/world';
+import { LandscapePlan } from '../LandscapePlan';
+import type { LandscapeTrace } from '../LandscapeTrace';
 import type { GenGrid } from './GenGrid';
 import type { Rng } from '../Rng';
 
 /** Forest regions become discrete trunks with traversable space between them. */
-export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint, bridges: readonly WorldBridge[] = [], reservations: readonly Bounds[] = []): WorldProp[] {
+export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint,
+  landscape = new LandscapePlan({ meta: grid, tiles: grid.tiles, props: [], spawn }, 'woodland'),
+  trace?: LandscapeTrace): WorldProp[] {
   const candidates: Array<{ x: number; y: number }> = [];
   for (let y = 1; y < grid.height - 1; y++)
     for (let x = 1; x < grid.width - 1; x++) {
@@ -25,23 +26,17 @@ export function placeWoodland(grid: GenGrid, rng: Rng, spawn: TilePoint, bridges
   const trees: WorldProp[] = [];
   const occupied = new Set<number>();
   for (const p of rng.shuffle(candidates)) {
-    if (intersectsReservations({ minX: p.x - 1, minY: p.y - 1, maxX: p.x + 2, maxY: p.y + 1 }, reservations)) continue;
-    if (intersectsBridgeReservation(bridges, { minX: p.x - 1, minY: p.y - 1, maxX: p.x + 2, maxY: p.y + 1 })) continue;
-    let near = grid
-      .neighbors8(p.x, p.y)
-      .some((n) => grid.get(n.x, n.y) === Tile.RAMP || grid.get(n.x, n.y) === Tile.LOG);
-    // A tree's body covers its trunk tile and the canopy row above, so keep
-    // trees two tiles clear of stairs or they block the landing.
-    for (let dy = -2; dy <= 2 && !near; dy++)
-      for (let dx = -2; dx <= 2; dx++)
-        if (grid.inBounds(p.x + dx, p.y + dy) && grid.get(p.x + dx, p.y + dy) === Tile.STAIRS) near = true;
+    const reason = landscape.woodlandRejection(p);
+    if (reason) { trace?.record({ consumer: 'woodland', source: p, at: null, outcome: 'rejected', reasons: [reason] }); continue; }
+    let near = false;
     for (let dy = -2; dy <= 2; dy++)
       for (let dx = -2; dx <= 2; dx++) {
         if (dx * dx + dy * dy < 5 && occupied.has((p.y + dy) * grid.width + p.x + dx)) near = true;
       }
-    if (near) continue;
+    if (near) { trace?.record({ consumer: 'woodland', source: p, at: null, outcome: 'rejected', reasons: ['tree-spacing'] }); continue; }
     occupied.add(p.y * grid.width + p.x);
     trees.push({ id: trees.length, kind: 'tree', tileX: p.x, tileY: p.y, solid: true });
+    trace?.record({ consumer: 'woodland', source: p, at: p, outcome: 'accepted', reasons: [] });
   }
   return trees;
 }

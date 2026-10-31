@@ -1,0 +1,72 @@
+
+Running 2 tests using 1 worker
+
+(node:91436) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node-22 --trace-warnings ...` to show where the warning was created)
+  ✘  1 [firefox] › tests/e2e/riverbank-material.spec.ts:56:1 › WebGL composes a bank transition across saved mud/grass cells and preserves it on reload (2.4s)
+(node:91797) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node-22 --trace-warnings ...` to show where the warning was created)
+  ✘  2 [chromium] › tests/e2e/riverbank-material.spec.ts:56:1 › WebGL composes a bank transition across saved mud/grass cells and preserves it on reload (2.2s)
+
+
+  1) [firefox] › tests/e2e/riverbank-material.spec.ts:56:1 › WebGL composes a bank transition across saved mud/grass cells and preserves it on reload 
+
+    Error: tile 13, channel 0, actual 128, expected 106.98823529411766
+
+    expect(received).toBeLessThan(expected)
+
+    Expected: < 4
+    Received:   21.011764705882342
+
+      106 |         const expected = base * (1 - alpha) + (soil?.[si + c] ?? 0) * alpha;
+      107 |         const actual = screen.data[(y * screen.info.width + x) * 4 + c]!;
+    > 108 |         expect(Math.abs(actual - expected), `tile ${tx}, channel ${c}, actual ${actual}, expected ${expected}`).toBeLessThan(4);
+          |                                                                                                                 ^
+      109 |       }
+      110 |     }
+      111 |   };
+        at check (/home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2/tests/e2e/riverbank-material.spec.ts:108:113)
+        at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2/tests/e2e/riverbank-material.spec.ts:113:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/riverbank-material-WebGL-c-66ecb--and-preserves-it-on-reload-firefox/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/riverbank-material-WebGL-c-66ecb--and-preserves-it-on-reload-firefox/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/riverbank-material-WebGL-c-66ecb--and-preserves-it-on-reload-firefox/error-context.md
+
+  2) [chromium] › tests/e2e/riverbank-material.spec.ts:56:1 › WebGL composes a bank transition across saved mud/grass cells and preserves it on reload 
+
+    Error: tile 13, channel 0, actual 128, expected 106.98823529411766
+
+    expect(received).toBeLessThan(expected)
+
+    Expected: < 4
+    Received:   21.011764705882342
+
+      106 |         const expected = base * (1 - alpha) + (soil?.[si + c] ?? 0) * alpha;
+      107 |         const actual = screen.data[(y * screen.info.width + x) * 4 + c]!;
+    > 108 |         expect(Math.abs(actual - expected), `tile ${tx}, channel ${c}, actual ${actual}, expected ${expected}`).toBeLessThan(4);
+          |                                                                                                                 ^
+      109 |       }
+      110 |     }
+      111 |   };
+        at check (/home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2/tests/e2e/riverbank-material.spec.ts:108:113)
+        at /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2/tests/e2e/riverbank-material.spec.ts:113:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/riverbank-material-WebGL-c-66ecb--and-preserves-it-on-reload-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/riverbank-material-WebGL-c-66ecb--and-preserves-it-on-reload-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/riverbank-material-WebGL-c-66ecb--and-preserves-it-on-reload-chromium/error-context.md
+
+  2 failed
+    [firefox] › tests/e2e/riverbank-material.spec.ts:56:1 › WebGL composes a bank transition across saved mud/grass cells and preserves it on reload 
+    [chromium] › tests/e2e/riverbank-material.spec.ts:56:1 › WebGL composes a bank transition across saved mud/grass cells and preserves it on reload 

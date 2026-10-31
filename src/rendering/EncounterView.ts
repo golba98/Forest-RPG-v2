@@ -3,9 +3,8 @@ import type { RenderSnapshot } from '../types/render';
 import type { Language } from '../types/languages';
 import { translate } from '../ui/i18n';
 
-/** Pixel-sized site art and phase effects; all lifecycle decisions come from the simulation. */
+/** Encounter phase effects and HUD; static grove artwork lives in GroveView. */
 export class EncounterView {
-  readonly ground = new Graphics();
   readonly effects = new Graphics();
   readonly glow = new Graphics();
   readonly hud = new Container();
@@ -28,15 +27,12 @@ export class EncounterView {
       stroke: { color: 0x102219, width: 4 },
     },
   });
-  private signature = '';
   constructor() {
     this.hud.addChild(this.panel, this.name, this.prompt);
     this.name.anchor.set(0.5, 0);
     this.prompt.anchor.set(0.5);
   }
   reset(): void {
-    this.signature = '';
-    this.ground.clear();
     this.effects.clear();
     this.glow.clear();
   }
@@ -51,16 +47,6 @@ export class EncounterView {
   ): void {
     const state = snapshot.encounters,
       sites = state?.sites ?? [];
-    const signature = sites.map((s) => `${s.id}:${s.phase === 'defeated'}`).join('|');
-    if (signature !== this.signature) {
-      this.signature = signature;
-      this.ground.clear();
-      for (const site of sites) {
-        const x = site.x * 32,
-          y = site.y * 32 + 8;
-        if (site.kind === 'grove') this.grove(x, y);
-      }
-    }
     this.effects.clear();
     this.glow.clear();
     for (const site of sites) {
@@ -129,31 +115,5 @@ export class EncounterView {
           ? translate(language, 'Step back to disturb the nest')
           : '';
     this.prompt.position.set(width / 2, height - (width < 650 ? 168 : 64));
-  }
-  private grove(x: number, y: number): void {
-    const g = this.ground;
-    g.ellipse(x, y, 75, 46).fill({ color: 0x263d3a, alpha: 0.22 });
-    // A dead, split trunk and fallen branches lie flat in the grove.
-    g.rect(x - 9, y - 42, 18, 58).fill(0x343c37);
-    g.rect(x - 6, y - 40, 11, 53).fill(0x81867a);
-    g.rect(x - 3, y - 38, 3, 48).fill(0xb4b6a0);
-    g.rect(x - 3, y - 40, 4, 26).fill(0x394842);
-    g.poly([x - 5, y - 28, x - 32, y - 42, x - 35, y - 49, x - 8, y - 34]).fill(0x727c70);
-    g.poly([x + 3, y - 18, x + 30, y - 33, x + 36, y - 29, x + 5, y - 11]).fill(0x858e7e);
-    g.rect(x - 13, y + 9, 26, 8).fill(0x44483c);
-    for (let i = 0; i < 12; i++) {
-      const a = i * 2.4,
-        px = Math.round(x + Math.cos(a) * (42 + (i % 3) * 13)),
-        py = Math.round(y + Math.sin(a) * 39);
-      if (i % 3 === 0) {
-        g.rect(px - 5, py - 5, 11, 8).fill(0x76887f);
-        g.rect(px - 3, py - 6, 6, 2).fill(0xadb7a4);
-        g.rect(px, py - 4, 1, 5).fill(0x3f5a53);
-      } else {
-        g.rect(px, py, 2, 6).fill(0xbcc6a9);
-        g.rect(px - 3, py - 2, 8, 3).fill(0xd6ddba);
-        g.rect(px - 2, py - 4, 6, 2).fill(0xb6cbbc);
-      }
-    }
   }
 }

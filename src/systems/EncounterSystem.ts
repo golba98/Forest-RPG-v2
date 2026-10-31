@@ -1,3 +1,4 @@
+import { invalidateLandscape } from '../world/LandscapePlan';
 import { EnemyAISystem } from './EnemyAISystem';
 import { Tile } from '../types/tiles';
 import { awardXp } from './ProgressionSystem';
@@ -340,6 +341,7 @@ export class EncounterSystem {
         const index = y * world.meta.width + x;
         if (world.tiles[index] === Tile.FLOWERS && inReach(x + 0.5, y + 0.5)) {
           world.tiles[index] = Tile.GRASS;
+          invalidateLandscape(world);
           drop(x + 0.5, y + 0.5);
           this.onCut?.(x, y);
         }
@@ -358,6 +360,7 @@ export class EncounterSystem {
     }
     if (changedProps) {
       invalidatePropIndex(world);
+      invalidateLandscape(world);
       this.ai.invalidate();
     }
   }

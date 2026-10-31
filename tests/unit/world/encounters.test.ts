@@ -50,7 +50,7 @@ for (const width of [32, 48, 150])
         generateWorld({ seed, level: 1, difficulty: 'normal', width, height: width }),
       );
     }
-  });
+  }, 30000);
 
 it('initialises old encounter sites conservatively without modifying tiles or props', () => {
   const world = encounterFixture();

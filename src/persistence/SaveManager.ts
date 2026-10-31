@@ -1,3 +1,4 @@
+import { SAVE_SCHEMA_VERSION, assertGeneratorVersion, assertMigrationVersions, normalizeWorldCompatibility } from '../world/WorldCompatibility';
 import { prepareHilltopObjects } from '../world/HilltopObjects';
 import { repairSavedRivers } from '../world/RepairRivers';
 import type { SimulationRuntime } from '../types/encounters';
@@ -16,7 +17,7 @@ import type { Game } from '../game/Game';
 import type { Simulation } from '../simulation/Simulation';
 
 interface SavePayload {
-  version: 2;
+  version: typeof SAVE_SCHEMA_VERSION;
   world: Omit<WorldData, 'tiles'> & { tiles: number[] };
   entities: Entity[];
   time: number;
@@ -173,7 +174,7 @@ function decode(raw: string): {
   runtime?: SimulationRuntime;
 } {
   const data: unknown = JSON.parse(raw);
-  if (!object(data) || data.version !== 2 || !object(data.world) || !object(data.world.meta))
+  if (!object(data) || data.version !== SAVE_SCHEMA_VERSION || !object(data.world) || !object(data.world.meta))
     throw new Error('Unsupported or invalid save');
   const world = data.world,
     meta = world.meta as Record<string, unknown>,
@@ -188,11 +189,12 @@ function decode(raw: string): {
     h > 512 ||
     !integer(meta.seed) ||
     !integer(meta.level) ||
-    !integer(meta.generatorVersion) ||
     typeof meta.isTutorial !== 'boolean' ||
     !['easy', 'normal', 'hard'].includes(String(meta.difficulty))
   )
     throw new Error('Invalid world metadata');
+  assertGeneratorVersion(meta.generatorVersion === undefined ? 0 : meta.generatorVersion);
+  assertMigrationVersions(meta);
   if (
     !Array.isArray(world.tiles) ||
     world.tiles.length !== w * h ||
@@ -313,11 +315,9 @@ function decode(raw: string): {
     if (!object(moisture) || moisture.version !== 1 || !bytes(moisture.wetness) || !bytes(moisture.puddles) || !finite(moisture.remainderMs) || moisture.remainderMs < 0 || moisture.remainderMs >= 200)
       throw new Error('Invalid surface moisture');
   }
-  if (meta.riverRepairVersion !== undefined && meta.riverRepairVersion !== 1) throw new Error('Invalid river repair version');
   if (meta.riverRepairSkipped !== undefined && (!Array.isArray(meta.riverRepairSkipped) || meta.riverRepairSkipped.length > w * h || !meta.riverRepairSkipped.every(p => point(p, w, h)))) throw new Error('Invalid river repair report');
-  if (meta.hilltopObjectsVersion !== undefined && meta.hilltopObjectsVersion !== 1) throw new Error('Invalid hilltop objects version');
   const runtime = data.runtime as SimulationRuntime | undefined;
-  const convertedWorld = { ...(world as unknown as WorldData), tiles: Uint8Array.from(world.tiles as number[]) };
+  const convertedWorld = normalizeWorldCompatibility({ ...(world as unknown as WorldData), tiles: Uint8Array.from(world.tiles as number[]) });
   if (convertedWorld.encounterSites === undefined && !runtime?.encounters)
     for (const e of data.entities as Entity[])
       if (e.alive && (e.kind === 'player' || e.kind === 'enemy'))
@@ -343,7 +343,7 @@ export class SaveManager {
   ) {}
   export(): string {
     const payload: SavePayload = {
-      version: 2,
+      version: SAVE_SCHEMA_VERSION,
       world: { ...this.sim.world, tiles: Array.from(this.sim.world.tiles) },
       entities: [...this.sim.getEntities()],
       time: this.sim.getTimeOfDay(),
