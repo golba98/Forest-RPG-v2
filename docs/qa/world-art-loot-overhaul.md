@@ -137,13 +137,32 @@ The dense legacy grass pattern, coarse grove landmark and bright cliff rims rema
 
 The final Git commit is the authoritative inventory. New modules cover woodland/loot art, loot presentation, loot simulation and treasure placement. Existing edits are limited to the integration points above, tree semantics/generation, portal completion, regression assertions and rendering/save documentation. New unit and browser tests, the dedicated Playwright configuration and this evidence/report complete the workstream.
 
-### Directional regression reported during this workstream
+### Southwest-running correction
 
-The user reports that **A+S+Shift (southwest running) displays the S+D+Shift (southeast) appearance**.
-Reference supplied: `/home/k9-vortex/Pictures/Screenshots/Screenshot From 2026-10-31 16-17-27.png`.
-The static screenshot cannot independently establish the held keys. Agent 1 should compare the
-southwest/southeast run-sheet selection and horizontal mirroring with the actual movement vector.
-No directional code was changed on this branch; this is an integration review item, not a claimed fix.
+Resolved in the follow-up requested by the user. `run_southwest.png` and `run_southeast.png`
+contain identical decoded pixels, both facing southeast. `AnimationDefs.ts` now mirrors each
+southwest run frame through the existing `flipX` renderer path. Frame sequence, timing, source
+PNGs, movement vectors and the separate punch mapping are preserved.
+
+Validation: **83 focused tests passed** across animation, punch direction, input/simulation
+movement, frame bounds and renderer animation. The new test drives all eight run directions,
+both diagonal key orders, all six run frames and run→walk→idle transitions. A decoded-PNG
+regression documents the duplicated source so replacing that source later requires revisiting
+the flip. Typecheck (through build), lint and production build pass.
+
+**Two browser checks passed**, Chromium and Firefox, using actual held WASD+Shift keys in a
+clear fixture. Screenshots were inspected for all diagonal runs; southwest now faces left/down
+and southeast faces right/down. Evidence:
+[SW](evidence/player-running/chromium-SW.png),
+[SE](evidence/player-running/chromium-SE.png),
+[NW](evidence/player-running/chromium-NW.png),
+[NE](evidence/player-running/chromium-NE.png).
+Equivalent Firefox captures are retained. Run with
+`npx playwright test --config playwright.world-art.config.ts tests/e2e/player-running.spec.ts`.
+
+Integration point: the run-sheet mapping in `AnimationDefs.ts`; Agent 1's worktree was not edited.
+New regression files: `tests/unit/animation/playerRunDirection.test.ts` and
+`tests/e2e/player-running.spec.ts`. The dedicated Playwright configuration includes the new test.
 
 ### File inventory
 

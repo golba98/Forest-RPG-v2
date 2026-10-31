@@ -140,10 +140,17 @@ const WALK_H: HeightTable = { N: 19, NE: 19, E: 20, SE: 21, S: 22, SW: 21, W: 20
 const RUN_H: HeightTable = { N: 20, NE: 18, E: 22, SE: 20, S: 21, SW: 20, W: 22, NW: 18 };
 const JUMP_H: HeightTable = { N: 20, NE: 20, E: 21, SE: 20, S: 21, SW: 20, W: 21, NW: 20 };
 const ATTACK_H: HeightTable = { N: 92, NE: 96, E: 97, SE: 113, S: 121, SW: 113, W: 97, NW: 96 };
+const RUN_SHEETS = playerSheets('run', 120, RUN_H);
+// The shipped southwest strip duplicates the southeast pixels. Mirror each
+// rendered frame, keeping the original frame order, timing and movement vector.
+const PLAYER_RUN_SHEETS: Readonly<Record<Direction, DirectionalSheet>> = {
+  ...RUN_SHEETS,
+  SW: { ...RUN_SHEETS.SW, flipX: true },
+};
 const ATTACK_SHEETS = playerSheets('attack', 446, ATTACK_H);
 
 // Visually verified: the diagonal punch art faces horizontally opposite its
-// filename (unlike movement art). Select the matching artwork without flipping.
+// filename. Select the matching punch artwork without flipping.
 const PLAYER_ATTACK_SHEETS: Readonly<Record<Direction, DirectionalSheet>> = {
   ...ATTACK_SHEETS,
   NW: ATTACK_SHEETS.NE,
@@ -193,7 +200,7 @@ const PLAYER: SpriteSetDef = {
     // while moving (walk 100 ms → 150 ms, sprint 75 ms → 112.5 ms).
     idle: { source: { kind: 'perDirectionSheets', sheets: playerSheets('idle', 80, IDLE_H) }, frameCount: 4, frameDurationMs: 150, loop: true },
     walk: { source: { kind: 'perDirectionSheets', sheets: playerSheets('walk', 80, WALK_H) }, frameCount: 4, frameDurationMs: 150, loop: true },
-    run: { source: { kind: 'perDirectionSheets', sheets: playerSheets('run', 120, RUN_H) }, frameCount: 6, frameDurationMs: 112.5, loop: true },
+    run: { source: { kind: 'perDirectionSheets', sheets: PLAYER_RUN_SHEETS }, frameCount: 6, frameDurationMs: 112.5, loop: true },
     // JUMP_FRAME_COUNT 5 × JUMP_ANIM_SPEED 100 ms = JUMP_DURATION 500 ms.
     jump: { source: { kind: 'perDirectionSheets', sheets: playerSheets('jump', 100, JUMP_H) }, frameCount: 5, frameDurationMs: 100, loop: false },
     // ATTACK_MAX_FRAMES 4 × ATTACK_FRAME_SPEED_MS 80. Sheets are 446 px wide → 111.5 px frames.

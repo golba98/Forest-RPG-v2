@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 import config from './playwright.config';
 export default defineConfig({
   ...config,
-  testMatch: ['world-art-loot.spec.ts', 'bridges.spec.ts', 'save-flow.spec.ts'],
+  testMatch: ['world-art-loot.spec.ts', 'player-running.spec.ts', 'bridges.spec.ts', 'save-flow.spec.ts'],
   workers: 1,
   timeout: 90000,
   use: { ...config.use, baseURL: 'http://localhost:4183' },
