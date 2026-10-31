@@ -2,7 +2,7 @@ import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
 import { readFileSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs';
 
-const out = process.env.FOREST_EVIDENCE_DIR ?? 'docs/qa/evidence/weather-rivers';
+const out = process.env.FOREST_EVIDENCE_DIR ?? 'artifacts/weather-rivers';
 const base = process.env.AFTER_URL ?? 'http://127.0.0.1:4173';
 mkdirSync(out, { recursive: true });
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });

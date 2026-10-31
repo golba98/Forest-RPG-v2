@@ -7,7 +7,7 @@
 
 A pixel-art action RPG for the browser, built with TypeScript, PixiJS, and Vite. Explore procedurally generated forests, battle enemies, and level up your character. Collect coins and defeat each world's non-ghost enemies to unlock the portal to the next world.
 
-![Forest RPG V2 gameplay showing the player exploring a woodland with trees, flowers, and a minimap](docs/qa/evidence/grove-art/after/chromium-seed-42.png)
+![Forest RPG V2 gameplay showing the player exploring a woodland with trees, flowers, and a minimap](docs/images/gameplay.png)
 
 ## Features
 

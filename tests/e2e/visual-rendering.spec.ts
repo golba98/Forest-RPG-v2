@@ -1,5 +1,4 @@
 import { test, expect, type Page, type TestInfo } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
 import sharp from 'sharp';
 import { generateWorld } from '../../src/world/WorldGenerator';
 import { Tile, isHillTile, type TileId } from '../../src/types/tiles';
@@ -7,10 +6,8 @@ import { Tile, isHillTile, type TileId } from '../../src/types/tiles';
 /**
  * Rendering regression checks backed by renderer counters
  * (window.__RENDER_DEBUG__) plus screenshots for human review in
- * docs/qa/screens/after/.
+ * each test's directory under test-results/.
  */
-const OUT = 'docs/qa/screens/after';
-mkdirSync(OUT, { recursive: true });
 
 async function boot(page: Page, query: string): Promise<string[]> {
   const errors: string[] = [];
@@ -27,7 +24,7 @@ const teleport = (page: Page, x: number, y: number) => page.evaluate(([px, py]) 
 
 test.use({ viewport: { width: 1280, height: 720 } });
 
-test('no placeholder textures across scenes, projectiles and regeneration', async ({ page }) => {
+test('no placeholder textures across scenes, projectiles and regeneration', async ({ page }, testInfo) => {
   const errors = await boot(page, 'seed=42');
   expect((await info(page)).placeholderSprites).toBe(0);
 
@@ -37,7 +34,7 @@ test('no placeholder textures across scenes, projectiles and regeneration', asyn
   await page.waitForTimeout(150);
   expect(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().projectiles)).toBeGreaterThan(0);
   expect((await info(page)).placeholderSprites).toBe(0);
-  await page.screenshot({ path: `${OUT}/check-magic-bolt.png`, clip: { x: 560, y: 280, width: 160, height: 160 } });
+  await page.screenshot({ path: testInfo.outputPath(`check-magic-bolt.png`), clip: { x: 560, y: 280, width: 160, height: 160 } });
   await page.evaluate(() => window.__GAME__!.setTimeScale(1));
 
   const baseline = await info(page);
@@ -54,7 +51,7 @@ test('no placeholder textures across scenes, projectiles and regeneration', asyn
   expect(errors).toEqual([]);
 });
 
-test('portal visual states follow the simulation and approach events', async ({ page }) => {
+test('portal visual states follow the simulation and approach events', async ({ page }, testInfo) => {
   await boot(page, 'seed=42');
   const portal = await page.evaluate(() => window.__GAME__!.getState().world.portalPos);
   const states = async () => (await info(page)).portalStates;
@@ -66,7 +63,7 @@ test('portal visual states follow the simulation and approach events', async ({ 
   await teleport(page, portal.x + 0.5, portal.y + 2.5);
   await page.waitForTimeout(120);
   expect(await states()).toEqual(['reacting']);
-  await page.screenshot({ path: `${OUT}/check-portal-reacting.png`, clip: { x: 480, y: 160, width: 320, height: 260 } });
+  await page.screenshot({ path: testInfo.outputPath(`check-portal-reacting.png`), clip: { x: 480, y: 160, width: 320, height: 260 } });
   // One-shot: returns to locked while the player is still near, without restarting.
   await page.waitForTimeout(1100);
   expect(await states()).toEqual(['locked']);
@@ -82,7 +79,7 @@ test('portal visual states follow the simulation and approach events', async ({ 
   await expect.poll(states).toEqual(['open']);
   await page.waitForTimeout(1500);
   expect(await states()).toEqual(['open']);
-  await page.screenshot({ path: `${OUT}/check-portal-open.png`, clip: { x: 480, y: 160, width: 320, height: 260 } });
+  await page.screenshot({ path: testInfo.outputPath(`check-portal-open.png`), clip: { x: 480, y: 160, width: 320, height: 260 } });
 
   // Walk in from just south of the portal, as a player would.
   await teleport(page, portal.x + 0.5, portal.y + 1.9);
@@ -92,12 +89,12 @@ test('portal visual states follow the simulation and approach events', async ({ 
   await page.keyboard.up('KeyW');
   expect((await info(page)).transitionActive).toBe(true);
   await page.waitForTimeout(250);
-  await page.screenshot({ path: `${OUT}/check-portal-transition.png` });
+  await page.screenshot({ path: testInfo.outputPath(`check-portal-transition.png`) });
   await expect.poll(async () => (await info(page)).transitionActive, { timeout: 3000 }).toBe(false);
   expect(await states()).toEqual(['locked']);
 });
 
-test('debug overlay shows colliders over hills and survives resizes', async ({ page }) => {
+test('debug overlay shows colliders over hills and survives resizes', async ({ page }, testInfo) => {
   const world = generateWorld({ seed: 1337, level: 1, difficulty: 'normal' });
   const errors = await boot(page, 'seed=1337');
   // A walkable tile just below a south cliff face.
@@ -112,7 +109,7 @@ test('debug overlay shows colliders over hills and survives resizes', async ({ p
   await expect(page.locator('#visual-debug-panel')).toBeVisible();
   await page.mouse.move(640, 300);
   await page.waitForTimeout(700);
-  await page.screenshot({ path: `${OUT}/check-debug-overlay.png` });
+  await page.screenshot({ path: testInfo.outputPath(`check-debug-overlay.png`) });
 
   await page.keyboard.press('F3');
   expect((await page.evaluate(() => window.__RENDER_DEBUG__!.getFlags())).enabled).toBe(false);
@@ -122,21 +119,21 @@ test('debug overlay shows colliders over hills and survives resizes', async ({ p
     await page.setViewportSize(size);
     await page.waitForTimeout(400);
     expect((await info(page)).placeholderSprites).toBe(0);
-    await page.screenshot({ path: `${OUT}/check-resize-${size.width}x${size.height}.png` });
+    await page.screenshot({ path: testInfo.outputPath(`check-resize-${size.width}x${size.height}.png`) });
   }
   expect(errors).toEqual([]);
 });
 
-test('enemy attack telegraph and death fade render without errors', async ({ page }) => {
+test('enemy attack telegraph and death fade render without errors', async ({ page }, testInfo) => {
   const errors = await boot(page, 'seed=42');
   const p = await page.evaluate(() => window.__GAME__!.getState().player);
   await page.evaluate(([x, y]) => { window.__GAME__!.setPlayerHealth(99); window.__GAME__!.spawnEnemy('mantis', x! + 0.7, y!); }, [p.x, p.y]);
   await page.waitForTimeout(90);
-  await page.screenshot({ path: `${OUT}/check-enemy-telegraph.png`, clip: { x: 560, y: 280, width: 160, height: 160 } });
+  await page.screenshot({ path: testInfo.outputPath(`check-enemy-telegraph.png`), clip: { x: 560, y: 280, width: 160, height: 160 } });
   await page.evaluate(() => window.__GAME__!.executeCommand('/kill all'));
   await page.waitForTimeout(60);
   expect((await info(page)).effects).toBeGreaterThan(0);
-  await page.screenshot({ path: `${OUT}/check-enemy-death.png`, clip: { x: 560, y: 280, width: 160, height: 160 } });
+  await page.screenshot({ path: testInfo.outputPath(`check-enemy-death.png`), clip: { x: 560, y: 280, width: 160, height: 160 } });
   expect(errors).toEqual([]);
 });
 

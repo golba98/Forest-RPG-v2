@@ -5,3 +5,8 @@ playwright-report
 test-results
 **/worktrees
 public/assets
+
+.vite
+artifacts
+docs/tmp
+*.tsbuildinfo

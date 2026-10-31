@@ -1,12 +1,7 @@
 # Task notes
 
-Save task plans and handoffs as `<descriptive-task-name>.md` in this folder. Keep one note per task and update it as the work changes. Notes are tracked in Git.
+Put temporary plans, drafts, investigation logs and handoffs in ignored `docs/tmp/<descriptive-task-name>.md`. Create that directory locally when needed. Keep one note per task and update it as work progresses.
 
-Use these sections when relevant:
+A useful note records the goal, decisions, validation results and unresolved next steps. Use repository-relative paths and link to existing technical guides rather than copying them.
 
-- **Goal:** The intended behavior and acceptance criteria.
-- **Approach:** Decisions, affected systems, and remaining work.
-- **Validation:** Checks run, results, and known limitations.
-- **Handoff:** Unresolved issues and the next concrete step.
-
-Use repository-relative paths. Link to existing technical guides instead of duplicating them. Move lasting information into those guides and remove obsolete notes. Do not create separate per-model logs, root handoff files, or coordination folders.
+Move lasting architecture, gameplay, testing and hosting information into the maintained guides. Deliberate long-lived decision records may be tracked in this folder; temporary drafts should not be force-added. Do not create root handoff files or per-agent coordination trees.
