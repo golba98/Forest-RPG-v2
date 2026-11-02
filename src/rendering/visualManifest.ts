@@ -94,7 +94,7 @@ function sheetEntries(): VisualAssetEntry[] {
   for (const [key, def] of Object.entries(ANIMATION_DEFS)) {
     const anchor = def.anchor.kind === 'center' ? { x: 0.5, y: 0.5 } : { x: 0.5, y: 1 };
     const footOffset = def.anchor.kind === 'feet' ? def.anchor.footOffsetPx : 0;
-    for (const clips of [def.clips, def.activeClips]) {
+    for (const clips of [def.clips, def.activeClips, ...Object.values(def.attackClips ?? {}).map(attack => ({ attack }))]) {
       if (!clips) continue;
       for (const clip of Object.values(clips)) {
         if (!clip) continue;
@@ -112,13 +112,14 @@ function sheetEntries(): VisualAssetEntry[] {
             path: player ? playerPath(sheet.alias) : MANIFEST_PATHS[sheet.alias] ?? '',
             texture: { w: sheet.w, h: sheet.h },
             frame,
-            anchor,
+            anchor: def.anchor.kind === 'feet' && def.anchor.sourceFoot
+              ? { x: def.anchor.sourceFoot.x / frame.w, y: def.anchor.sourceFoot.y / frame.h } : anchor,
             renderOffset: { x: 0, y: footOffset },
             tileFootprint: { w: (frame.w * scale) / TILE, h: (frame.h * scale) / TILE },
             depthAnchor: key === 'portal' ? 'tile-bottom' : 'foot',
             layer: 'actors',
             animation: summarise(clips),
-            solidFootprint: key === 'portal' ? 'none; entry radius 0.8 tiles around the portal tile centre' : 'entity AABB, halfSize 0.3 tiles (simulation)',
+            solidFootprint: key === 'portal' ? 'none; entry radius 0.8 tiles around the portal tile centre' : player ? 'PLAYER_FOOTPRINT: halfWidth 0.22, halfHeight 0.1, offsetY 0.2125 tiles (simulation)' : 'entity AABB, halfSize 0.3 tiles (simulation)',
           });
         }
       }

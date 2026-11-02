@@ -14,11 +14,16 @@ const directions = [
   { facing: 'E', keys: ['KeyD'], suffix: 'east', dx: 1, dy: 0 },
   { facing: 'S', keys: ['KeyS'], suffix: 'south', dx: 0, dy: 1 },
   { facing: 'W', keys: ['KeyA'], suffix: 'west', dx: -1, dy: 0 },
-  { facing: 'NW', keys: ['KeyW', 'KeyA'], suffix: 'northeast', dx: -1, dy: -1 },
-  { facing: 'NE', keys: ['KeyW', 'KeyD'], suffix: 'northwest', dx: 1, dy: -1 },
-  { facing: 'SW', keys: ['KeyS', 'KeyA'], suffix: 'southeast', dx: -1, dy: 1 },
-  { facing: 'SE', keys: ['KeyS', 'KeyD'], suffix: 'southwest', dx: 1, dy: 1 },
+  { facing: 'NW', keys: ['KeyW', 'KeyA'], suffix: 'northwest', dx: -1, dy: -1 },
+  { facing: 'NE', keys: ['KeyW', 'KeyD'], suffix: 'northeast', dx: 1, dy: -1 },
+  { facing: 'SW', keys: ['KeyS', 'KeyA'], suffix: 'southwest', dx: -1, dy: 1 },
+  { facing: 'SE', keys: ['KeyS', 'KeyD'], suffix: 'southeast', dx: 1, dy: 1 },
 ] as const;
+
+function attackAlias(s: Simulation, suffix: string): string {
+  const combo = s.getPlayerAttack()?.comboStep ?? 1;
+  return `player_attack${combo === 1 ? '' : combo}_${suffix}`;
+}
 
 function setup() {
   const simulation = new Simulation();
@@ -54,7 +59,7 @@ describe('player punch direction through input, simulation and animation', () =>
           expect(s.player.facing).toBe(d.facing);
           expect(s.player.anim).toBe('attack');
           expect(s.getPlayerAttack()?.direction).toBe(d.facing);
-          expect(ref.textureAlias).toBe(`player_attack_${d.suffix}`);
+          expect(ref.textureAlias).toBe(attackAlias(s, d.suffix));
           expect(ref.flipX).toBe(false);
           input.simulateKeyUp('KeyE'); frames(23);
           expect(s.player.anim).toBe('walk');
@@ -65,7 +70,7 @@ describe('player punch direction through input, simulation and animation', () =>
         step(); expect(s.player.anim).toBe('idle');
         expect(s.player.facing).toBe(d.facing);
         input.simulateKeyDown('KeyE');
-        expect(step().textureAlias).toBe(`player_attack_${d.suffix}`);
+        expect(step().textureAlias).toBe(attackAlias(s, d.suffix));
         expect(s.player.facing).toBe(d.facing);
       });
     }
@@ -86,7 +91,7 @@ describe('player punch direction through input, simulation and animation', () =>
       const mirror = target(-d.dx, d.dx === 0 || d.dy === 0 ? -d.dy : d.dy);
       const health = ahead.health;
       input.simulateKeyDown('KeyE');
-      expect(step().textureAlias).toBe(`player_attack_${d.suffix}`);
+      expect(step().textureAlias).toBe(attackAlias(s, d.suffix));
       frames(5); expect(ahead.health).toBe(health); // Before the 120 ms strike.
       frames(3); expect(ahead.health).toBeLessThan(health);
       expect(mirror.health).toBe(health);
@@ -108,7 +113,7 @@ describe('player punch direction through input, simulation and animation', () =>
       expect(s.player.anim).toBe('attack');
       expect(s.player.facing).toBe(facing);
       expect(s.getPlayerAttack()?.direction).toBe('NW');
-      expect(ref.textureAlias).toBe('player_attack_northeast');
+      expect(ref.textureAlias).toBe('player_attack_northwest');
       expect(ref.flipX).toBe(false);
     }
   });
@@ -148,8 +153,8 @@ describe('locked attacks across input and animation transitions', () => {
           const ref = step();
           expect(s.player.facing).toBe(next.facing);
           expect(s.getPlayerAttack()?.direction).toBe(start.facing);
-          expect(ref.textureAlias).toBe(`player_attack_${start.suffix}`);
-          expect(ref.frame.x).toBe(Math.floor(Math.min(3, Math.floor(s.player.animTimeMs / 80)) * 446 / 4));
+          expect(ref.textureAlias).toBe(attackAlias(s, start.suffix));
+          expect(ref.frame.x).toBe([40, 80, 120, 180, 220, 250, 280, 320].filter(t => s.player.animTimeMs >= t).length * 64);
         }
         frames(2);
         expect(s.getPlayerAttack()).toBeNull();
@@ -170,7 +175,7 @@ describe('locked attacks across input and animation transitions', () => {
       for (let frame = 0; frame < 21; frame++) {
         const ref = step();
         expect(s.player.facing).toBe(start.facing);
-        expect(ref.textureAlias).toBe(`player_attack_${start.suffix}`);
+        expect(ref.textureAlias).toBe(attackAlias(s, start.suffix));
       }
       expect(enemy.health).toBe(enemy.maxHealth);
     });
@@ -202,7 +207,7 @@ describe('locked attacks across input and animation transitions', () => {
         for (const key of start.keys) input.simulateKeyDown(key);
         input.simulateKeyDown('KeyE'); step(); input.simulateKeyUp('KeyE');
         input.simulateKeyUp(released);
-        expect(step().textureAlias).toBe(`player_attack_${start.suffix}`);
+        expect(step().textureAlias).toBe(attackAlias(s, start.suffix));
         frames(22);
         const remaining = directions.find(d => d.keys.length === 1 && d.keys[0] === start.keys.find(k => k !== released))!;
         expect(s.player.facing).toBe(remaining.facing);
@@ -309,9 +314,9 @@ describe('direction under different render schedules', () => {
     input.simulateKeyDown('KeyW'); input.simulateKeyDown('KeyA'); input.simulateKeyDown('KeyE');
     for (let n = 0; n < 6; n++) fixed();
     expect(s.getPlayerAttack()?.elapsedMs).toBeCloseTo(100);
-    expect(render(100).frame.x).toBe(111);
+    expect(render(100).frame.x).toBe(128);
     for (let n = 0; n < 4; n++) fixed();
-    expect(render(1000 / 15).frame.x).toBe(223);
+    expect(render(1000 / 15).frame.x).toBe(192); // 60 ms impact hold includes 166.7 ms.
   });
 
   for (const hz of [30, 60, 144, 240]) for (const d of directions) {
@@ -324,7 +329,7 @@ describe('direction under different render schedules', () => {
         onFixedUpdate: dt => fixed(dt),
         onRender: (_alpha, dt) => {
           const frame = render(dt);
-          if (s.getPlayerAttack()) expect(frame.textureAlias).toBe(`player_attack_${swings === 1 ? d.suffix : reverse.suffix}`);
+          if (s.getPlayerAttack()) expect(frame.textureAlias).toBe(attackAlias(s, swings === 1 ? d.suffix : reverse.suffix));
         },
       });
       for (const key of d.keys) input.simulateKeyDown(key);
@@ -350,7 +355,7 @@ describe('direction under different render schedules', () => {
     input.simulateKeyDown('KeyW'); input.simulateKeyDown('KeyA'); input.simulateKeyDown('KeyE');
     render(4); input.simulateKeyUp('KeyE'); render(4);
     for (let n = 0; n < 3; n++) fixed();
-    expect(render(50).textureAlias).toBe('player_attack_northeast');
+    expect(render(50).textureAlias).toBe('player_attack_northwest');
     expect(s.getPlayerAttack()?.elapsedMs).toBeCloseTo(50);
     expect(s.player.comboCount).toBe(1);
   });

@@ -1,0 +1,1270 @@
+{
+  "status": "art-review-only",
+  "frameSize": 64,
+  "sourceFoot": {
+    "x": 32,
+    "y": 54
+  },
+  "sourceScale": 0.14285714285714285,
+  "palette": [
+    "2f2522",
+    "5b5146",
+    "817566",
+    "a79d89",
+    "b9b3a1",
+    "d2c9b7",
+    "e7d5c6",
+    "e9e2d4",
+    "faf3e8",
+    "fffaf2",
+    "d19da7",
+    "e5b6bc"
+  ],
+  "sheets": [
+    {
+      "direction": "south",
+      "clip": "idle",
+      "sourceFile": "generated/south.png",
+      "sourceSHA256": "64da8fd332c69b3369b49bc06e5a0ab95b7924dfae4dae176b27cd00ba1b2186",
+      "frames": [
+        {
+          "file": "frames/south/idle-0.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 9,
+            "y": 2,
+            "width": 21,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        },
+        {
+          "file": "frames/south/idle-1.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 1
+          },
+          "nativeRect": {
+            "x": 44,
+            "y": 2,
+            "width": 22,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        },
+        {
+          "file": "frames/south/idle-2.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 2
+          },
+          "nativeRect": {
+            "x": 80,
+            "y": 2,
+            "width": 22,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        },
+        {
+          "file": "frames/south/idle-3.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 3
+          },
+          "nativeRect": {
+            "x": 116,
+            "y": 2,
+            "width": 21,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        },
+        {
+          "file": "frames/south/idle-4.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 4
+          },
+          "nativeRect": {
+            "x": 149,
+            "y": 2,
+            "width": 22,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        },
+        {
+          "file": "frames/south/idle-5.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 5
+          },
+          "nativeRect": {
+            "x": 184,
+            "y": 2,
+            "width": 21,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        }
+      ]
+    },
+    {
+      "direction": "south",
+      "clip": "walk",
+      "sourceFile": "generated/south.png",
+      "sourceSHA256": "64da8fd332c69b3369b49bc06e5a0ab95b7924dfae4dae176b27cd00ba1b2186",
+      "frames": [
+        {
+          "file": "frames/south/walk-0.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 9,
+            "y": 37,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/walk-1.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 1
+          },
+          "nativeRect": {
+            "x": 44,
+            "y": 37,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/walk-2.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 2
+          },
+          "nativeRect": {
+            "x": 80,
+            "y": 37,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/walk-3.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 3
+          },
+          "nativeRect": {
+            "x": 115,
+            "y": 37,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/walk-4.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 4
+          },
+          "nativeRect": {
+            "x": 149,
+            "y": 37,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/walk-5.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 5
+          },
+          "nativeRect": {
+            "x": 183,
+            "y": 37,
+            "width": 22,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/walk-6.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 6
+          },
+          "nativeRect": {
+            "x": 218,
+            "y": 37,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/walk-7.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 7
+          },
+          "nativeRect": {
+            "x": 252,
+            "y": 37,
+            "width": 22,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        }
+      ]
+    },
+    {
+      "direction": "south",
+      "clip": "attack",
+      "sourceFile": "generated/south.png",
+      "sourceSHA256": "64da8fd332c69b3369b49bc06e5a0ab95b7924dfae4dae176b27cd00ba1b2186",
+      "frames": [
+        {
+          "file": "frames/south/attack-0.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 9,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/attack-1.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 1
+          },
+          "nativeRect": {
+            "x": 44,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/attack-2.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 2
+          },
+          "nativeRect": {
+            "x": 78,
+            "y": 69,
+            "width": 22,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/attack-3.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 3
+          },
+          "nativeRect": {
+            "x": 113,
+            "y": 70,
+            "width": 22,
+            "height": 29
+          },
+          "registration": {
+            "x": 21,
+            "y": 25
+          }
+        },
+        {
+          "file": "frames/south/attack-4.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 4
+          },
+          "nativeRect": {
+            "x": 148,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/attack-5.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 5
+          },
+          "nativeRect": {
+            "x": 183,
+            "y": 69,
+            "width": 22,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/attack-6.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 6
+          },
+          "nativeRect": {
+            "x": 217,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/attack-7.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 7
+          },
+          "nativeRect": {
+            "x": 251,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/south/attack-8.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 8
+          },
+          "nativeRect": {
+            "x": 286,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        }
+      ]
+    },
+    {
+      "direction": "east",
+      "clip": "idle",
+      "sourceFile": "generated/east.png",
+      "sourceSHA256": "274581450cc5844ee14bd5c4ddfc669a9c784c7f6a26c52eac7db529fd40a420",
+      "frames": [
+        {
+          "file": "frames/east/idle-0.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 16,
+            "y": 3,
+            "width": 22,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/idle-1.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 1
+          },
+          "nativeRect": {
+            "x": 50,
+            "y": 3,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/idle-2.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 2
+          },
+          "nativeRect": {
+            "x": 82,
+            "y": 3,
+            "width": 22,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/idle-3.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 3
+          },
+          "nativeRect": {
+            "x": 115,
+            "y": 3,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/idle-4.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 4
+          },
+          "nativeRect": {
+            "x": 147,
+            "y": 3,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/idle-5.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 5
+          },
+          "nativeRect": {
+            "x": 179,
+            "y": 3,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        }
+      ]
+    },
+    {
+      "direction": "east",
+      "clip": "walk",
+      "sourceFile": "generated/east.png",
+      "sourceSHA256": "274581450cc5844ee14bd5c4ddfc669a9c784c7f6a26c52eac7db529fd40a420",
+      "frames": [
+        {
+          "file": "frames/east/walk-0.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 16,
+            "y": 37,
+            "width": 22,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/walk-1.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 1
+          },
+          "nativeRect": {
+            "x": 48,
+            "y": 37,
+            "width": 22,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/walk-2.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 2
+          },
+          "nativeRect": {
+            "x": 81,
+            "y": 37,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/walk-3.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 3
+          },
+          "nativeRect": {
+            "x": 113,
+            "y": 38,
+            "width": 22,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/east/walk-4.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 4
+          },
+          "nativeRect": {
+            "x": 146,
+            "y": 37,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/walk-5.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 5
+          },
+          "nativeRect": {
+            "x": 179,
+            "y": 37,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/walk-6.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 6
+          },
+          "nativeRect": {
+            "x": 211,
+            "y": 37,
+            "width": 22,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/walk-7.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 7
+          },
+          "nativeRect": {
+            "x": 244,
+            "y": 37,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        }
+      ]
+    },
+    {
+      "direction": "east",
+      "clip": "attack",
+      "sourceFile": "generated/east.png",
+      "sourceSHA256": "274581450cc5844ee14bd5c4ddfc669a9c784c7f6a26c52eac7db529fd40a420",
+      "frames": [
+        {
+          "file": "frames/east/attack-0.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 15,
+            "y": 70,
+            "width": 22,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/attack-1.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 1
+          },
+          "nativeRect": {
+            "x": 48,
+            "y": 70,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/attack-2.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 2
+          },
+          "nativeRect": {
+            "x": 80,
+            "y": 70,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/attack-3.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 4
+          },
+          "nativeRect": {
+            "x": 145,
+            "y": 70,
+            "width": 28,
+            "height": 31
+          },
+          "registration": {
+            "x": 20,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/attack-4.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 5
+          },
+          "nativeRect": {
+            "x": 179,
+            "y": 70,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/attack-5.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 6
+          },
+          "nativeRect": {
+            "x": 212,
+            "y": 70,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/attack-6.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 7
+          },
+          "nativeRect": {
+            "x": 244,
+            "y": 70,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/attack-7.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 8
+          },
+          "nativeRect": {
+            "x": 275,
+            "y": 70,
+            "width": 22,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/east/attack-8.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 15,
+            "y": 70,
+            "width": 22,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        }
+      ]
+    },
+    {
+      "direction": "northeast",
+      "clip": "idle",
+      "sourceFile": "generated/northeast.png",
+      "sourceSHA256": "60c9923abd1edcf10ab680f91204b0914fe9a74166b9e8c35b511bc1c06ae8ae",
+      "frames": [
+        {
+          "file": "frames/northeast/idle-0.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 9,
+            "y": 2,
+            "width": 21,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        },
+        {
+          "file": "frames/northeast/idle-1.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 1
+          },
+          "nativeRect": {
+            "x": 44,
+            "y": 2,
+            "width": 22,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        },
+        {
+          "file": "frames/northeast/idle-2.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 2
+          },
+          "nativeRect": {
+            "x": 80,
+            "y": 2,
+            "width": 21,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        },
+        {
+          "file": "frames/northeast/idle-3.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 3
+          },
+          "nativeRect": {
+            "x": 115,
+            "y": 2,
+            "width": 21,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        },
+        {
+          "file": "frames/northeast/idle-4.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 4
+          },
+          "nativeRect": {
+            "x": 149,
+            "y": 2,
+            "width": 22,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        },
+        {
+          "file": "frames/northeast/idle-5.png",
+          "sourceCell": {
+            "row": 0,
+            "column": 5
+          },
+          "nativeRect": {
+            "x": 185,
+            "y": 2,
+            "width": 21,
+            "height": 32
+          },
+          "registration": {
+            "x": 21,
+            "y": 22
+          }
+        }
+      ]
+    },
+    {
+      "direction": "northeast",
+      "clip": "walk",
+      "sourceFile": "generated/northeast.png",
+      "sourceSHA256": "60c9923abd1edcf10ab680f91204b0914fe9a74166b9e8c35b511bc1c06ae8ae",
+      "frames": [
+        {
+          "file": "frames/northeast/walk-0.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 9,
+            "y": 36,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/northeast/walk-1.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 1
+          },
+          "nativeRect": {
+            "x": 43,
+            "y": 36,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/northeast/walk-2.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 2
+          },
+          "nativeRect": {
+            "x": 77,
+            "y": 36,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/northeast/walk-3.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 3
+          },
+          "nativeRect": {
+            "x": 111,
+            "y": 36,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/northeast/walk-4.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 4
+          },
+          "nativeRect": {
+            "x": 146,
+            "y": 36,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/northeast/walk-5.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 5
+          },
+          "nativeRect": {
+            "x": 180,
+            "y": 36,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/northeast/walk-6.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 6
+          },
+          "nativeRect": {
+            "x": 214,
+            "y": 36,
+            "width": 21,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        },
+        {
+          "file": "frames/northeast/walk-7.png",
+          "sourceCell": {
+            "row": 1,
+            "column": 7
+          },
+          "nativeRect": {
+            "x": 249,
+            "y": 36,
+            "width": 22,
+            "height": 31
+          },
+          "registration": {
+            "x": 21,
+            "y": 23
+          }
+        }
+      ]
+    },
+    {
+      "direction": "northeast",
+      "clip": "attack",
+      "sourceFile": "generated/northeast.png",
+      "sourceSHA256": "60c9923abd1edcf10ab680f91204b0914fe9a74166b9e8c35b511bc1c06ae8ae",
+      "frames": [
+        {
+          "file": "frames/northeast/attack-0.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 9,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/northeast/attack-1.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 1
+          },
+          "nativeRect": {
+            "x": 41,
+            "y": 69,
+            "width": 22,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/northeast/attack-2.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 2
+          },
+          "nativeRect": {
+            "x": 75,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/northeast/attack-3.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 5
+          },
+          "nativeRect": {
+            "x": 177,
+            "y": 69,
+            "width": 26,
+            "height": 30
+          },
+          "registration": {
+            "x": 19,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/northeast/attack-4.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 6
+          },
+          "nativeRect": {
+            "x": 212,
+            "y": 69,
+            "width": 24,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/northeast/attack-5.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 7
+          },
+          "nativeRect": {
+            "x": 247,
+            "y": 69,
+            "width": 24,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/northeast/attack-6.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 8
+          },
+          "nativeRect": {
+            "x": 283,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/northeast/attack-7.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 9,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        },
+        {
+          "file": "frames/northeast/attack-8.png",
+          "sourceCell": {
+            "row": 2,
+            "column": 0
+          },
+          "nativeRect": {
+            "x": 9,
+            "y": 69,
+            "width": 21,
+            "height": 30
+          },
+          "registration": {
+            "x": 21,
+            "y": 24
+          }
+        }
+      ]
+    }
+  ]
+}

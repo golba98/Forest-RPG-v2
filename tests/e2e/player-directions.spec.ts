@@ -2,27 +2,32 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import sharp from 'sharp';
 import { boot } from './helpers/directional-fixture';
 
-// Reviewed against the actual PNGs, independently of AnimationDefs. Diagonal
-// punch filenames face horizontally opposite the compass direction they draw.
+// Reviewed against the new PNGs independently of AnimationDefs. Direction
+// names now match the artwork; no runtime mirroring or diagonal alias swap.
 const directions = [
   { facing: 'N', keys: ['KeyW'], dx: 0, dy: -1, art: 'north', punch: 'north' },
-  { facing: 'NE', keys: ['KeyW', 'KeyD'], dx: 1, dy: -1, art: 'northeast', punch: 'northwest' },
+  { facing: 'NE', keys: ['KeyW', 'KeyD'], dx: 1, dy: -1, art: 'northeast', punch: 'northeast' },
   { facing: 'E', keys: ['KeyD'], dx: 1, dy: 0, art: 'east', punch: 'east' },
-  { facing: 'SE', keys: ['KeyS', 'KeyD'], dx: 1, dy: 1, art: 'southeast', punch: 'southwest' },
+  { facing: 'SE', keys: ['KeyS', 'KeyD'], dx: 1, dy: 1, art: 'southeast', punch: 'southeast' },
   { facing: 'S', keys: ['KeyS'], dx: 0, dy: 1, art: 'south', punch: 'south' },
-  { facing: 'SW', keys: ['KeyS', 'KeyA'], dx: -1, dy: 1, art: 'southwest', punch: 'southeast' },
+  { facing: 'SW', keys: ['KeyS', 'KeyA'], dx: -1, dy: 1, art: 'southwest', punch: 'southwest' },
   { facing: 'W', keys: ['KeyA'], dx: -1, dy: 0, art: 'west', punch: 'west' },
-  { facing: 'NW', keys: ['KeyW', 'KeyA'], dx: -1, dy: -1, art: 'northwest', punch: 'northeast' },
+  { facing: 'NW', keys: ['KeyW', 'KeyA'], dx: -1, dy: -1, art: 'northwest', punch: 'northwest' },
 ] as const;
 
 async function held(page: Page, keys: readonly string[], down: boolean) {
   for (const key of keys) await page.keyboard[down ? 'down' : 'up'](key);
 }
 
+async function punchAlias(page: Page, suffix: string) {
+  const combo = await page.evaluate(() => window.__GAME__!.getState().player.comboCount || 3);
+  return `player_attack${combo === 1 ? '' : combo}_${suffix}`;
+}
+
 async function displayed(page: Page) {
   const sprite = await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().playerSprite);
   expect(sprite).toBeTruthy();
-  const mirror = sprite!.anim === 'run' && sprite!.facing === 'SW';
+  const mirror = false;
   expect(Math.sign(sprite!.scaleX)).toBe(mirror ? -1 : 1);
   expect(sprite!.scaleY).toBeGreaterThan(0);
   expect(sprite!.rotation).toBe(0);
@@ -33,19 +38,33 @@ async function displayed(page: Page) {
   return sprite!;
 }
 
+// Sample every pose using small clock steps: the 60 Hz fixed simulation and
+// pose boundaries do not share simulation ticks; Playwright runFor rounds RAFs.
+const punchColumn = (ms: number) => [40, 80, 120, 180, 220, 250, 280, 320].filter(t => ms >= t).length;
+async function punchFrame(page: Page, frame: number) {
+  for (let tick = 0; tick < 12; tick++) {
+    const pose = await displayed(page);
+    if (pose.anim === 'attack' && punchColumn(pose.animTimeMs) === frame) return;
+    await page.clock.runFor(8);
+  }
+  throw new Error(`Punch frame ${frame} was skipped or never started`);
+}
+
 /** Match opaque pixels of an independently selected PNG against the gameplay
  * canvas. Search the subpixel rounding choices made by WebGL's roundPixels;
  * this checks the drawn character, not just its diagnostics or an effect arc. */
 async function verifyPixels(page: Page, info: TestInfo, name: string, anim: string, suffix: string, column: number) {
   const sprite = await displayed(page);
-  // Independently reviewed exception: all six SW run frames were a duplicate
-  // of SE. Require the actual horizontal mirror, retaining frame order.
-  const mirror = anim === 'run' && suffix === 'southwest';
-  const source = mirror ? 'southeast' : suffix;
+  const mirror = false;
+  const source = suffix;
+  if (anim === 'attack') {
+    const combo = await page.evaluate(() => window.__GAME__!.getState().player.comboCount || 3);
+    anim = `attack${combo === 1 ? '' : combo}`;
+  }
   expect(sprite.assetId).toBe(`player_${anim}_${suffix}`);
   const file = `public/assets/images/characters/player/${anim}/${anim}_${source}.png`;
   const metadata = await sharp(file).metadata();
-  const count = anim === 'run' ? 6 : 4;
+  const count = anim === 'idle' ? 6 : anim.startsWith('attack') ? 9 : 8;
   const x = Math.floor(column * metadata.width! / count);
   const w = Math.floor((column + 1) * metadata.width! / count) - x;
   expect(sprite.frame).toEqual({ x, y: 0, w, h: metadata.height! });
@@ -58,16 +77,19 @@ async function verifyPixels(page: Page, info: TestInfo, name: string, anim: stri
   const { data, info: size } = await sharp(screen).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   const b = sprite.bounds;
   let best = 0, opaque = 0;
-  for (const left of [Math.floor(b.x), Math.ceil(b.x)]) for (const top of [Math.floor(b.y), Math.ceil(b.y)])
-    for (const width of [Math.floor(b.width), Math.ceil(b.width)]) for (const height of [Math.floor(b.height), Math.ceil(b.height)]) {
+  // Nearest sampling uses the continuous transformed extent. Integer-only
+  // resize approximations lose fine pixels when a 64 px cell spans 38.4 px.
+  for (const left of [b.x, Math.floor(b.x), Math.ceil(b.x)]) for (const top of [b.y, Math.floor(b.y), Math.ceil(b.y)])
+    for (const width of [b.width, Math.floor(b.width), Math.ceil(b.width)]) for (const height of [b.height, Math.floor(b.height), Math.ceil(b.height)]) {
       let matched = 0, samples = 0;
-      for (let py = 0; py < height; py++) for (let px = 0; px < width; px++) {
-        const sx = Math.min(w - 1, Math.floor((px + .5) * w / width));
-        const sy = Math.min(metadata.height! - 1, Math.floor((py + .5) * metadata.height! / height));
+      for (let py = Math.floor(top); py < Math.ceil(top + height); py++) for (let px = Math.floor(left); px < Math.ceil(left + width); px++) {
+        const sx = Math.floor((px + .5 - left) * w / width);
+        const sy = Math.floor((py + .5 - top) * metadata.height! / height);
+        if (sx < 0 || sx >= w || sy < 0 || sy >= metadata.height!) continue;
         const ref = (sy * w + sx) * 4;
         if (reference[ref + 3]! < 250) continue;
         samples++;
-        const dst = ((top + py) * size.width + left + px) * size.channels;
+        const dst = (py * size.width + px) * size.channels;
         if ([0, 1, 2].every(c => Math.abs(data[dst + c]! - reference[ref + c]!) < 12)) matched++;
       }
       opaque = Math.max(opaque, samples);
@@ -95,10 +117,10 @@ for (const d of directions) test(`${d.facing} movement, all punch frames, and st
   expect(Math.sign(p.x - 20.5)).toBe(d.dx);
   expect(Math.sign(p.y - 20.5)).toBe(d.dy);
   expect(p.direction).toBe(d.facing);
-  for (const [anim, count, step] of [['walk', 4, 150], ['run', 6, 112.5], ['idle', 4, 150]] as const) {
+  for (const [anim, count, step] of [['walk', 8, 40], ['run', 8, 1000 / 34], ['idle', 6, 200]] as const) {
     if (anim === 'run') await page.keyboard.down('ShiftLeft');
     if (anim === 'idle') await held(page, [...d.keys, 'ShiftLeft'], false);
-    await page.clock.runFor(17);
+    await page.clock.runFor(anim === 'idle' ? 100 : 34);
     const seen = new Set<number>();
     for (let sample = 0; sample < count * 3 && seen.size < count; sample++) {
       const pose = await displayed(page);
@@ -112,17 +134,17 @@ for (const d of directions) test(`${d.facing} movement, all punch frames, and st
   }
   await held(page, [...d.keys, 'ShiftLeft'], true);
   await page.keyboard.down('KeyE');
-  for (let frame = 0; frame < 4; frame++) {
-    await page.clock.runFor(frame === 0 ? 17 : 80);
+  for (let frame = 0; frame < 9; frame++) {
+    await punchFrame(page, frame);
     expect(await page.evaluate(() => window.__GAME__!.getState().player.attackDirection)).toBe(d.facing);
     await verifyPixels(page, info, `${d.facing}-punch-${frame}`, 'attack', d.punch, frame);
   }
   await page.keyboard.up('KeyE'); await page.clock.runFor(150);
   expect((await displayed(page)).anim).toBe('run');
-  await held(page, [...d.keys, 'ShiftLeft'], false); await page.clock.runFor(50);
+  await held(page, [...d.keys, 'ShiftLeft'], false); await page.clock.runFor(160);
   expect((await displayed(page)).anim).toBe('idle');
   await page.keyboard.press('KeyE'); await page.clock.runFor(100);
-  await verifyPixels(page, info, `${d.facing}-stationary`, 'attack', d.punch, 1);
+  await verifyPixels(page, info, `${d.facing}-stationary`, 'attack', d.punch, 2);
   expect(errors).toEqual([]);
 });
 
@@ -131,19 +153,22 @@ for (const d of directions.filter(d => d.keys.length === 2)) for (const reverseO
     const errors = await boot(page);
     const keys = reverseOrder ? [...d.keys].reverse() : [...d.keys];
     for (const key of keys) { await page.keyboard.down(key); await page.clock.runFor(17); }
-    await page.keyboard.press('KeyE'); await page.clock.runFor(17);
+    await page.keyboard.press('KeyE'); await punchFrame(page, 0);
     await page.keyboard.up(keys[0]!); await page.clock.runFor(40);
-    expect((await displayed(page)).assetId).toBe(`player_attack_${d.punch}`);
+    expect((await displayed(page)).assetId).toBe(await punchAlias(page, d.punch));
     await page.keyboard.up(keys[1]!);
     const opposite = directions.find(other => other.dx === -d.dx && other.dy === -d.dy)!;
     await held(page, opposite.keys, true); await page.clock.runFor(40);
     await page.keyboard.press('KeyE'); // Rejected during the existing swing.
     await page.clock.runFor(160);
-    await verifyPixels(page, info, `${d.facing}-locked-after-reversal`, 'attack', d.punch, 3);
+    const locked = await displayed(page);
+    expect(locked.animTimeMs).toBeGreaterThanOrEqual(240);
+    expect(locked.animTimeMs).toBeLessThan(300);
+    await verifyPixels(page, info, `${d.facing}-locked-after-reversal`, 'attack', d.punch, punchColumn(locked.animTimeMs));
     expect(await page.evaluate(() => window.__GAME__!.getState().player.direction)).toBe(opposite.facing);
     await page.clock.runFor(150);
     await page.keyboard.press('KeyE'); await page.clock.runFor(100);
-    await verifyPixels(page, info, `${d.facing}-next-opposite-punch`, 'attack', opposite.punch, 1);
+    await verifyPixels(page, info, `${d.facing}-next-opposite-punch`, 'attack', opposite.punch, 2);
     expect(errors).toEqual([]);
   });
 }
@@ -152,9 +177,9 @@ test('reported northwest punch never turns toward the southeast enemy', async ({
   const errors = await boot(page, [[1, 1]]);
   await held(page, ['KeyW', 'KeyA'], true);
   await page.keyboard.press('KeyE');
-  for (let frame = 0; frame < 4; frame++) {
-    await page.clock.runFor(frame === 0 ? 17 : 80);
-    await verifyPixels(page, info, `reported-NW-punch-${frame}`, 'attack', 'northeast', frame);
+  for (let frame = 0; frame < 9; frame++) {
+    await punchFrame(page, frame);
+    await verifyPixels(page, info, `reported-NW-punch-${frame}`, 'attack', 'northwest', frame);
   }
   const state = await page.evaluate(() => window.__GAME__!.getState());
   expect(state.player.direction).toBe('NW');
@@ -165,7 +190,7 @@ test('reported northwest punch never turns toward the southeast enemy', async ({
 test('hit cone stays northwest while moving southeast before the strike', async ({ page }, info) => {
   const errors = await boot(page, [[-1, -1], [1, 1]]);
   await held(page, ['KeyW', 'KeyA'], true);
-  await page.keyboard.press('KeyE'); await page.clock.runFor(17);
+  await page.keyboard.press('KeyE'); await punchFrame(page, 0);
   await held(page, ['KeyW', 'KeyA'], false); await held(page, ['KeyS', 'KeyD'], true);
   // Preserve the strike origin while verifying that facing and velocity reverse.
   for (let n = 0; n < 7; n++) {
@@ -178,7 +203,7 @@ test('hit cone stays northwest while moving southeast before the strike', async 
   expect(state.enemies[0]!.health).toBe(19);
   expect(state.enemies[1]!.health).toBe(20);
   const sprite = await displayed(page);
-  await verifyPixels(page, info, 'locked-NW-hit', 'attack', 'northeast', Math.min(3, Math.floor(sprite.animTimeMs / 80)));
+  await verifyPixels(page, info, 'locked-NW-hit', 'attack', 'northwest', punchColumn(sprite.animTimeMs));
   expect(errors).toEqual([]);
 });
 
@@ -199,7 +224,7 @@ test('continuous movement, repeated keyboard/mouse punches, and ignored mid-swin
     if (swing % 2 === 0) await page.keyboard.press('KeyE');
     else await page.locator('#game-canvas').click({ position: { x: 400, y: 300 } });
     await page.clock.runFor(100);
-    await verifyPixels(page, info, `repeat-NE-${swing}`, 'attack', 'northwest', 1);
+    await verifyPixels(page, info, `repeat-NE-${swing}`, 'attack', 'northeast', 2);
     await page.keyboard.press('KeyE'); await page.clock.runFor(300);
     expect((await displayed(page)).anim).toBe('walk');
     expect(await page.evaluate(() => window.__GAME__!.getState().player.comboCount)).toBe((swing + 1) % 3);
@@ -211,15 +236,15 @@ test('continuous movement, repeated keyboard/mouse punches, and ignored mid-swin
 
 test('stationary aim assist stays locked when movement and bolt aiming change', async ({ page }, info) => {
   const errors = await boot(page, [[1.3, 0], [-3, 0]]);
-  await page.keyboard.press('KeyE'); await page.clock.runFor(17);
+  await page.keyboard.press('KeyE'); await punchFrame(page, 0);
   expect(await page.evaluate(() => window.__GAME__!.getState().player.attackDirection)).toBe('E');
   await held(page, ['KeyW', 'KeyA'], true); await page.keyboard.press('KeyR');
   await page.clock.runFor(80);
   // The bolt lands during this interval: the existing 55 ms impact hold keeps
-  // frame zero, but must never replace the locked east-facing punch.
-  await verifyPixels(page, info, 'stationary-assist-locked-east-held', 'attack', 'east', 0);
+  // frame one of the 40 ms clip, never a pose from another facing.
+  await verifyPixels(page, info, 'stationary-assist-locked-east-held', 'attack', 'east', 1);
   await page.clock.runFor(80);
-  await verifyPixels(page, info, 'stationary-assist-locked-east-resumed', 'attack', 'east', 2);
+  await verifyPixels(page, info, 'stationary-assist-locked-east-resumed', 'attack', 'east', 4);
   expect(errors).toEqual([]);
 });
 
@@ -235,10 +260,10 @@ test('rapid alternating diagonals and frame timing never steer an ongoing punch'
     await page.clock.runFor([7, 17, 1, 33][n % 4]!);
     const sprite = await displayed(page);
     expect(sprite.facing).toBe('NW');
-    expect(sprite.assetId).toBe('player_attack_northeast');
+    expect(sprite.assetId).toBe(await punchAlias(page, 'northwest'));
   }
   const sprite = await displayed(page);
-  await verifyPixels(page, info, 'rapid-diagonals-locked-NW', 'attack', 'northeast', Math.min(3, Math.floor(sprite.animTimeMs / 80)));
+  await verifyPixels(page, info, 'rapid-diagonals-locked-NW', 'attack', 'northwest', punchColumn(sprite.animTimeMs));
   expect(errors).toEqual([]);
 });
 
@@ -254,10 +279,13 @@ test('running bolt keeps northwest pixels and moving slash follows its locked sw
     await held(page, ['KeyW', 'KeyA', 'ShiftLeft'], true);
     await page.clock.runFor(17);
     await page.keyboard.press('KeyR'); await page.clock.runFor(17);
+    expect((await displayed(page)).facing).toBe('NW');
+    // Let the bolt and its glow clear the entire head before pixel comparison.
+    await page.clock.runFor(140);
     const pose = await displayed(page);
     expect(pose.facing).toBe('NW'); expect(pose.anim).toBe('run');
-    await verifyPixels(page, info, `bolt-NW-${repeat}`, 'run', 'northwest', Math.floor(pose.animTimeMs / 112.5) % 6);
-    await page.keyboard.press('KeyE'); await page.clock.runFor(17);
+    await verifyPixels(page, info, `bolt-NW-${repeat}`, 'run', 'northwest', Math.floor(pose.animTimeMs / (1000 / 34)) % 8);
+    await page.keyboard.press('KeyE'); await punchFrame(page, 0);
     let debug = await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo());
     const id = debug.playerSlash!.swingId;
     expect(id).toBeGreaterThan(lastSwing); lastSwing = id;
@@ -336,7 +364,7 @@ test('live RAF gameplay keeps running and punching direction through repeated bo
     await page.keyboard.press('KeyE'); await page.waitForTimeout(40);
     await held(page, ['KeyW', 'KeyA'], false); await held(page, ['KeyS', 'KeyD'], true);
     const punch = await displayed(page);
-    expect(punch.facing).toBe('NW'); expect(punch.assetId).toBe('player_attack_northeast');
+    expect(punch.facing).toBe('NW'); expect(punch.assetId).toBe(await punchAlias(page, 'northwest'));
     traces.push({ repeat, samples, punch: { facing: punch.facing, asset: punch.assetId } });
     await held(page, ['KeyS', 'KeyD', 'ShiftLeft'], false); await page.waitForTimeout(380);
   }
@@ -384,7 +412,35 @@ test('inverted Y follows effective movement for run pixels and locked punch', as
   const p = await page.evaluate(() => window.__GAME__!.getState().player);
   expect(p.x).toBeLessThan(20.5); expect(p.y).toBeGreaterThan(20.5);
   const run = await displayed(page);
-  await verifyPixels(page, info, 'inverted-SW-run', 'run', 'southwest', Math.floor(run.animTimeMs / 112.5) % 6);
-  await page.keyboard.press('KeyE'); await page.clock.runFor(17);
-  await verifyPixels(page, info, 'inverted-SW-punch', 'attack', 'southeast', 0);
+  await verifyPixels(page, info, 'inverted-SW-run', 'run', 'southwest', Math.floor(run.animTimeMs / (1000 / 34)) % 8);
+  await page.keyboard.press('KeyE'); await punchFrame(page, 0);
+  await verifyPixels(page, info, 'inverted-SW-punch', 'attack', 'southwest', 0);
+});
+
+for (const d of directions) test(`${d.facing} all three remastered combos and jump frames`, async ({ page }, info) => {
+  test.setTimeout(60_000);
+  const errors = await boot(page);
+  await held(page, d.keys, true); await page.clock.runFor(17);
+  await held(page, d.keys, false); await page.clock.runFor(17);
+  for (let combo = 1; combo <= 3; combo++) {
+    await page.keyboard.press('KeyE');
+    for (let frame = 0; frame < 9; frame++) {
+      await punchFrame(page, frame);
+      expect(await page.evaluate(() => window.__GAME__!.getState().player.attackDirection), `${d.facing} combo ${combo} frame ${frame}`).toBe(d.facing);
+      expect(await page.evaluate(() => window.__GAME__!.getState().player.comboCount)).toBe(combo % 3);
+      await verifyPixels(page, info, `${d.facing}-combo-${combo}-${frame}`, 'attack', d.punch, frame);
+    }
+    await page.clock.runFor(80);
+  }
+  await page.keyboard.press('Space'); await page.clock.runFor(32);
+  const seen = new Set<number>();
+  for (let sample = 0; sample < 16 && seen.size < 8; sample++) {
+    const pose = await displayed(page);
+    expect(pose.anim).toBe('jump'); expect(pose.facing).toBe(d.facing);
+    const frame = Math.min(7, Math.floor(pose.animTimeMs / 62.5));
+    if (!seen.has(frame)) await verifyPixels(page, info, `${d.facing}-jump-${frame}`, 'jump', d.art, frame);
+    seen.add(frame); await page.clock.runFor(32);
+  }
+  expect(seen.size).toBe(8);
+  expect(errors).toEqual([]);
 });

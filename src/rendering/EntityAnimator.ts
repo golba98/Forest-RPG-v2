@@ -2,6 +2,13 @@ import type { AnimState, Direction } from '../types/entities';
 import type { RenderEntityView } from '../types/render';
 import { getAnimationDurationMs } from '../animation/resolveSpriteFrame';
 import type { SpriteFrameInput } from '../animation/resolveSpriteFrame';
+import { ANIMATION_DEFS } from '../animation/AnimationDefs';
+import {
+  PLAYER_FLOW_ENABLED,
+  createPlayerFlow,
+  settlePlayerMotion,
+  type PlayerFlowState,
+} from '../animation/PlayerPlayback';
 
 /** A displayed facing must persist this long before the sprite row flips (enemies). */
 export const FACING_HOLD_MS = 120;
@@ -21,6 +28,15 @@ interface Track {
   pendingFacing: Direction;
   pendingMs: number;
   seenAt: number;
+  ground: GroundPoint | undefined;
+  gaitDistancePx: number;
+  playerFlow: PlayerFlowState;
+}
+
+/** Interpolated ground position before jump lift and camera transforms. */
+export interface GroundPoint {
+  readonly x: number;
+  readonly y: number;
 }
 
 export interface AnimatedView extends SpriteFrameInput {
@@ -40,6 +56,9 @@ export interface AnimatedView extends SpriteFrameInput {
  * Simulation state is never modified.
  */
 export class EntityAnimator {
+  rebase(dx: number, dy: number): void {
+    for(const track of this.tracks.values())if(track.ground)track.ground={x:track.ground.x-dx,y:track.ground.y-dy};
+  }
   private readonly tracks = new Map<string, Track>();
   private frame = 0;
 
@@ -48,7 +67,7 @@ export class EntityAnimator {
     this.frame++;
   }
 
-  resolve(view: RenderEntityView, dtMs: number): AnimatedView {
+  resolve(view: RenderEntityView, dtMs: number, ground?: GroundPoint): AnimatedView {
     let track = this.tracks.get(view.id);
     if (!track) {
       track = {
@@ -59,13 +78,19 @@ export class EntityAnimator {
         pendingFacing: view.facing,
         pendingMs: 0,
         seenAt: this.frame,
+        ground,
+        gaitDistancePx: 0,
+        playerFlow: createPlayerFlow(view.facing),
       };
       this.tracks.set(view.id, track);
     }
+    const previousAnim = track.anim;
+    const previousClock = track.lastAnimTimeMs;
     track.seenAt = this.frame;
 
     if (view.animStartedAtMs !== undefined) track.offsetMs = view.animStartedAtMs;
-    else if (view.anim !== track.anim) track.offsetMs = view.animTimeMs < RESET_SLACK_MS ? 0 : view.animTimeMs;
+    else if (view.anim !== track.anim)
+      track.offsetMs = view.animTimeMs < RESET_SLACK_MS ? 0 : view.animTimeMs;
     else if (view.animTimeMs < track.lastAnimTimeMs) track.offsetMs = 0; // simulation restarted the same anim
     track.anim = view.anim;
     track.lastAnimTimeMs = view.animTimeMs;
@@ -91,9 +116,49 @@ export class EntityAnimator {
     let anim: AnimState = view.anim;
     let time = local;
     let telegraph = 0;
+    let discontinuity = false;
+    if (view.kind === 'player' && ground) {
+      const distance = track.ground
+        ? Math.hypot(ground.x - track.ground.x, ground.y - track.ground.y)
+        : 0;
+      const clip = ANIMATION_DEFS.player?.clips[anim];
+      // A discontinuity is a teleport, not a stride. World replacements clear
+      // the animator in the renderer's existing reset path.
+      discontinuity = distance > 64 || !Number.isFinite(distance);
+      if (discontinuity) track.gaitDistancePx = 0;
+      else if (clip?.stridePx && dtMs > 0)
+        track.gaitDistancePx = (track.gaitDistancePx + distance) % clip.stridePx;
+      if (clip?.stridePx)
+        time = (track.gaitDistancePx / clip.stridePx) * clip.frameCount * clip.frameDurationMs;
+      track.ground = ground;
+    }
+    // Never restart or retime a swing from presentation state, even if its
+    // first render was skipped or locomotion changed while it was locked.
+    if (view.kind === 'player' && anim === 'attack' && view.attack) time = view.attack.elapsedMs;
     if (view.moving === false && (anim === 'walk' || anim === 'run')) {
       anim = 'idle';
       time = 0;
+    }
+    if (view.kind === 'player' && PLAYER_FLOW_ENABLED) {
+      const wasIdle = anim === 'idle';
+      const playerDt =
+        dtMs > 0 && Number.isFinite(dtMs)
+          ? Math.max(0, previousAnim === view.anim ? view.animTimeMs - previousClock : local)
+          : 0;
+      const presentation = settlePlayerMotion(
+        track.playerFlow,
+        anim,
+        time,
+        facing,
+        playerDt,
+        discontinuity,
+      );
+      anim = presentation.anim;
+      time = presentation.time;
+      if (wasIdle && (anim === 'walk' || anim === 'run')) {
+        const duration = anim === 'walk' ? 40 : 1000 / 34;
+        track.gaitDistancePx = ((time / duration) % 8) * 8;
+      }
     }
     if (view.kind === 'enemy' && view.anim === 'attack' && view.attackPhase !== undefined) {
       // Authoritative phases from the AI: telegraph the wind-up, rest after the strike.
@@ -113,7 +178,15 @@ export class EntityAnimator {
         if (t < TELEGRAPH_MS) telegraph = 1 - t / TELEGRAPH_MS;
       }
     }
-    return { spriteKey: view.spriteKey, anim, facing, animTimeMs: time, telegraph, ...(view.active === undefined ? {} : { active: view.active }) };
+    return {
+      spriteKey: view.spriteKey,
+      anim,
+      facing,
+      animTimeMs: time,
+      telegraph,
+      ...(view.active === undefined ? {} : { active: view.active }),
+      ...(view.attack === undefined ? {} : { attack: view.attack }),
+    };
   }
 
   /** Drops state for entities not seen this frame; returns their ids. */

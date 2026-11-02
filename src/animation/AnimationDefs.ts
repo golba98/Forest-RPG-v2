@@ -1,4 +1,5 @@
 import { CHARACTER_FOOT_OFFSET_PX } from '../types/physical';
+import { PLAYER_FLOW_ENABLED, PLAYER_PUNCH_FRAME_MS } from './PlayerPlayback';
 /**
  * Data-only animation metadata for every sprite set, keyed by
  * `RenderEntityView.spriteKey`. Frame specs and timings are taken from the
@@ -46,19 +47,25 @@ export interface ClipDef {
   readonly source: ClipSource;
   readonly frameCount: number;
   readonly frameDurationMs: number;
+  /** Optional pose dwell times; their sum is the unchanged clip duration. */
+  readonly frameDurationsMs?: readonly number[];
   readonly loop: boolean;
-  /** Overrides the sprite set's scale for this clip (player attack art is hi-res). */
+  /** Optional per-clip override of the sprite set's native rendering scale. */
   readonly scale?: number;
+  /** Actual ground distance per locomotion cycle, in world pixels. */
+  readonly stridePx?: number;
 }
 
 export type AnchorDef =
-  /** Sprite bottom-centre sits `footOffsetPx` below the entity point. */
-  | { readonly kind: 'feet'; readonly footOffsetPx: number }
+  /** Source foot (default: bottom-centre) sits `footOffsetPx` below the entity point. */
+  | { readonly kind: 'feet'; readonly footOffsetPx: number; readonly sourceFoot?: { readonly x: number; readonly y: number } }
   | { readonly kind: 'center' };
 
 export interface SpriteSetDef {
   readonly scale: number;
   readonly anchor: AnchorDef;
+  /** Presentation variants selected from the simulation-owned combo step. */
+  readonly attackClips?: Readonly<Partial<Record<2 | 3, ClipDef>>>;
   readonly clips: Readonly<Partial<Record<AnimState, ClipDef>>>;
   /** Clips used instead of `clips` when the view's `active` flag is true (portal). */
   readonly activeClips?: Readonly<Partial<Record<AnimState, ClipDef>>>;
@@ -102,20 +109,17 @@ const DIRECTION_FILE_SUFFIX: Readonly<Record<Direction, string>> = {
 };
 
 /** Player sheet aliases follow the manifest's `hill_ne` style: `player_<anim>_<dir>`. */
-export function playerSheetAlias(anim: 'idle' | 'walk' | 'run' | 'jump' | 'attack', dir: Direction): string {
+export function playerSheetAlias(anim: 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'attack2' | 'attack3', dir: Direction): string {
   return `player_${anim}_${DIRECTION_FILE_SUFFIX[dir]}`;
 }
 
-type HeightTable = Readonly<Record<Direction, number>>;
-
 function playerSheets(
-  anim: 'idle' | 'walk' | 'run' | 'jump' | 'attack',
+  anim: 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'attack2' | 'attack3',
   sheetWidth: number,
-  heights: HeightTable,
 ): Readonly<Record<Direction, DirectionalSheet>> {
   const out = {} as Record<Direction, DirectionalSheet>;
   for (const dir of DIRECTIONS) {
-    out[dir] = { alias: playerSheetAlias(anim, dir), sheetWidth, sheetHeight: heights[dir] };
+    out[dir] = { alias: playerSheetAlias(anim, dir), sheetWidth, sheetHeight: 64 };
   }
   return out;
 }
@@ -134,37 +138,17 @@ function staticItem(alias: string, scale: number): SpriteSetDef {
   };
 }
 
-// Measured per-direction sheet heights (px). Widths are uniform per animation.
-const IDLE_H: HeightTable = { N: 18, NE: 20, E: 19, SE: 20, S: 23, SW: 20, W: 19, NW: 20 };
-const WALK_H: HeightTable = { N: 19, NE: 19, E: 20, SE: 21, S: 22, SW: 21, W: 20, NW: 19 };
-const RUN_H: HeightTable = { N: 20, NE: 18, E: 22, SE: 20, S: 21, SW: 20, W: 22, NW: 18 };
-// The shipped southwest run PNG duplicates southeast byte-for-byte. Mirror
-// each southeast frame (not the whole strip, which would reverse frame order).
-const JUMP_H: HeightTable = { N: 20, NE: 20, E: 21, SE: 20, S: 21, SW: 20, W: 21, NW: 20 };
-const ATTACK_H: HeightTable = { N: 92, NE: 96, E: 97, SE: 113, S: 121, SW: 113, W: 97, NW: 96 };
-const RUN_SHEETS = playerSheets('run', 120, RUN_H);
-// The shipped southwest strip duplicates the southeast pixels. Mirror each
-// rendered frame, keeping the original frame order, timing and movement vector.
-const PLAYER_RUN_SHEETS: Readonly<Record<Direction, DirectionalSheet>> = {
-  ...RUN_SHEETS,
-  SW: { ...RUN_SHEETS.SW, flipX: true },
-};
-const ATTACK_SHEETS = playerSheets('attack', 446, ATTACK_H);
-
-// Visually verified: the diagonal punch art faces horizontally opposite its
-// filename. Select the matching punch artwork without flipping.
-const PLAYER_ATTACK_SHEETS: Readonly<Record<Direction, DirectionalSheet>> = {
-  ...ATTACK_SHEETS,
-  NW: ATTACK_SHEETS.NE,
-  NE: ATTACK_SHEETS.NW,
-  SW: ATTACK_SHEETS.SE,
-  SE: ATTACK_SHEETS.SW,
-};
-
-/** Legacy SPRITE_SCALE = cellSize * 1.25 / SPRITE_REFERENCE_HEIGHT(20) → 2 at a 32 px tile. */
-const PLAYER_SCALE = 2;
-/** Legacy ATTACK_SCALE = SPRITE_SCALE * ATTACK_SCALE_FACTOR(0.17). */
-const PLAYER_ATTACK_SCALE = PLAYER_SCALE * 0.17;
+/** All remastered player frames have integer bounds and independently drawn directions.
+ * The old diagonal filename swaps and SW run mirror belong to the replaced art,
+ * not combat direction. The simulation's locked attack facing is unchanged. */
+function playerClip(anim: Parameters<typeof playerSheetAlias>[0], count: number, ms: number, loop: boolean, stridePx?: number): ClipDef {
+  return {
+    source: { kind: 'perDirectionSheets', sheets: playerSheets(anim, count * 64) },
+    frameCount: count, frameDurationMs: ms, loop,
+    ...(anim.startsWith('attack') && PLAYER_FLOW_ENABLED ? { frameDurationsMs: PLAYER_PUNCH_FRAME_MS } : {}),
+    ...(stridePx === undefined ? {} : { stridePx }),
+  };
+}
 
 /** Legacy getDirectionSpriteRow_SEWN. */
 const ROWS_SEWN: RowOrder = ['S', 'E', 'W', 'N'];
@@ -195,27 +179,17 @@ function portalClips(sheet: SheetLayout): Readonly<Partial<Record<AnimState, Cli
 }
 
 const PLAYER: SpriteSetDef = {
-  scale: PLAYER_SCALE,
-  anchor: { kind: 'feet', footOffsetPx: CHARACTER_FOOT_OFFSET_PX },
+  scale: 1,
+  anchor: { kind: 'feet', footOffsetPx: CHARACTER_FOOT_OFFSET_PX, sourceFoot: { x: 32, y: 54 } },
   clips: {
-    // Legacy playerAnimSpeed defaults to 150 ms and becomes moveDuration * 1.5
-    // while moving (walk 100 ms → 150 ms, sprint 75 ms → 112.5 ms).
-    idle: { source: { kind: 'perDirectionSheets', sheets: playerSheets('idle', 80, IDLE_H) }, frameCount: 4, frameDurationMs: 150, loop: true },
-    walk: { source: { kind: 'perDirectionSheets', sheets: playerSheets('walk', 80, WALK_H) }, frameCount: 4, frameDurationMs: 150, loop: true },
-    run: { source: { kind: 'perDirectionSheets', sheets: PLAYER_RUN_SHEETS }, frameCount: 6, frameDurationMs: 112.5, loop: true },
-    // JUMP_FRAME_COUNT 5 × JUMP_ANIM_SPEED 100 ms = JUMP_DURATION 500 ms.
-    jump: { source: { kind: 'perDirectionSheets', sheets: playerSheets('jump', 100, JUMP_H) }, frameCount: 5, frameDurationMs: 100, loop: false },
-    // ATTACK_MAX_FRAMES 4 × ATTACK_FRAME_SPEED_MS 80. Sheets are 446 px wide → 111.5 px frames.
-    // Legacy mirrored attack_west for East; V2 ships a real east sheet (= legacy
-    // attack_west.png, which faces east) and a pre-mirrored west sheet, so no flip.
-    attack: {
-      source: { kind: 'perDirectionSheets', sheets: PLAYER_ATTACK_SHEETS },
-      frameCount: 4,
-      frameDurationMs: 80,
-      loop: false,
-      scale: PLAYER_ATTACK_SCALE,
-    },
+    idle: playerClip('idle', 6, 200, true),
+    walk: playerClip('walk', 8, 40, true, 64),
+    run: playerClip('run', 8, 1000 / 34, true, 64),
+    jump: playerClip('jump', 8, 62.5, false),
+    // Impact pose starts at 120 ms, matching the unchanged combat strike.
+    attack: playerClip('attack', 9, 40, false),
   },
+  attackClips: { 2: playerClip('attack2', 9, 40, false), 3: playerClip('attack3', 9, 40, false) },
 };
 
 export const ANIMATION_DEFS: Readonly<Record<string, SpriteSetDef>> = {
@@ -328,6 +302,7 @@ export function listReferencedAliases(): string[] {
   for (const def of Object.values(ANIMATION_DEFS)) {
     addClips(def.clips);
     addClips(def.activeClips);
+    for (const clip of Object.values(def.attackClips ?? {})) addClips({ attack: clip });
   }
   return [...aliases].sort();
 }
