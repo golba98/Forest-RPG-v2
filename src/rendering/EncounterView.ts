@@ -109,7 +109,7 @@ export class EncounterView {
       this.name.position.set(width / 2, y + 6);
     }
     this.prompt.text =
-      state?.interaction === 'disturb'
+      snapshot.streamingError ? `World could not be saved: ${snapshot.streamingError}. Export your progress or free browser storage.` : snapshot.travelPrompt ? `[${binding}] ${snapshot.travelPrompt}` : state?.interaction === 'disturb'
         ? `[${binding}] ${translate(language, 'Disturb nest')}`
         : state?.interaction === 'stepBack'
           ? translate(language, 'Step back to disturb the nest')

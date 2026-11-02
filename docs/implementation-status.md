@@ -1,6 +1,6 @@
 # Implementation status
 
-The game includes seeded terrain, continuous eight-direction movement, combat, enemy encounters, progression, inventory, portals, local saves, menus, audio and weather. [Feature parity](feature-parity.md) lists the remaining review areas.
+The game includes a streamed persistent forest with signed chunk coordinates, bounded residency, regional discovery, old-save region preservation and a versioned Forest biome registry, alongside seeded finite compatibility worlds, continuous eight-direction movement, combat, enemy encounters, progression, inventory, portals, local saves, menus, audio and weather. [Feature parity](feature-parity.md) lists the remaining review areas.
 
 Automated coverage spans simulation, persistence, rendering and production browser flows. Use the commands in [testing](testing.md) to validate the current checkout; historical test counts and reports describe earlier commits and are not current guarantees.
 

@@ -5,6 +5,7 @@ import type { EncounterSite } from './encounters';
 export const WORLD_GENERATOR_VERSION = 12;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
+export type WorldObjectId = number | string;
 
 /** Continuous world position in tile units; distinguish actor anchors from foot contact at call sites. */
 export interface WorldPosition {
@@ -34,7 +35,7 @@ export interface WorldMeta {
 
 /** Origin is the north/west bank end; span counts water tiles, excluding both bank ends. */
 export interface WorldBridge {
-  readonly id: number;
+  readonly id: WorldObjectId;
   readonly x: number;
   readonly y: number;
   readonly orientation: 'horizontal' | 'vertical';
@@ -58,8 +59,10 @@ export type PropKind =
 
 /** Static world object anchored to a tile; semantics define physical footprints. */
 export interface WorldProp {
-  readonly id: number;
+  readonly id: WorldObjectId;
   readonly kind: PropKind;
+  /** Rendering provenance of a preserved finite-region object. */
+  readonly sourceGeneratorVersion?: number;
   readonly tileX: number;
   readonly tileY: number;
   readonly solid: boolean;
@@ -69,6 +72,7 @@ export interface WorldProp {
 }
 
 export interface EnemySpawn {
+  readonly id?: string;
   readonly type: EnemyType;
   readonly x: number;
   readonly y: number;
@@ -93,6 +97,8 @@ export interface PickupSpawn {
  * `world:tileChanged` so renderers can rebuild only the affected chunk.
  */
 export interface WorldData {
+  /** A bounded local adapter over independently generated global chunks. Never serialized as a finite map. */
+  readonly window?: import('../world/infinite/types').WorldWindow;
   readonly encounterSites?: readonly EncounterSite[];
   readonly meta: WorldMeta;
   readonly tiles: Uint8Array;

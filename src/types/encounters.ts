@@ -50,6 +50,9 @@ export interface EncounterState {
   groves: GroveEncounter[];
 }
 export interface SimulationRuntime {
+  movement?: import('../systems/MovementSystem').MovementRuntime;
+  entitySequence?: number;
+  lootSequence?: number;
   moisture?: import('../systems/SurfaceMoisture').SavedMoisture;
   rngState: number;
   /** Accepted only as migration evidence; never used for spawning. */

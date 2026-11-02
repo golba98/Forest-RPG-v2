@@ -7,7 +7,7 @@ import type { WorldData } from '../../src/types/world';
 
 async function load(page: Page, world: WorldData) {
   await page.clock.install();
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=123');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=123');
   await page.waitForFunction(
     () => !!window.__RENDER_DEBUG__ && window.__GAME__?.getState().ui.currentMenu === null,
   );

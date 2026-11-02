@@ -29,6 +29,7 @@ const BOLT_ASSIST_RANGE_TILES = 8;
 
 /** Fixed-step encounter state. Created fresh for each world. */
 export class EncounterSystem {
+  rebase(world: WorldData, dx: number, dy: number): void { this.ai.rebase(world,dx,dy); }
   constructor(
     private readonly onHit?: (enemy: EnemyEntity, damage: number) => void,
     private readonly rng = new Rng(0),
@@ -37,12 +38,14 @@ export class EncounterSystem {
       p: PlayerEntity,
       enemy?: EnemyEntity,
     ) => void,
-    private readonly onCut?: (x: number, y: number, propId?: number) => void,
+    private readonly onCut?: (x: number, y: number, propId?: import('../types/world').WorldObjectId) => void,
     private readonly claimDefeat?: (enemy: EnemyEntity) => boolean,
   ) {}
   setSequence(sequence: number): void {
     this.sequence = Math.max(this.sequence, sequence);
   }
+  getSequence():number {return this.sequence;}
+  private runtimeId(world:WorldData,kind:string):string{return `${world.window?world.window.descriptor.id+':':''}${kind}-${this.sequence++}`;}
   getRandomState(): number {
     return this.rng.getState();
   }
@@ -158,7 +161,7 @@ export class EncounterSystem {
       if (intent.moveX === 0 && intent.moveY === 0) p.facing = aim;
       this.onFeedback?.('bolt', p);
       entities.push({
-        id: `bolt-${this.sequence++}`,
+        id: this.runtimeId(world,'bolt'),
         kind: 'projectile',
         projectileType: 'magic_bolt',
         ownerId: p.id,
@@ -236,7 +239,7 @@ export class EncounterSystem {
       },
       shoot: (e, dx, dy) =>
         entities.push({
-          id: `acid-${this.sequence++}`,
+          id: this.runtimeId(world,'acid'),
           kind: 'projectile',
           projectileType: 'acid',
           ownerId: e.id,
@@ -305,7 +308,7 @@ export class EncounterSystem {
     const drop = (x: number, y: number) => {
       if (!this.rng.chance(C.combat.lootDropChance)) return;
       entities.push({
-        id: `loot-${this.sequence++}`,
+        id: this.runtimeId(world,'loot'),
         kind: 'pickup',
         pickupType: this.rng.chance(C.combat.lootHealthShare) ? 'health_potion' : 'speed_potion',
         x,
@@ -400,7 +403,7 @@ export class EncounterSystem {
       if (this.claimDefeat && !this.claimDefeat(e)) return;
       if (this.rng.chance(C.combat.lootDropChance))
         entities.push({
-          id: `loot-${this.sequence++}`,
+          id: this.runtimeId(world,'loot'),
           kind: 'pickup',
           pickupType: this.rng.chance(C.combat.lootHealthShare) ? 'health_potion' : 'speed_potion',
           x: e.x,

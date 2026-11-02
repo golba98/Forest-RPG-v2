@@ -1,3 +1,5 @@
+import { prepareInSlices } from '../core/WorkSlice';
+import { PERF_BUILD, profileBegin, profileEnd } from '../performance/FrameProfiler';
 import { nestBaseBounds } from '../world/NestGeometry';
 import { elevationMask } from '../world/ElevationTopology';
 import { cachedHillBounds, isRaisedSurface } from '../world/HillCollisionGeometry';
@@ -23,8 +25,23 @@ const indexes = new WeakMap<CollisionWorld, Map<number, Collider[]>>();
 function indexedProps(world: CollisionWorld): Map<number, Collider[]> {
   const cached = indexes.get(world);
   if (cached) return cached;
+  const indexToken=PERF_BUILD?profileBegin('index.props.build'):-1;
+  try {
   const index = new Map<number, Collider[]>();
+  for (const _ of buildPropIndex(world, index)) { void _; }
+  indexes.set(world, index);
+  return index;
+  } finally {if(PERF_BUILD)profileEnd(indexToken);}
+}
+export async function preparePropIndex(world: CollisionWorld, valid: () => boolean): Promise<void> {
+  const index = new Map<number, Collider[]>();
+  await prepareInSlices(buildPropIndex(world, index), valid);
+  indexes.set(world, index);
+}
+function *buildPropIndex(world: CollisionWorld, index: Map<number, Collider[]>): Generator<void> {
+  let processed = 0;
   for (const prop of world.props) {
+    if (++processed % 64 === 0) yield;
     const bounds = propFootprint(prop);
     if (!bounds) continue;
     const collider: Collider = {
@@ -37,16 +54,14 @@ function indexedProps(world: CollisionWorld): Map<number, Collider[]> {
       minY: prop.tileY + bounds.minY,
       maxY: prop.tileY + bounds.maxY,
     };
-    for (let y = Math.floor(collider.minY); y < Math.ceil(collider.maxY); y++)
-      for (let x = Math.floor(collider.minX); x < Math.ceil(collider.maxX); x++) {
+    for (let y = Math.max(0,Math.floor(collider.minY)); y < Math.min(world.meta.height,Math.ceil(collider.maxY)); y++)
+      for (let x = Math.max(0,Math.floor(collider.minX)); x < Math.min(world.meta.width,Math.ceil(collider.maxX)); x++) {
         const key = y * world.meta.width + x;
         const list = index.get(key) ?? [];
         list.push(collider);
         index.set(key, list);
       }
   }
-  indexes.set(world, index);
-  return index;
 }
 export function invalidatePropIndex(world: CollisionWorld): void {
   indexes.delete(world);
@@ -71,6 +86,9 @@ export function queryColliders(
   profile: TraversalProfile = 'player',
   options: CollisionQueryOptions = {},
 ): Collider[] {
+  const profileToken = PERF_BUILD ? profileBegin('collision.query.sample64',64) : -1;
+  try {
+
   const { width, height } = world.meta;
   const make = (
     ownerId: string,
@@ -151,6 +169,8 @@ export function queryColliders(
       }
     }
   return colliders;
+
+  } finally { if (PERF_BUILD) profileEnd(profileToken); }
 }
 export function canOccupy(
   world: CollisionWorld,
@@ -160,6 +180,9 @@ export function canOccupy(
   profile: TraversalProfile = 'player',
   options: CollisionQueryOptions = {},
 ): boolean {
+  const profileToken = PERF_BUILD ? profileBegin('collision.occupy.sample64',64) : -1;
+  try {
+
   const f = resolveFootprint(shape);
   if (
     ![x, y, f.halfWidth, f.halfHeight, f.offsetX, f.offsetY].every(Number.isFinite) ||
@@ -174,6 +197,8 @@ export function canOccupy(
     maxY: y + f.offsetY + f.halfHeight,
   };
   return !queryColliders(world, area, profile, options).some((c) => overlaps(area, c));
+
+  } finally { if (PERF_BUILD) profileEnd(profileToken); }
 }
 interface Contact {
   time: number;
@@ -219,6 +244,9 @@ export function hasClearPath(
   profile: TraversalProfile = 'player',
   options: CollisionQueryOptions = {},
 ): boolean {
+  const profileToken = PERF_BUILD ? profileBegin('collision.sweep.sample64',64) : -1;
+  try {
+
   if (!canOccupy(world, x, y, half, profile, options) || !canOccupy(world, tx, ty, half, profile, options))
     return false;
   const f = resolveFootprint(half);
@@ -229,6 +257,8 @@ export function hasClearPath(
     maxY: Math.max(y, ty) + f.offsetY + f.halfHeight,
   };
   return !queryColliders(world, area, profile, options).some((c) => sweep(x, y, tx - x, ty - y, half, c));
+
+  } finally { if (PERF_BUILD) profileEnd(profileToken); }
 }
 /** Swept square AABB, earliest contact followed by tangential sliding. */
 export function moveWithCollision(
@@ -238,6 +268,9 @@ export function moveWithCollision(
   dy: number,
   profile: TraversalProfile = 'player',
 ): void {
+  const profileToken = PERF_BUILD ? profileBegin('collision.move.sample16',16) : -1;
+  try {
+
   const footprint = entityFootprint(entity),
     f = resolveFootprint(footprint);
   if (![dx, dy].every(Number.isFinite) || !canOccupy(world, entity.x, entity.y, footprint, profile))
@@ -318,4 +351,6 @@ export function moveWithCollision(
     dx = nx ? 0 : dx * (1 - time);
     dy = ny ? 0 : dy * (1 - time);
   }
+
+  } finally { if (PERF_BUILD) profileEnd(profileToken); }
 }

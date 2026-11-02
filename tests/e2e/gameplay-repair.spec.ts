@@ -3,7 +3,7 @@ import { PLAYER_FOOTPRINT } from '../../src/systems/EntityFootprint';
 
 /** Save import sets up a deterministic world; movement/combat use actual browser input. */
 async function fixture(page: Page, combat = false): Promise<void> {
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=123');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=123');
   await page.waitForFunction(() => !!window.__GAME__);
   await page.evaluate(
     ({ combat }) => {
@@ -204,7 +204,7 @@ test('seed regeneration replaces collision diagnostics and preserves lower terra
   page,
 }) => {
   for (const seed of [1, 123, 456, 999, 20261028]) {
-    await page.goto(`/?debug=1&autostart=1&tutorial=0&seed=${seed}`);
+    await page.goto(`/?world=finite&debug=1&autostart=1&tutorial=0&seed=${seed}`);
     await page.waitForFunction(() => !!window.__GAME__);
     const state = await page.evaluate(() => window.__GAME__!.getState());
     expect(state.world.seed).toBe(seed);

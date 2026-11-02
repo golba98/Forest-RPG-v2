@@ -5,13 +5,14 @@
 ![PixiJS 8](https://img.shields.io/badge/PixiJS-8-e72264)
 ![Vite 7](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)
 
-A pixel-art action RPG for the browser, built with TypeScript, PixiJS, and Vite. Explore procedurally generated forests, battle enemies, and level up your character. Collect coins and defeat each world's non-ghost enemies to unlock the portal to the next world.
+A pixel-art action RPG for the browser, built with TypeScript, PixiJS, and Vite. Explore an endless procedural forest, battle enemies, and level up your character. Complete the starting area's coin and enemy objectives to unlock the portal to the next seeded world, or keep exploring farther into the forest.
 
 ![Forest RPG V2 gameplay showing the player exploring a woodland with trees, flowers, and a minimap](docs/images/gameplay.png)
 
 ## Features
 
-- Seeded forests with rivers, bridges, cliffs, and walkable hilltops.
+- Persistent seeded forests that stream as you explore in any direction, with rivers, bridges, cliffs, and walkable hilltops.
+- A regional minimap that remembers explored terrain and saves that preserve collected treasure and changes to the forest.
 - Day and night, changing weather, and ghosts after dark.
 - Melee combos, spin attacks, magic bolts, and enemies with distinct behaviors.
 - Character upgrades, health and speed potions, and progression between worlds.
@@ -44,7 +45,7 @@ Open [localhost:3000](http://localhost:3000) to play.
 | Health potion         | 1                      |
 | Speed potion          | 2                      |
 | Character progression | C or I                 |
-| Toggle minimap        | M                      |
+| Cycle regional map    | M                      |
 | Fullscreen            | F                      |
 | Pause                 | Escape                 |
 

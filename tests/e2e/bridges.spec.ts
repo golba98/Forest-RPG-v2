@@ -12,7 +12,7 @@ async function boot(page: Page, query = 'tutorial=1'): Promise<string[]> {
     if (m.type() === 'error' || m.text().includes('missing texture')) errors.push(m.text());
   });
   await page.clock.install();
-  await page.goto(`/?debug=1&autostart=1&${query}`);
+  await page.goto(`/?world=finite&debug=1&autostart=1&${query}`);
   await page.waitForFunction(
     () => !!window.__RENDER_DEBUG__ && window.__GAME__?.getState().ui.currentMenu === null,
   );
@@ -172,7 +172,8 @@ for (const seed of [1, 42, 456])
       };
     });
     expect(regenerated.info.bridges).toBe(regenerated.bridges.length);
-    expect(regenerated.info.bridgeRailSprites).toBe(
+    expect(regenerated.info.worldObjects!.filter(p => p.key.startsWith('bridge:'))).toHaveLength(regenerated.bridges.length);
+    expect(regenerated.info.bridgeRailSprites).toBeLessThanOrEqual(
       regenerated.bridges.reduce((n, b) => n + 2 * (b.span + 2), 0),
     );
     expect(errors).toEqual([]);

@@ -1,3 +1,6 @@
+import { PERF_BUILD } from './performance/FrameProfiler';
+import { installProfiling } from './performance/install';
+import { sessionFor } from './world/infinite/InfiniteSession';
 import { enableLandscapeDiagnostics } from './world/LandscapeTrace';
 import { Vector2 } from './core/math/Vector2';
 import { EventBus } from './core/events/EventBus';
@@ -32,6 +35,11 @@ simulation.onPortalChange = (change) => bus.emit('portal:stateChanged', change);
 simulation.onRoundComplete = (status) => bus.emit('round:completed', status);
 const input = new InputManager();
 const renderer = new PixiRenderer();
+renderer.prepareView = (width, height) => simulation.ensureView(width, height);
+simulation.viewDimensions = () => ({
+  width: innerWidth / renderer.getCamera().zoom / 32,
+  height: innerHeight / renderer.getCamera().zoom / 32,
+});
 const settings = new SettingsStore(localStorage);
 const synth = new SoundSynthesizer();
 const music = new MusicPlayer();
@@ -41,7 +49,8 @@ simulation.onEncounterCue = (kind) => {
   else if (kind === 'ghostForm') synth.playGhostForm();
   else synth.playEnemySplat();
 };
-renderer.interactBinding = () => String(input.getKeybinds().interact[0] ?? 'Unbound').replace(/^Key/, '');
+renderer.interactBinding = () =>
+  String(input.getKeybinds().interact[0] ?? 'Unbound').replace(/^Key/, '');
 registerAudioEvents(bus, synth, music);
 simulation.onCut = (x, y, propId) => {
   if (propId === undefined) renderer.invalidateTile(x, y);
@@ -62,7 +71,10 @@ simulation.onHit = (enemy, damage) => {
 simulation.onFeedback = (kind, p, enemy) => {
   const position = new Vector2(p.x, p.y);
   if (kind === 'swing')
-    bus.emit('player:attackSwing', { direction: simulation.getPlayerAttack()?.direction ?? p.facing, comboStep: simulation.getPlayerAttack()?.comboStep ?? (p.comboCount || 3) });
+    bus.emit('player:attackSwing', {
+      direction: simulation.getPlayerAttack()?.direction ?? p.facing,
+      comboStep: simulation.getPlayerAttack()?.comboStep ?? (p.comboCount || 3),
+    });
   else if (kind === 'spin' || kind === 'bolt') {
     bus.emit('player:castSpell', {
       spellId: kind === 'spin' ? 'spin' : 'projectile',
@@ -125,7 +137,14 @@ const game = new Game({
   input,
   bus,
   params,
-  worlds: { generate: generateWorld, tutorial: generateTutorialWorld },
+  worlds: {
+    generate: (options) =>
+      new URLSearchParams(location.search).get('world') !== 'finite'
+        ? simulation.prepareInfinite(options)
+        : generateWorld(options),
+    tutorial: generateTutorialWorld,
+    release: (world) => sessionFor(world)?.dispose(),
+  },
   shell: {
     onLoadingProgress: (p, text) => shell.onLoadingProgress(p, text),
     onLoadingFailed: (e) => shell.onLoadingFailed(e),
@@ -172,13 +191,18 @@ shell.game = game;
 shell.input = input;
 shell.simulation = simulation;
 input.loadFromStorage();
-const saves = new SaveManager(localStorage, game, simulation);
+const saves = new SaveManager(
+  localStorage,
+  game,
+  simulation,
+  new URLSearchParams(location.search).get('world') !== 'finite',
+);
 shell.saves = saves;
 const terminal = params.debug ? new Terminal(game, simulation, shell.onboarding, saves) : null;
 window.setInterval(() => {
   if (game.currentScene === 'playing') {
     try {
-      saves.save();
+      void Promise.resolve(saves.save()).catch((error) => console.warn('Autosave failed', error));
     } catch (error) {
       console.warn('Autosave failed', error);
     }
@@ -196,7 +220,11 @@ function unlockAudio(): void {
 }
 document.addEventListener('pointerdown', unlockAudio, { once: true });
 document.addEventListener('keydown', unlockAudio, { once: true });
+if (PERF_BUILD && new URLSearchParams(location.search).get('profile') === '1')
+  installProfiling(game, simulation, renderer);
 try {
+  shell.onLoadingProgress(0, 'Checking saved games');
+  await saves.initialize();
   await game.boot();
   applySettings();
   if (params.autostart)
@@ -210,24 +238,39 @@ try {
       executeCommand: (command) => terminal?.execute(command) ?? 'Debug mode is disabled',
       saveGame: (slot) => {
         try {
-          saves.save(slot);
-          return true;
+          const result = saves.save(slot);
+          return result instanceof Promise
+            ? result.then(
+                () => true,
+                () => false,
+              )
+            : true;
         } catch {
           return false;
         }
       },
       loadGame: (slot) => {
         try {
-          saves.load(slot);
-          return true;
+          const result = saves.load(slot);
+          return result instanceof Promise
+            ? result.then(
+                () => true,
+                () => false,
+              )
+            : true;
         } catch {
           return false;
         }
       },
       loadLegacySave: (payload) => {
         try {
-          saves.import(JSON.stringify(payload));
-          return true;
+          const result = saves.import(JSON.stringify(payload));
+          return result instanceof Promise
+            ? result.then(
+                () => true,
+                () => false,
+              )
+            : true;
         } catch {
           return false;
         }
@@ -235,16 +278,32 @@ try {
     });
   if (params.debug) {
     renderer.setDebugEntitySource(() => simulation.getEntities());
-    renderer.setDebugColliderSource((r) => queryColliders(simulation.world, { minX: r.x / 32, minY: r.y / 32, maxX: (r.x + r.width) / 32, maxY: (r.y + r.height) / 32 }));
+    renderer.setDebugColliderSource((r) =>
+      queryColliders(simulation.world, {
+        minX: r.x / 32,
+        minY: r.y / 32,
+        maxX: (r.x + r.width) / 32,
+        maxY: (r.y + r.height) / 32,
+      }),
+    );
     const controls = attachVisualDebugControls(canvas, renderer.debugOverlay);
     window.__RENDER_DEBUG__ = {
-      setFlags: (flags) => { renderer.debugOverlay.setFlags(flags); controls.sync(); },
+      getResidency: () => renderer.getStats().residency ?? null,
+      setZoom: (zoom) => renderer.setZoom(zoom),
+      setFlags: (flags) => {
+        renderer.debugOverlay.setFlags(flags);
+        controls.sync();
+      },
       getFlags: () => renderer.debugOverlay.getFlags(),
       getInfo: () => renderer.getVisualDebugInfo(),
-      setWeatherPreview: (weather) => { simulation.weatherOverride = weather; renderer.weatherPreview = weather; },
+      setWeatherPreview: (weather) => {
+        simulation.weatherOverride = weather;
+        renderer.weatherPreview = weather;
+      },
     };
   }
   loading?.classList.add('hidden');
 } catch (error) {
+  shell.onLoadingFailed(error instanceof Error ? error : new Error(String(error)));
   console.error(error);
 }

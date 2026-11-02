@@ -13,42 +13,58 @@ export function createSoilChunkArt(
   y: number,
   chunkSize: number,
 ): SoilChunkArt | null {
-  const pixels: { key: number; data: Uint8ClampedArray }[] = [];
+  const builder = new SoilChunkBuilder(world, chunkSize);
   for (let ty = y; ty < Math.min(y + chunkSize, world.meta.height); ty++)
-    for (let tx = x; tx < Math.min(x + chunkSize, world.meta.width); tx++) {
-      const data = rasterizeSoilTile(world, tx, ty);
-      if (data) pixels.push({ key: ty * world.meta.width + tx, data });
-    }
-  if (!pixels.length) return null;
-  const columns = Math.min(chunkSize, pixels.length),
-    rows = Math.ceil(pixels.length / columns);
-  const canvas = document.createElement('canvas');
-  canvas.width = columns * SIZE;
-  canvas.height = rows * SIZE;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Cannot rasterize bank material: 2D canvas unavailable');
-  const image = ctx.createImageData(SIZE, SIZE);
-  for (const [i, p] of pixels.entries()) {
-    image.data.set(p.data);
-    ctx.putImageData(image, (i % columns) * SIZE, Math.floor(i / columns) * SIZE);
+    for (let tx = x; tx < Math.min(x + chunkSize, world.meta.width); tx++) builder.add(tx, ty);
+  return builder.finish();
+}
+
+/** Tile-sized preparation steps let the residency queue yield between rasterizations. */
+export class SoilChunkBuilder {
+  private readonly pixels: { key: number; data: Uint8ClampedArray }[] = [];
+  constructor(
+    private readonly world: SoilWorld,
+    private readonly chunkSize: number,
+  ) {}
+
+  add(tx: number, ty: number): void {
+    const data = rasterizeSoilTile(this.world, tx, ty);
+    if (data) this.pixels.push({ key: ty * this.world.meta.width + tx, data });
   }
-  const atlas = Texture.from(canvas);
-  atlas.source.scaleMode = 'nearest';
-  const tiles = new Map<number, Texture>();
-  for (const [i, p] of pixels.entries())
-    tiles.set(
-      p.key,
-      new Texture({
-        source: atlas.source,
-        frame: new Rectangle((i % columns) * SIZE, Math.floor(i / columns) * SIZE, SIZE, SIZE),
-      }),
-    );
-  return {
-    tiles,
-    destroy() {
-      for (const texture of tiles.values()) texture.destroy(false);
-      tiles.clear();
-      atlas.destroy(true);
-    },
-  };
+
+  finish(): SoilChunkArt | null {
+    const { pixels, chunkSize } = this;
+    if (!pixels.length) return null;
+    const columns = Math.min(chunkSize, pixels.length),
+      rows = Math.ceil(pixels.length / columns);
+    const canvas = document.createElement('canvas');
+    canvas.width = columns * SIZE;
+    canvas.height = rows * SIZE;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Cannot rasterize bank material: 2D canvas unavailable');
+    const image = ctx.createImageData(SIZE, SIZE);
+    for (const [i, p] of pixels.entries()) {
+      image.data.set(p.data);
+      ctx.putImageData(image, (i % columns) * SIZE, Math.floor(i / columns) * SIZE);
+    }
+    const atlas = Texture.from(canvas);
+    atlas.source.scaleMode = 'nearest';
+    const tiles = new Map<number, Texture>();
+    for (const [i, p] of pixels.entries())
+      tiles.set(
+        p.key,
+        new Texture({
+          source: atlas.source,
+          frame: new Rectangle((i % columns) * SIZE, Math.floor(i / columns) * SIZE, SIZE, SIZE),
+        }),
+      );
+    return {
+      tiles,
+      destroy() {
+        for (const texture of tiles.values()) texture.destroy(false);
+        tiles.clear();
+        atlas.destroy(true);
+      },
+    };
+  }
 }

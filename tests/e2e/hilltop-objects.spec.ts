@@ -25,7 +25,7 @@ test('seed 42: hill/ground blocking, corners, depth, stair access and old-save r
   test.setTimeout(60000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=42');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=42');
   await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
   await page.evaluate(() => {
     window.__GAME__!.setDaylightRatio(0.5);
@@ -146,19 +146,18 @@ test('seed 42: hill/ground blocking, corners, depth, stair access and old-save r
   expect(player.y).toBeLessThan(stair!.y - 0.3);
   expect(player.isJumping).toBe(false);
   await page.screenshot({ path: info.outputPath('05-stairs-usable.png') });
-  // View culling is this renderer's chunk unload/reload equivalent. Return,
-  // rebuild on save load, and verify one sprite per authoritative placement.
+  // Evict distant views, return, rebuild on save load, and verify catalog identity.
   await position(page, 10, 10);
   await page.waitForTimeout(500);
   expect(
-    (await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo())).hilltopViews!.find(
+    (await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo())).worldObjects!.find(
       (p) => p.id === rock.id,
     )!.visible,
   ).toBe(false);
   await position(page, 69.5, 96.2875);
   await page.waitForTimeout(500);
   const count = save.world.props.filter((p: WorldProp) => p.hilltop).length;
-  expect((await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo())).hilltopViews).toHaveLength(
+  expect((await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo())).worldObjects!.filter(p => p.hilltop)).toHaveLength(
     count,
   );
   // Convert the generated payload to the old render-only representation and
@@ -183,9 +182,10 @@ test('seed 42: hill/ground blocking, corners, depth, stair access and old-save r
     expect(await page.evaluate(() => window.__GAME__!.loadGame('hilltop-converted'))).toBe(true);
     await page.waitForTimeout(100);
     debug = await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo());
-    expect(debug.hilltopViews).toHaveLength(count);
-    expect(new Set(debug.hilltopViews!.map((p) => p.id)).size).toBe(count);
-    expect(debug.propViews).toBe(save.world.props.length + count);
+    expect(debug.worldObjects!.filter(p => p.hilltop)).toHaveLength(count);
+    expect(new Set(debug.worldObjects!.filter(p => p.hilltop).map((p) => p.id)).size).toBe(count);
+    expect(debug.worldObjects!.filter(p => p.id !== undefined)).toHaveLength(save.world.props.length + count);
+    expect(debug.propViews).toBeLessThanOrEqual(save.world.props.length + count);
   }
   await info.attach('verified-positions', {
     body: JSON.stringify(

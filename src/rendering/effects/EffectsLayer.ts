@@ -50,6 +50,14 @@ interface Ring {
  * Everything here is cosmetic and is cleared on world changes.
  */
 export class EffectsLayer {
+  rebase(dx: number, dy: number): void {
+    for (const item of this.items) { item.sprite.x -= dx; item.sprite.y -= dy; item.sprite.zIndex -= dy; }
+    for (let i=0;i<this.rings.length;i++) {
+      const ring=this.rings[i];
+      if(ring)this.rings[i]={...ring,x:ring.x-dx,y:ring.y-dy};
+    }
+    if(this.playerSlash)this.playerSlash={...this.playerSlash,x:this.playerSlash.x-dx,y:this.playerSlash.y-dy};
+  }
   /** Ground decals (telegraph rings); insert between terrain and actors. */
   readonly ground = new Graphics();
   /** Screen-space portal transition; insert above the world, below the HUD. */

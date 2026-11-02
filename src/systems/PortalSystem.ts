@@ -43,10 +43,10 @@ export class PortalSystem {
     if (previous !== state)
       this.changed?.({ portalId: portal.id, previous, state, round: this.getStatus() });
   }
-  step(p: PlayerEntity, entities: readonly Entity[], dt: number, pendingBosses = 0): void {
+  step(p: PlayerEntity, entities: readonly Entity[], dt: number, pendingBosses = 0, objectives?: RoundStatus): void {
     const portal = entities.find((e): e is PortalEntity => e.kind === 'portal');
     if (!portal) return;
-    this.status = roundStatus(entities, this.complete, pendingBosses);
+    this.status = objectives ?? roundStatus(entities, this.complete, pendingBosses);
     if (!this.complete && this.status.complete) {
       this.complete = true;
       this.completed?.(this.getStatus());
@@ -80,10 +80,10 @@ export class PortalSystem {
     this.set(portal, 'transitioning');
     return true;
   }
-  restore(entities: readonly Entity[], pendingBosses = 0): void {
+  restore(entities: readonly Entity[], pendingBosses = 0, objectives?: RoundStatus): void {
     const portal = entities.find((e): e is PortalEntity => e.kind === 'portal');
     if (!portal) return;
-    this.status = roundStatus(entities, portal.roundComplete === true, pendingBosses);
+    this.status = objectives ?? roundStatus(entities, portal.roundComplete === true, pendingBosses);
     this.complete = this.status.complete;
     this.armed = true;
     this.reaction = 0;

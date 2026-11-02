@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('completing the tutorial opens its portal and starts the first world', async ({ page }) => {
-  await page.goto('/?debug=1&autostart=1&tutorial=1');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=1');
   await page.waitForFunction(() => !!window.__GAME__);
   await page.evaluate(() => window.__GAME__!.setPlayerPosition(5.5, 6.6));
   await page.keyboard.down('KeyW'); await page.waitForTimeout(40); await page.keyboard.up('KeyW');
@@ -18,7 +18,7 @@ test('completing the tutorial opens its portal and starts the first world', asyn
 });
 
 test('entering a normal portal advances without resetting progression', async ({ page }) => {
-  await page.goto('/?debug=1&autostart=1&seed=123');
+  await page.goto('/?world=finite&debug=1&autostart=1&seed=123');
   await page.waitForFunction(() => !!window.__GAME__);
   await page.evaluate(() => {
     window.__GAME__!.executeCommand('/kill all');

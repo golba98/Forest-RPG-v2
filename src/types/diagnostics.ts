@@ -166,6 +166,9 @@ export interface LegacySettingsPayload {
 }
 
 export interface GameDiagnosticsGateway {
+  planTravelPath(x:number,y:number): {x:number;y:number}[];
+  getStreamingDebug(): ReturnType<NonNullable<import('./simulation').ISimulation['getStreamingDebug']>>;
+  setGlobalPosition(x: number, y: number): Promise<void>;
   /** Continuous ground-contact coordinates in tiles. Access replay is opt-in and potentially expensive. */
   getLandscapeDebug(x: number, y: number, includeAccess?: boolean): import('../world/LandscapeInspector').LandscapeInspection;
   getState(): GameSnapshot;
@@ -175,9 +178,9 @@ export interface GameDiagnosticsGateway {
   resumeSimulation(): void;
   setTimeScale(scale: number): void;
   executeCommand(command: string): string;
-  saveGame(slot?: string): boolean;
-  loadGame(slot?: string): boolean;
-  loadLegacySave(payload: unknown): boolean;
+  saveGame(slot?: string): boolean | Promise<boolean>;
+  loadGame(slot?: string): boolean | Promise<boolean>;
+  loadLegacySave(payload: unknown): boolean | Promise<boolean>;
   setPlayerPosition(x: number, y: number): void;
   setPlayerHealth(hp: number): void;
   setPlayerMana(mana: number): void;

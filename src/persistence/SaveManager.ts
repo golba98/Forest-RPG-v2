@@ -1,4 +1,9 @@
-import { SAVE_SCHEMA_VERSION, assertGeneratorVersion, assertMigrationVersions, normalizeWorldCompatibility } from '../world/WorldCompatibility';
+import {
+  SAVE_SCHEMA_VERSION,
+  assertGeneratorVersion,
+  assertMigrationVersions,
+  normalizeWorldCompatibility,
+} from '../world/WorldCompatibility';
 import { prepareHilltopObjects } from '../world/HilltopObjects';
 import { repairSavedRivers } from '../world/RepairRivers';
 import type { SimulationRuntime } from '../types/encounters';
@@ -14,7 +19,13 @@ import { boundsOverlap, bridgeGeometry } from '../world/BridgeGeometry';
 import { validBridgeTerrain } from '../world/generation/bridges';
 import { GenGrid } from '../world/generation/GenGrid';
 import type { Game } from '../game/Game';
-import type { Simulation } from '../simulation/Simulation';
+import { Simulation } from '../simulation/Simulation';
+import { WorldRepository } from './WorldRepository';
+import type { WorldCheckpoint } from './WorldRepository';
+import { exportInfinite, importInfinite, validateCheckpoint } from './InfiniteArchive';
+import { preserveLegacyRegion } from '../world/infinite/LegacyRegion';
+import { infiniteDescriptor, newWorldId } from '../world/infinite/InfiniteSession';
+import { COORDINATE_LIMIT } from '../world/infinite/coordinates';
 
 interface SavePayload {
   version: typeof SAVE_SCHEMA_VERSION;
@@ -48,8 +59,11 @@ function validEntity(v: unknown, w: number, h: number): v is Entity {
     !directions.includes(String(v.facing)) ||
     !animations.includes(String(v.anim)) ||
     typeof v.alive !== 'boolean' ||
-    (v.kind === 'player' && v.hauntedIntroComplete !== undefined && typeof v.hauntedIntroComplete !== 'boolean') ||
-    (v.encounterId !== undefined && (typeof v.encounterId !== 'string' || v.encounterId.length > 160)) ||
+    (v.kind === 'player' &&
+      v.hauntedIntroComplete !== undefined &&
+      typeof v.hauntedIntroComplete !== 'boolean') ||
+    (v.encounterId !== undefined &&
+      (typeof v.encounterId !== 'string' || v.encounterId.length > 160)) ||
     !hasNumbers(v, ['prevX', 'prevY', 'halfSize', 'animTimeMs'])
   )
     return false;
@@ -148,15 +162,21 @@ function validEntity(v: unknown, w: number, h: number): v is Entity {
       hasNumbers(v, ['health', 'maxHealth', 'hurtTimerMs', 'attackCooldownMs'])
     );
   if (v.kind === 'pickup')
-    return ['coin', 'health_potion', 'speed_potion', 'chest'].includes(String(v.pickupType)) &&
+    return (
+      ['coin', 'health_potion', 'speed_potion', 'chest'].includes(String(v.pickupType)) &&
       (v.value === undefined || (integer(v.value) && v.value >= 1 && v.value <= 100)) &&
       (v.requiredForCompletion === undefined || typeof v.requiredForCompletion === 'boolean') &&
-      (v.chest === undefined || (v.pickupType === 'chest' && object(v.chest) &&
-        ['wooden', 'reinforced'].includes(String(v.chest.variant)) &&
-        ['closed', 'opening', 'opened'].includes(String(v.chest.state)) && finite(v.chest.elapsedMs) &&
-        v.chest.elapsedMs >= 0 && v.chest.elapsedMs <= 600 &&
-        (v.chest.state !== 'closed' || v.chest.elapsedMs === 0) &&
-        (v.chest.state !== 'opened' || v.chest.elapsedMs === 600)));
+      (v.chest === undefined ||
+        (v.pickupType === 'chest' &&
+          object(v.chest) &&
+          ['wooden', 'reinforced'].includes(String(v.chest.variant)) &&
+          ['closed', 'opening', 'opened'].includes(String(v.chest.state)) &&
+          finite(v.chest.elapsedMs) &&
+          v.chest.elapsedMs >= 0 &&
+          v.chest.elapsedMs <= 600 &&
+          (v.chest.state !== 'closed' || v.chest.elapsedMs === 0) &&
+          (v.chest.state !== 'opened' || v.chest.elapsedMs === 600)))
+    );
   if (v.kind === 'portal')
     return (
       typeof v.active === 'boolean' &&
@@ -182,7 +202,12 @@ function decode(raw: string): {
   runtime?: SimulationRuntime;
 } {
   const data: unknown = JSON.parse(raw);
-  if (!object(data) || data.version !== SAVE_SCHEMA_VERSION || !object(data.world) || !object(data.world.meta))
+  if (
+    !object(data) ||
+    data.version !== SAVE_SCHEMA_VERSION ||
+    !object(data.world) ||
+    !object(data.world.meta)
+  )
     throw new Error('Unsupported or invalid save');
   const world = data.world,
     meta = world.meta as Record<string, unknown>,
@@ -212,10 +237,18 @@ function decode(raw: string): {
   if (world.bridges !== undefined) {
     const rules = GAME_CONFIG.world.bridges;
     const validBridge = (b: unknown): b is WorldBridge =>
-      object(b) && integer(b.id) && b.id >= 0 && integer(b.x) && integer(b.y) &&
+      object(b) &&
+      integer(b.id) &&
+      b.id >= 0 &&
+      integer(b.x) &&
+      integer(b.y) &&
       (b.orientation === 'horizontal' || b.orientation === 'vertical') &&
-      integer(b.span) && b.span >= rules.minSpan && b.span <= rules.maxSpan &&
-      integer(b.variant) && b.variant >= 0 && b.variant < 4;
+      integer(b.span) &&
+      b.span >= rules.minSpan &&
+      b.span <= rules.maxSpan &&
+      integer(b.variant) &&
+      b.variant >= 0 &&
+      b.variant < 4;
     if (
       !Array.isArray(world.bridges) ||
       world.bridges.length > rules.maxCount ||
@@ -226,12 +259,16 @@ function decode(raw: string): {
     const grid = new GenGrid(w, h, Tile.GRASS);
     grid.tiles.set(world.tiles as number[]);
     if (
-      new Set(bridges.map(b => b.id)).size !== bridges.length ||
-      bridges.some((b, i) =>
-        // Existing deck geometry can support raised landings without rewriting saved terrain.
-        !validBridgeTerrain(grid, b, true) || bridges.slice(0, i).some(other =>
-          boundsOverlap(bridgeGeometry(b).footprint, bridgeGeometry(other).footprint),
-        ),
+      new Set(bridges.map((b) => b.id)).size !== bridges.length ||
+      bridges.some(
+        (b, i) =>
+          // Existing deck geometry can support raised landings without rewriting saved terrain.
+          !validBridgeTerrain(grid, b, true) ||
+          bridges
+            .slice(0, i)
+            .some((other) =>
+              boundsOverlap(bridgeGeometry(b).footprint, bridgeGeometry(other).footprint),
+            ),
       )
     )
       throw new Error('Invalid bridges');
@@ -249,8 +286,13 @@ function decode(raw: string): {
         integer(p.tileY) &&
         point({ x: p.tileX, y: p.tileY }, w, h) &&
         typeof p.solid === 'boolean' &&
-        (p.hilltop === undefined || (object(p.hilltop) && p.kind === 'rock_boulder' && p.solid === true &&
-          integer(p.hilltop.sourceX) && integer(p.hilltop.sourceY) && point({ x: p.hilltop.sourceX, y: p.hilltop.sourceY }, w, h))) &&
+        (p.hilltop === undefined ||
+          (object(p.hilltop) &&
+            p.kind === 'rock_boulder' &&
+            p.solid === true &&
+            integer(p.hilltop.sourceX) &&
+            integer(p.hilltop.sourceY) &&
+            point({ x: p.hilltop.sourceX, y: p.hilltop.sourceY }, w, h))) &&
         [
           'tree',
           'bush_small',
@@ -268,7 +310,8 @@ function decode(raw: string): {
     )
   )
     throw new Error('Invalid world objects');
-  if (new Set(world.props.map((p: { id: number }) => p.id)).size !== world.props.length) throw new Error('Duplicate world objects');
+  if (new Set(world.props.map((p: { id: number }) => p.id)).size !== world.props.length)
+    throw new Error('Duplicate world objects');
   if (
     !Array.isArray(world.enemySpawns) ||
     !Array.isArray(world.pickupSpawns) ||
@@ -285,8 +328,10 @@ function decode(raw: string): {
         point(v, w, h) &&
         object(v) &&
         ['coin', 'health_potion', 'speed_potion', 'chest'].includes(String(v.type)) &&
-        (v.id === undefined || (typeof v.id === 'string' && v.id.length > 0 && v.id.length <= 160)) &&
-        (v.chestVariant === undefined || (v.type === 'chest' && ['wooden', 'reinforced'].includes(String(v.chestVariant)))),
+        (v.id === undefined ||
+          (typeof v.id === 'string' && v.id.length > 0 && v.id.length <= 160)) &&
+        (v.chestVariant === undefined ||
+          (v.type === 'chest' && ['wooden', 'reinforced'].includes(String(v.chestVariant)))),
     )
   )
     throw new Error('Invalid spawn data');
@@ -316,23 +361,52 @@ function decode(raw: string): {
       !integer(data.runtime.rngState) ||
       data.runtime.rngState < 0 ||
       data.runtime.rngState > 0xffffffff ||
-      (data.runtime.ghostNightSpawned !== undefined && typeof data.runtime.ghostNightSpawned !== 'boolean'))
+      (data.runtime.ghostNightSpawned !== undefined &&
+        typeof data.runtime.ghostNightSpawned !== 'boolean'))
   )
     throw new Error('Invalid runtime state');
   if (object(data.runtime) && data.runtime.moisture !== undefined) {
     const moisture = data.runtime.moisture;
-    const bytes = (v: unknown) => Array.isArray(v) && v.length === w * h && v.every(b => integer(b) && b >= 0 && b <= 255);
-    if (!object(moisture) || moisture.version !== 1 || !bytes(moisture.wetness) || !bytes(moisture.puddles) || !finite(moisture.remainderMs) || moisture.remainderMs < 0 || moisture.remainderMs >= 200)
+    const bytes = (v: unknown) =>
+      Array.isArray(v) && v.length === w * h && v.every((b) => integer(b) && b >= 0 && b <= 255);
+    if (
+      !object(moisture) ||
+      moisture.version !== 1 ||
+      !bytes(moisture.wetness) ||
+      !bytes(moisture.puddles) ||
+      !finite(moisture.remainderMs) ||
+      moisture.remainderMs < 0 ||
+      moisture.remainderMs >= 200
+    )
       throw new Error('Invalid surface moisture');
   }
-  if (meta.riverRepairSkipped !== undefined && (!Array.isArray(meta.riverRepairSkipped) || meta.riverRepairSkipped.length > w * h || !meta.riverRepairSkipped.every(p => point(p, w, h)))) throw new Error('Invalid river repair report');
+  if (
+    meta.riverRepairSkipped !== undefined &&
+    (!Array.isArray(meta.riverRepairSkipped) ||
+      meta.riverRepairSkipped.length > w * h ||
+      !meta.riverRepairSkipped.every((p) => point(p, w, h)))
+  )
+    throw new Error('Invalid river repair report');
   const runtime = data.runtime as SimulationRuntime | undefined;
-  const convertedWorld = normalizeWorldCompatibility({ ...(world as unknown as WorldData), tiles: Uint8Array.from(world.tiles as number[]) });
+  const convertedWorld = normalizeWorldCompatibility({
+    ...(world as unknown as WorldData),
+    tiles: Uint8Array.from(world.tiles as number[]),
+  });
   if (convertedWorld.encounterSites === undefined && !runtime?.encounters)
     for (const e of data.entities as Entity[])
       if (e.alive && (e.kind === 'player' || e.kind === 'enemy'))
-        restoreSafePosition(convertedWorld, e, e.kind === 'enemy' ? e.enemyType === 'ghost' ? 'ghost' : 'groundEnemy' : 'player');
-  const restoredWorld = prepareHilltopObjects(repairSavedRivers(prepareEncounterWorld(convertedWorld, data.entities as Entity[]), data.entities as Entity[]), data.entities as Entity[]);
+        restoreSafePosition(
+          convertedWorld,
+          e,
+          e.kind === 'enemy' ? (e.enemyType === 'ghost' ? 'ghost' : 'groundEnemy') : 'player',
+        );
+  const restoredWorld = prepareHilltopObjects(
+    repairSavedRivers(
+      prepareEncounterWorld(convertedWorld, data.entities as Entity[]),
+      data.entities as Entity[],
+    ),
+    data.entities as Entity[],
+  );
   validateEncounterSites(restoredWorld);
   validateEncounterState(restoredWorld, runtime?.encounters);
   return {
@@ -345,13 +419,141 @@ function decode(raw: string): {
   };
 }
 export class SaveManager {
+  private repository: WorldRepository | undefined;
+  private worlds(): WorldRepository {
+    return (this.repository ??= new WorldRepository());
+  }
+  async initialize(): Promise<void> {
+    if (!this.infinite) return;
+    const auto = await this.worlds().load('auto');
+    if (auto && this.storage.getItem('forestrpg.v3.slot.auto') !== '0')
+      this.storage.setItem('forestrpg.v3.slot.auto', '1');
+  }
+  private validGlobalEntity(value: unknown): boolean {
+    if (
+      !object(value) ||
+      !finite(value.x) ||
+      !finite(value.y) ||
+      Math.abs(value.x) > COORDINATE_LIMIT - 1024 ||
+      Math.abs(value.y) > COORDINATE_LIMIT - 1024
+    )
+      return false;
+    if (typeof value.id !== 'string' || value.id.length > 160) return false;
+    if (
+      value.kind === 'enemy' &&
+      (!finite(value.health) ||
+        !finite(value.maxHealth) ||
+        value.health < 0 ||
+        value.maxHealth <= 0 ||
+        value.health > value.maxHealth ||
+        value.maxHealth > 1000000)
+    )
+      return false;
+    return validEntity(
+      { ...value, x: value.x + COORDINATE_LIMIT, y: value.y + COORDINATE_LIMIT },
+      COORDINATE_LIMIT * 2 + 1,
+      COORDINATE_LIMIT * 2 + 1,
+    );
+  }
+  private async restoreInfinite(state: WorldCheckpoint, fork = true): Promise<void> {
+    validateCheckpoint(state, (v) => this.validGlobalEntity(v));
+    if (state.legacy) {
+      const legacy = state.legacy;
+      if (
+        !Array.isArray(legacy.exits) ||
+        legacy.exits.length > 4 ||
+        typeof legacy.travelLink !== 'boolean' ||
+        legacy.exits.some(
+          (e) =>
+            !Number.isInteger(e.x) ||
+            !Number.isInteger(e.y) ||
+            e.x < 0 ||
+            e.y < 0 ||
+            e.x >= legacy.world.meta.width ||
+            e.y >= legacy.world.meta.height ||
+            legacy.world.tiles[e.y * legacy.world.meta.width + e.x] !== Tile.BORDER,
+        )
+      )
+        throw new Error('Invalid preserved region exits');
+      const normalized = decode(
+        JSON.stringify(
+          {
+            version: 2,
+            world: legacy.world,
+            entities: legacy.entities,
+            time: state.time,
+            elapsedMs: state.elapsedMs,
+            tutorialStage: 0,
+            runtime: legacy.runtime ?? state.runtime,
+          },
+          (_key, value: unknown) => (value instanceof Uint8Array ? Array.from(value) : value),
+        ),
+      );
+      state = {
+        ...state,
+        legacy: { ...legacy, world: normalized.world, entities: normalized.entities },
+      };
+    }
+    this.legacyExtras = state.legacy?.legacyExtras;
+    if (fork) state = await this.worlds().fork(state, newWorldId());
+    const world = await this.sim.prepareInfinite(
+      {
+        seed: state.descriptor.seed,
+        level: state.descriptor.level,
+        difficulty: state.descriptor.difficulty,
+      },
+      state,
+    );
+    this.game.loadWorld(world);
+    this.sim.restoreInfinite(state);
+  }
+  private async convertFinite(state: ReturnType<typeof decode>): Promise<void> {
+    const descriptor = infiniteDescriptor(state.world.meta),
+      runtime = state.runtime ?? { rngState: state.world.meta.seed };
+    const checkpoint: WorldCheckpoint = {
+      version: 3,
+      descriptor,
+      revision: 0,
+      entities: state.entities.filter((e) => e.kind === 'player' || e.kind === 'portal'),
+      runtime: { rngState: runtime.rngState },
+      time: state.time,
+      elapsedMs: state.elapsedMs,
+      objectives: [],
+      legacy: preserveLegacyRegion(
+        state.world,
+        state.entities,
+        runtime,
+        state.elapsedMs,
+        this.legacyExtras,
+      ),
+    };
+    await this.restoreInfinite(checkpoint, false);
+    await this.save('auto');
+  }
   private legacyExtras: Record<string, unknown> | undefined;
   constructor(
     private readonly storage: Storage,
     private readonly game: Game,
     private readonly sim: Simulation,
+    private readonly infinite = false,
   ) {}
+  async exportFile(): Promise<Blob> {
+    if (this.sim.stream) {
+      const stream = this.sim.stream,
+        runtime = this.sim.getRuntimeState();
+      stream.capture(this.sim.world, this.sim.getEntities(), runtime, this.sim.elapsedMs);
+      const state = stream.snapshot(
+        this.sim.getEntities(),
+        runtime,
+        this.sim.getTimeOfDay(),
+        this.sim.elapsedMs,
+      );
+      return exportInfinite(stream.repository, state, new Map(stream.deltas));
+    }
+    return new Blob([this.export()], { type: 'application/json' });
+  }
   export(): string {
+    if (this.sim.stream) throw new Error('Use asynchronous exportFile for streamed worlds');
     const payload: SavePayload = {
       version: SAVE_SCHEMA_VERSION,
       world: { ...this.sim.world, tiles: Array.from(this.sim.world.tiles) },
@@ -364,17 +566,43 @@ export class SaveManager {
     };
     return JSON.stringify(payload);
   }
-  import(raw: string): void {
+  import(raw: string): void | Promise<void> {
+    if (raw.startsWith('{"format":"forestrpg"')) return this.importArchive(raw);
     if (raw.length > 8_000_000) throw new Error('Save file is too large');
     const parsed: unknown = JSON.parse(raw);
     if (object(parsed) && parsed.version === undefined) {
       const legacy = adaptLegacySave(parsed);
+      if (this.infinite && !legacy.world.meta.isTutorial) {
+        const staged = new Simulation();
+        staged.loadWorld(legacy.world);
+        staged.restoreLegacyEnemies(
+          legacy.enemyHealth,
+          legacy.legacyExtras.isPortalActive === true,
+        );
+        this.legacyExtras = legacy.legacyExtras;
+        return this.convertFinite({
+          world: staged.world,
+          entities: structuredClone([...staged.getEntities()]),
+          time: staged.getTimeOfDay(),
+          elapsedMs: staged.elapsedMs,
+          tutorialStage: 0,
+          runtime: staged.getRuntimeState(),
+        });
+      }
       this.game.loadWorld(legacy.world);
-      this.sim.restoreLegacyEnemies(legacy.enemyHealth, legacy.legacyExtras.isPortalActive === true);
+      this.sim.restoreLegacyEnemies(
+        legacy.enemyHealth,
+        legacy.legacyExtras.isPortalActive === true,
+      );
       this.legacyExtras = legacy.legacyExtras;
       return;
     }
     const state = decode(raw); // Validate fully before touching the running game.
+    if (this.infinite && !state.world.meta.isTutorial) {
+      this.legacyExtras =
+        object(parsed) && object(parsed.legacyExtras) ? parsed.legacyExtras : undefined;
+      return this.convertFinite(state);
+    }
     // Repair old penetrations before replacing the active world. An impossible
     // save fails here, while the current run remains intact.
     for (const e of state.entities)
@@ -395,22 +623,47 @@ export class SaveManager {
       state.runtime,
     );
   }
-  save(slot = 'auto'): void {
+  save(slot = 'auto'): void | Promise<void> {
     if (!/^[a-z0-9_-]{1,32}$/i.test(slot)) throw new Error('Invalid save slot');
-    this.storage.setItem(`forestrpg.v2.save.${slot}`, this.export());
+    if (this.sim.stream)
+      return this.sim.saveInfinite(slot).then(() => {
+        this.storage.setItem(`forestrpg.v3.slot.${slot}`, '1');
+      });
+    const exported = this.export();
+    if (typeof exported !== 'string') throw new Error('World changed while saving');
+    this.storage.setItem(`forestrpg.v2.save.${slot}`, exported);
+    if (this.storage.getItem(`forestrpg.v3.slot.${slot}`) !== null)
+      this.storage.setItem(`forestrpg.v3.slot.${slot}`, '0');
   }
-  load(slot = 'auto'): void {
+  load(slot = 'auto'): void | Promise<void> {
     if (!/^[a-z0-9_-]{1,32}$/i.test(slot)) throw new Error('Invalid save slot');
+    if (this.storage.getItem(`forestrpg.v3.slot.${slot}`) === '1')
+      return this.worlds()
+        .load(slot)
+        .then((state) => {
+          if (!state) throw new Error('Saved world is missing from browser storage');
+          return this.restoreInfinite(state);
+        });
     const current = this.storage.getItem(`forestrpg.v2.save.${slot}`);
     const legacy = slot === 'auto' && !current ? this.storage.getItem('autosave_map') : null;
     const raw = current ?? legacy;
     if (!raw) throw new Error('No saved game in this slot');
-    this.import(raw);
-    if (legacy) this.save(slot);
+    const imported = this.import(raw);
+    if (imported instanceof Promise)
+      return imported.then(() => {
+        if (legacy) return this.save(slot);
+      });
+    if (legacy) return this.save(slot);
+  }
+  async importArchive(input: string | Blob): Promise<void> {
+    const state = await importInfinite(this.worlds(), input, (v) => this.validGlobalEntity(v));
+    await this.restoreInfinite(state, false);
+    await this.save('auto');
   }
   exists(slot = 'auto'): boolean {
     try {
       return (
+        this.storage.getItem(`forestrpg.v3.slot.${slot}`) === '1' ||
         this.storage.getItem(`forestrpg.v2.save.${slot}`) !== null ||
         (slot === 'auto' && this.storage.getItem('autosave_map') !== null)
       );
