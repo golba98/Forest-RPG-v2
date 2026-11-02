@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 test('debug commands open the portal and grant spendable character points', async ({ page }) => {
-  await page.goto('/?debug=1&autostart=1&tutorial=1');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=1');
   await page.waitForFunction(() => !!window.__GAME__);
   await page.keyboard.press('Backquote'); const input = page.getByLabel('Terminal command');
   await input.fill('/kill all'); await input.press('Enter');

@@ -1,3 +1,4 @@
+import { PERF_BUILD, profileBegin, profileEnd } from '../performance/FrameProfiler';
 import type { TilePoint } from '../types/world';
 
 export interface GridSize {
@@ -75,7 +76,11 @@ export function findPath(
   to: TilePoint,
   passable: Passable,
   maxNodes: number,
+  canStep?: (from:TilePoint,to:TilePoint)=>boolean,
 ): TilePoint[] | null {
+  const profileToken = PERF_BUILD ? profileBegin('pathfinding.astar',1) : -1;
+  try {
+
   const { width } = size;
   if (!inGrid(size, from.x, from.y) || !inGrid(size, to.x, to.y)) return null;
   if (!passable(from.x, from.y) || !passable(to.x, to.y)) return null;
@@ -140,6 +145,7 @@ export function findPath(
         ny = y + dy;
       if (!inGrid(size, nx, ny) || !passable(nx, ny)) continue;
       if (dx && dy && (!passable(x + dx, y) || !passable(x, y + dy))) continue;
+      if(canStep&&!canStep({x,y},{x:nx,y:ny}))continue;
       const index = ny * width + nx;
       if (closed.has(index)) continue;
       const cost = (costs.get(current) ?? 0) + (dx && dy ? Math.SQRT2 : 1);
@@ -150,6 +156,8 @@ export function findPath(
     }
   }
   return null;
+
+  } finally { if (PERF_BUILD) profileEnd(profileToken); }
 }
 
 function inGrid(size: GridSize, x: number, y: number): boolean {

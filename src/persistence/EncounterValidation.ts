@@ -46,7 +46,7 @@ export function validateEncounterSites(world: WorldData): void {
 }
 
 export function validateEncounterState(
-  world: WorldData,
+  world: Pick<WorldData, 'encounterSites'> & {readonly meta: Pick<WorldData['meta'],'width'|'height'>},
   state: unknown,
 ): asserts state is EncounterState {
   if (state === undefined) return;

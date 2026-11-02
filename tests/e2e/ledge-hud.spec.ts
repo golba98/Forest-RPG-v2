@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 test.use({ video: 'on' });
 
 async function boot(page: Page): Promise<void> {
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=123');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=123');
   await page.waitForFunction(() => !!window.__GAME__ && !!window.__RENDER_DEBUG__);
 }
 async function ledgeFixture(page: Page): Promise<void> {

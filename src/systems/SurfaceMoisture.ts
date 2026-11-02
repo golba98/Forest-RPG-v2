@@ -1,3 +1,5 @@
+import { prepareInSlices } from '../core/WorkSlice';
+import { PERF_BUILD, profileBegin, profileEnd } from '../performance/FrameProfiler';
 import { Tile } from '../types/tiles';
 import type { WorldData } from '../types/world';
 import { bridgeAtTile, bridgeGeometry, boundsOverlap } from '../world/BridgeGeometry';
@@ -43,7 +45,17 @@ export class SurfaceSites {
     number,
     Array<{ minX: number; minY: number; maxX: number; maxY: number }>
   >();
-  constructor(readonly world: WorldData) {
+  constructor(readonly world: WorldData, deferred = false) {
+    if (!deferred) for (const _ of this.build()) { void _; }
+  }
+  static async prepare(world: WorldData, valid: () => boolean): Promise<SurfaceSites> {
+    const sites = new SurfaceSites(world, true);
+    await prepareInSlices(sites.build(), valid);
+    siteCache.set(world, sites);
+    return sites;
+  }
+  private *build(): Generator<void> {
+    const world = this.world;
     const { width: w, height: h, seed } = world.meta;
     const add = (b: { minX: number; minY: number; maxX: number; maxY: number }) => {
       for (let y = Math.max(0, Math.floor(b.minY)); y < Math.min(h, Math.ceil(b.maxY)); y++)
@@ -54,7 +66,9 @@ export class SurfaceSites {
           this.obstacles.set(i, list);
         }
     };
+    let processed = 0;
     for (const p of world.props) {
+      if (++processed % 64 === 0) yield;
       const b = propFootprint(p);
       if (b)
         add({
@@ -68,7 +82,16 @@ export class SurfaceSites {
     for (const site of world.encounterSites ?? [])
       if (site.kind === 'nest')
         add({ minX: site.x - 1.5, minY: site.y - 2.5, maxX: site.x + 1.5, maxY: site.y + 0.5 });
-    for (let y = 1; y < h - 1; y++)
+    const protectedTiles = new Set<number>();
+    for (const bridge of world.bridges ?? []) {
+      for (const a of bridgeGeometry(bridge).approaches)
+        for (let y = Math.max(0, Math.floor(a.minY)); y < Math.min(h, Math.ceil(a.maxY)); y++)
+          for (let x = Math.max(0, Math.floor(a.minX)); x < Math.min(w, Math.ceil(a.maxX)); x++)
+            if (boundsOverlap(a, {minX:x,minY:y,maxX:x+1,maxY:y+1})) protectedTiles.add(y*w+x);
+      yield;
+    }
+    for (let y = 1; y < h - 1; y++) {
+      yield;
       for (let x = 1; x < w - 1; x++) {
         const i = y * w + x,
           tile = world.tiles[i] ?? Tile.BORDER,
@@ -76,14 +99,7 @@ export class SurfaceSites {
         if (!dryTiles.has(tile)) continue;
         this.eligible.push(i);
         if (this.obstacles.has(i) || bridgeAtTile(world, x, y)) continue;
-        if (
-          (world.bridges ?? []).some((b) =>
-            bridgeGeometry(b).approaches.some((a) =>
-              boundsOverlap(a, { minX: x, minY: y, maxX: x + 1, maxY: y + 1 }),
-            ),
-          )
-        )
-          continue;
+        if (protectedTiles.has(i)) continue;
         const riverNear = [-w, w, -1, 1].some((d) => world.tiles[i + d] === Tile.RIVER);
         const basin = surfaceHash(Math.floor(x / 3), Math.floor(y / 3), seed) % 5 < 2;
         if (hash % (tile === Tile.MUD || riverNear ? 3 : 5) || !basin) continue;
@@ -95,6 +111,7 @@ export class SurfaceSites {
           salt: hash,
         });
       }
+    }
   }
   puddleAt(px: number, py: number, state?: MoistureView): boolean {
     if (!state) return false;
@@ -179,6 +196,19 @@ export class SurfaceMoisture implements MoistureView {
       }
     }
   }
+  copyOverlap(previous: SurfaceMoisture): void {
+    const a = previous.sites.world, b = this.sites.world;
+    if (!a.window || !b.window) return;
+    const dx = b.window.originX - a.window.originX, dy = b.window.originY - a.window.originY;
+    for (const i of this.sites.eligible) {
+      const x = i % b.meta.width + dx, y = Math.floor(i / b.meta.width) + dy;
+      if (x < 0 || y < 0 || x >= a.meta.width || y >= a.meta.height) continue;
+      const j = y * a.meta.width + x;
+      this.wetness[i] = previous.wetness[j] ?? 0;
+      if (this.sites.pools.has(i)) this.puddles[i] = previous.puddles[j] ?? 0;
+    }
+    this.remainderMs = previous.remainderMs;
+  }
   save(): SavedMoisture {
     return {
       version: 1,
@@ -199,10 +229,15 @@ export class SurfaceMoisture implements MoistureView {
 
 const siteCache = new WeakMap<WorldData, SurfaceSites>();
 export function surfaceSites(world: WorldData): SurfaceSites {
+  const profileToken = PERF_BUILD ? profileBegin('index.surfaceSites',1) : -1;
+  try {
+
   let sites = siteCache.get(world);
   if (!sites) {
     sites = new SurfaceSites(world);
     siteCache.set(world, sites);
   }
   return sites;
+
+  } finally { if (PERF_BUILD) profileEnd(profileToken); }
 }

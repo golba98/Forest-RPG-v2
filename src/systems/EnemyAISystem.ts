@@ -33,13 +33,24 @@ const KITE_RELEASE = 3.5;
 const KITE_HOLD = 6;
 /** Decisions and routes live per-world; no renderer or DOM dependencies. */
 export class EnemyAISystem {
+  rebase(world: WorldData, dx: number, dy: number): void {
+    this.world = world; this.clearance.clear();this.stepClearance.clear();
+    for (const b of this.brains.values()) {
+      b.home={x:b.home.x+dx,y:b.home.y+dy};
+      b.aim={x:b.aim.x+dx,y:b.aim.y+dy};
+      if(b.target)b.target={x:b.target.x+dx,y:b.target.y+dy};
+      b.path=b.path.map(p=>({x:p.x+dx,y:p.y+dy}));
+    }
+  }
   private brains = new Map<string, Brain>();
   private clearance = new Map<string, Uint8Array>();
+  private stepClearance = new Map<string,Uint16Array>();
   private world: WorldData | null = null;
   private now = 0;
   private searches = 0;
   invalidate(): void {
     this.clearance.clear();
+    this.stepClearance.clear();
     for (const b of this.brains.values()) b.replan = 0;
   }
   debug(): NavigationDebug[] {
@@ -66,6 +77,7 @@ export class EnemyAISystem {
       this.world = world;
       this.brains.clear();
       this.clearance.clear();
+      this.stepClearance.clear();
       this.now = 0;
     }
     this.now += dt * 1000;
@@ -328,7 +340,15 @@ export class EnemyAISystem {
           Math.hypot(c.x + 0.5 - e.x, c.y + 0.5 - e.y),
       );
       const start = starts[0];
-      const route = start ? findPath(world.meta, start, destination, passable, 1600) : null;
+      let steps=this.stepClearance.get(key);
+      if(!steps&&world.window){steps=new Uint16Array(world.tiles.length);this.stepClearance.set(key,steps);}
+      const stepMask=steps;
+      const canStep=stepMask?(a:TilePoint,c:TilePoint)=>{
+        const raw=(c.y-a.y+1)*3+c.x-a.x+1,shift=(raw>4?raw-1:raw)*2,index=a.y*world.meta.width+a.x,bits=stepMask[index]??0,state=(bits>>>shift)&3;
+        if(state)return state===2;
+        const clear=hasClearPath(world,a.x+.5,a.y+.5,c.x+.5,c.y+.5,e.halfSize,profile);stepMask[index]=bits|((clear?2:1)<<shift);return clear;
+      }:undefined;
+      const route = start ? findPath(world.meta, start, destination, passable, 1600,canStep) : null;
       b.path = route && start ? [start, ...route] : [];
       b.unreachable = route === null;
       b.replan = route ? 600 + (Number(e.id.replace(/\D/g, '')) % 5) * 40 : 1200;

@@ -3,6 +3,7 @@ import { channelTerrain } from '../world/RiverTopology';
 import { hashTile } from '../world/TileHash';
 
 export interface SoilWorld {
+  readonly window?: {readonly originX:number;readonly originY:number};
   readonly tiles: ArrayLike<number>;
   readonly meta: { readonly width: number; readonly height: number };
 }
@@ -41,8 +42,8 @@ export function soilCoverage(world: SoilWorld, worldX: number, worldY: number): 
     }
   const coverage = land > 0 ? soil / land : 0;
   // Continuous world-space grain bends the fringe without holes in solid soil.
-  const nx = worldX / 16,
-    ny = worldY / 16,
+  const nx = (worldX + (world.window?.originX??0)*SOIL_TILE_SIZE) / 16,
+    ny = (worldY + (world.window?.originY??0)*SOIL_TILE_SIZE) / 16,
     ix = Math.floor(nx),
     iy = Math.floor(ny);
   const sx = smooth(nx - ix),
@@ -75,7 +76,7 @@ export function rasterizeSoilTile(
       const alpha = Math.round(255 * MAX_OPACITY * soilCoverage(world, wx + 0.5, wy + 0.5));
       if (!alpha) continue;
       visible = true;
-      const r = hashTile(wx, wy);
+      const r = hashTile(wx+(world.window?.originX??0)*SOIL_TILE_SIZE, wy+(world.window?.originY??0)*SOIL_TILE_SIZE);
       const color = r % 11 === 0 ? 0x686039 : r % 3 ? 0x514829 : 0x595032;
       const i = (y * SOIL_TILE_SIZE + x) * 4;
       data[i] = color >> 16;

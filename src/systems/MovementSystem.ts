@@ -1,3 +1,4 @@
+import { PERF_BUILD, profileBegin, profileEnd } from '../performance/FrameProfiler';
 import { entityFootprint, resolveFootprint } from './EntityFootprint';
 import { GAME_CONFIG as C } from '../config/GameConfig';
 import type { PlayerEntity, PlayerIntent } from '../types/entities';
@@ -9,6 +10,26 @@ import { supportingSurface } from './SurfaceState';
 
 const dashTimers = new WeakMap<PlayerEntity, { remaining: number; cooldown: number }>();
 const landingPositions = new WeakMap<PlayerEntity, { x: number; y: number }>();
+export interface MovementRuntime {
+  readonly landing?: { readonly x: number; readonly y: number };
+  readonly dash?: { readonly remaining: number; readonly cooldown: number };
+}
+export function movementRuntime(player: PlayerEntity): MovementRuntime {
+  const landing = landingPositions.get(player),
+    dash = dashTimers.get(player);
+  return {
+    ...(landing ? { landing: { ...landing } } : {}),
+    ...(dash ? { dash: { ...dash } } : {}),
+  };
+}
+export function restoreMovementRuntime(player: PlayerEntity, state: MovementRuntime): void {
+  if (state.landing) landingPositions.set(player, { ...state.landing });
+  if (state.dash) dashTimers.set(player, { ...state.dash });
+}
+export function rebaseMovementRuntime(player: PlayerEntity, dx: number, dy: number): void {
+  const landing = landingPositions.get(player);
+  if (landing) landingPositions.set(player, { x: landing.x + dx, y: landing.y + dy });
+}
 
 /** True when the player's box overlaps a jumpable cliff edge. */
 function overJumpableEdge(world: WorldData, p: PlayerEntity): boolean {
@@ -58,6 +79,9 @@ export function movePlayer(
   dt: number,
   sensitivity = 5,
 ): 'idle' | 'walk' | 'run' | 'jump' {
+  const profileToken = PERF_BUILD ? profileBegin('movement.player',1) : -1;
+  try {
+
   if (intent.jump && !p.isJumping) {
     p.isJumping = true;
     p.jumpProgress = 0;
@@ -127,4 +151,6 @@ export function movePlayer(
   const anim = p.isJumping ? 'jump' : length ? (p.isSprinting ? 'run' : 'walk') : 'idle';
   moveWithCollision(world, p, p.vx * dt, p.vy * dt, p.isJumping ? 'jumping' : 'player');
   return anim;
+
+  } finally { if (PERF_BUILD) profileEnd(profileToken); }
 }
