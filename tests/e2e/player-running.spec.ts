@@ -9,7 +9,7 @@ test('keyboard sprint artwork follows all diagonal directions', async ({ page },
     localStorage.setItem('forestrpg.v2.settings', JSON.stringify({ clouds: false })),
   );
   await page.clock.install();
-  await page.goto('/?debug=1&autostart=1&seed=42');
+  await page.goto('/?world=finite&debug=1&autostart=1&seed=42');
   await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 60000));
   const { world } = bridgeFixture();

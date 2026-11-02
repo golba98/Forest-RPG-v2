@@ -19,7 +19,7 @@ export async function boot(page: Page, enemyOffsets: readonly (readonly [number,
   })), settings);
   // The clock must own the RAF scheduled during boot, not just later timers.
   if (!live) await page.clock.install();
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=42');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=42');
   await page.waitForFunction(() => !!window.__GAME__ && !!window.__RENDER_DEBUG__);
   // Leave ample headroom for the cross-process call on a busy test host. The
   // fixture is loaded afterward, so advancing boot time cannot affect the case.

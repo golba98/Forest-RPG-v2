@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Approved remaster — animation flow</title>
+<style>body{margin:24px;background:#142019;color:#ecebdf;font:16px/1.5 system-ui}h1{font-size:26px}button,select{font:inherit;padding:7px;margin:4px;background:#304b36;color:#fff;border:1px solid #6a806b;border-radius:4px}label{margin-right:14px}.stage{overflow:auto}iframe{display:block;width:1280px;height:720px;border:1px solid #647662}p{max-width:1100px}#status{color:#b9d9b9;min-height:24px}</style></head>
+<body><h1>Approved remaster — smoother frame flow</h1>
+<p>This is the exact artwork previously labelled “Rejected remaster”, now restored as the approved version. All 56 sprite sheets are unchanged. Compare only the playback: improved stop transitions and punch pacing, or the previous timing.</p>
+<label>Artwork <select id="art"><option value="approved">Approved remaster</option></select></label>
+<label>Playback <select id="playback"><option value="after">Improved flow</option><option value="before">Previous timing</option></select></label>
+<label>Facing <select id="direction"><option>S</option><option>SE</option><option>E</option><option>NE</option><option>N</option><option>NW</option><option>W</option><option>SW</option></select></label>
+<label>Scene <select id="scene"><option value="tree">Tree</option><option value="rock">Rock</option><option value="bridge">Bridge</option><option value="overlap">Tree overlap</option></select></label>
+<label>Light <select id="weather"><option value="clear">Daylight</option><option value="rain">Rain / dark</option></select></label>
+<button id="reset">Reset pose</button><button id="walk">Walk cycle</button><button id="run">Run cycle</button><button id="jump">Jump</button><button id="punch">First punch</button><button id="combo">Three-hit combo</button><button id="full">Full-screen game</button>
+<p id="status">Loading…</p><div class="stage"><iframe id="game" title="Actual Forest RPG gameplay"></iframe></div>
+<p>Click the game for WASD / E controls. Reset before comparing. Scripted actions return to the same scene; camera scale is unchanged. Both playback options use identical source pixels. Movement and combat timing are unchanged.</p>
+<script type="module" src="./review.ts"></script></body></html>

@@ -71,10 +71,10 @@ export function nearRiver(world: WorldData, x: number, y: number): boolean {
 
 /** Selection never consumes simulation RNG or changes saved prop identity/position. */
 export function vegetationFor(prop: WorldProp, world: WorldData): VegetationFrame | null {
-  const hash = (Math.imul(prop.tileX, 17) ^ Math.imul(prop.tileY, 31)) >>> 0;
+  const hash = (Math.imul(prop.tileX + (world.window?.originX ?? 0), 17) ^ Math.imul(prop.tileY + (world.window?.originY ?? 0), 31)) >>> 0;
   switch (prop.kind) {
     case 'tree':
-      if (world.meta.generatorVersion < 12) return hash % 2 ? VEGETATION.compact : VEGETATION.young;
+      if ((prop.sourceGeneratorVersion ?? world.meta.generatorVersion) < 12) return hash % 2 ? VEGETATION.compact : VEGETATION.young;
       if (nearRiver(world, prop.tileX, prop.tileY)) return VEGETATION.broad;
       return [VEGETATION.tall, VEGETATION.broad, VEGETATION.young][hash % 3] ?? VEGETATION.young;
     case 'flower_clump':

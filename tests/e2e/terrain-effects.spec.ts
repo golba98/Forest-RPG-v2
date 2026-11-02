@@ -8,7 +8,7 @@ test('walking stops at a cliff edge, a jump climbs it, and water immersion displ
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  await page.goto('/?debug=1&autostart=1&tutorial=1');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=1');
   await page.waitForFunction(() => !!window.__GAME__);
   const loaded = await page.evaluate(() => {
     const tiles = Array<number>(64).fill(1);

@@ -6,7 +6,7 @@ import type { WorldData } from '../../src/types/world';
 const phase = process.env.GROVE_ART_PHASE ?? 'after';
 async function load(page: Page, world: WorldData) {
   await page.clock.install();
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=123');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=123');
   await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 500));
   const grove = world.encounterSites!.find((s) => s.kind === 'grove')!;

@@ -1,10 +1,10 @@
+import { TerrainChunks } from './TerrainChunks';
+import { WorldDepthLayer, WorldObjects } from './WorldObjects';
+import { WorldVisibility } from './WorldVisibility';
 import { createLootTextures } from './lootArt';
-import { VEGETATION, vegetationFor, type VegetationFrame } from './vegetationArt';
 import { LootView } from './LootView';
 
 import { GroveView } from './GroveView';
-import { createSoilChunkArt, type SoilChunkArt } from './SoilArt';
-import { propDepth } from '../world/ObjectSemantics';
 import { surfaceSites, type MoistureView } from '../systems/SurfaceMoisture';
 import { SurfaceWaterLayer } from './effects/SurfaceWaterLayer';
 import { NestView } from './NestView';
@@ -22,15 +22,10 @@ import { Hud } from './Hud';
 import type { PlayerInventory, PlayerStats } from '../types/entities';
 import { Camera } from './Camera';
 import { TextureStore } from './TextureStore';
-import { getTileArt, getWorldPropArt, type TileArtLayer } from './terrainArt';
-import { decorAlias, GROUND_PROPS, PORTAL_ART_ALIAS } from './assetCatalog';
-import { elevationMask } from './hillAutotile';
-import { Tile } from '../types/tiles';
-import { createWaterTextures, waterEdgeMask, neighbourMaterialMask, WATER_PALETTE } from './waterArt';
+import { DECOR_KINDS, decorAlias, PORTAL_ART_ALIAS } from './assetCatalog';
+import { createWaterTextures, WATER_PALETTE } from './waterArt';
 import { WaterLayer } from './effects/WaterLayer';
 import { createBridgeTextures } from './bridgeArt';
-import { createBridgeView } from './BridgeView';
-import { planForestTrees } from './forestTrees';
 import { resolveSpriteFrame } from '../animation/resolveSpriteFrame';
 import { EntityAnimator } from './EntityAnimator';
 import { PortalView } from './PortalView';
@@ -43,7 +38,7 @@ import { createEffectTextures, destroyEffectTextures, type EffectTextures } from
 import { DebugOverlay, type DebugCollider, type SpriteDebugInfo, type VisualDebugInfo } from './DebugOverlay';
 
 const TILE = 32;
-const CHUNK = 16;
+
 const HURT_WHITE_MS = 70;
 /** After the white flash the hurt tint stays red this long, then the sprite blinks for the rest of the invulnerability. */
 const HURT_RED_MS = 220;
@@ -127,21 +122,38 @@ export class PixiRenderer implements IRenderer {
   private app = new Application();
   private textures = new TextureStore();
   private camera = new Camera();
+  prepareView:((widthTiles:number,heightTiles:number)=>Promise<void>)|undefined;
+  private viewRequest=0;
+  private desiredView:{width:number;height:number;resolution:number;zoom:number|'auto'}|null=null;
+  private requestView(change:Partial<{width:number;height:number;resolution:number;zoom:number|'auto'}>):void{
+    const desired={...(this.desiredView??{width:this.app.screen.width,height:this.app.screen.height,resolution:this.app.renderer.resolution,zoom:this.camera.getZoomSetting()}),...change};
+    this.desiredView=desired;const ticket=++this.viewRequest;
+    const zoom=desired.zoom==='auto'?Camera.computeAutoZoom(desired.height,desired.resolution):desired.zoom;
+    void (this.prepareView?.(desired.width/zoom/TILE,desired.height/zoom/TILE)??Promise.resolve()).then(()=>{
+      if(ticket!==this.viewRequest)return;
+      this.applyResize(desired.width,desired.height,desired.resolution);this.camera.setZoom(desired.zoom);
+    }).catch(error=>console.warn('Cannot prepare camera view',error));
+  }
   private root = new Container();
-  private terrain = new Container();
+  private terrainChunks: TerrainChunks | null = null;
+  private readonly visibility = new WorldVisibility();
+  private residencyTime = 0;
+  private renderCpuMs = 0;
+  private readonly restoreTerrain = () => {
+    if (this.world) { this.terrainChunks?.setWorld(this.world); this.visibility.reset(); }
+  };
   private bridgeGround = new Container();
   /** Flat decor (logs, flowers, pebbles, holes) drawn over terrain, never over actors. */
   private groundProps = new Container();
   private groundFx = new Container();
-  private actors = new Container();
+  private actors = new WorldDepthLayer();
   /** World-transformed layer drawn above the darkness overlay (fireflies). */
   private nightGlow = new Container();
-  private chunks = new Map<string, Container>();
-  private soilChunks = new Map<string, SoilChunkArt>();
+  private streamingRebase = false;
+  private teleportVersion=0;
   private entities = new Map<string, EntityVisual>();
   private portals = new Map<string, PortalEntry>();
-  private objects: Sprite[] = [];
-  private propSprites = new Map<number, Sprite>();
+  private worldObjects = new WorldObjects(this.textures, this.actors, this.groundProps, this.bridgeGround, (sprite, asset, layer) => this.tag(sprite, asset, layer), texture => this.app.renderer.texture.initSource(texture.source));
   private spriteInfo = new WeakMap<Container, SpriteDebugInfo>();
   private animator = new EntityAnimator();
   private sky = new SkyLayer();
@@ -166,13 +178,15 @@ export class PixiRenderer implements IRenderer {
     TextureSource.defaultOptions.scaleMode = 'nearest';
     await this.app.init({ ...options, autoStart: false, sharedTicker: false, autoDensity: true, roundPixels: true, background: '#172c19' });
     this.app.stop();
+    this.terrainChunks = new TerrainChunks(this.app.renderer, this.textures);
+    this.app.canvas.addEventListener('webglcontextrestored', this.restoreTerrain);
     this.fx = createEffectTextures();
     this.ambient = new AmbientLayer(this.fx);
     this.effects = new EffectsLayer(this.actors, this.fx);
     this.hurtFilter.brightness(2.4, false);
     this.enemyFilter.brightness(1.18, false);
     this.groundFx.addChild(this.sky.shadows, this.effects.ground);
-    this.root.addChild(this.terrain, this.surfaceWater.view, this.water.view, this.weather.ground, this.bridgeGround, this.weather.deck, this.groundProps, this.groveView.ground, this.nestView.ground, this.groundFx, this.actors, this.encounterView.effects, this.nestView.particles, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
+    this.root.addChild(this.terrainChunks.view, this.surfaceWater.view, this.water.view, this.weather.ground, this.bridgeGround, this.weather.deck, this.groundProps, this.groveView.ground, this.nestView.ground, this.groundFx, this.actors, this.encounterView.effects, this.nestView.particles, this.effects.overlay, this.ambient.leaves, this.sky.clouds, this.debugOverlay.worldLayer);
     this.actors.sortableChildren = true;
     this.actors.addChild(this.waterMask, this.waterRipple, this.waterFxMask);
     this.waterRipple.mask = this.waterFxMask;
@@ -187,6 +201,11 @@ export class PixiRenderer implements IRenderer {
     for (const [alias, texture] of createWaterTextures()) this.textures.registerRuntime(alias, texture);
     for (const [alias, texture] of createLootTextures()) this.textures.registerRuntime(alias, texture);
     for (const [alias, texture] of createBridgeTextures()) this.textures.registerRuntime(alias, texture);
+    const environmentTextures = [
+      this.textures.get('lpc_trees'), this.textures.get('lpc_plants'),
+      ...DECOR_KINDS.map(kind => this.textures.get(decorAlias(kind))), ...(this.fx?.clouds ?? []),
+    ];
+    for (const texture of environmentTextures) this.app.renderer.texture.initSource(texture.source);
     this.hud = new Hud(this.textures.get('ui_heart'), [this.textures.get('item_potion_health'), this.textures.get('item_potion_speed')]);
     this.hud.layout(this.app.screen.width, this.app.screen.height, this.hudScale);
     this.app.stage.addChild(this.hud, this.encounterView.hud);
@@ -202,45 +221,21 @@ export class PixiRenderer implements IRenderer {
     this.debugColliders = source;
   }
 
-  private art(layer: TileArtLayer): Sprite {
-    const s = layer.source;
-    const texture =
-      s.type === 'grid' ? this.textures.getGridFrame(layer.alias, s.col, s.row, s.cols, s.rows)
-      : s.type === 'cell' ? this.textures.getFrame(layer.alias, s.frameX, s.frameY, s.frameW, s.frameH)
-      : s.type === 'rect' ? this.textures.getRect(layer.alias, s.rect.x, s.rect.y, s.rect.w, s.rect.h)
-      : this.textures.get(layer.alias);
-    const sprite = new Sprite(texture);
-    sprite.tint = layer.tint;
-    if (layer.fit === 'fill') { sprite.width = TILE; sprite.height = TILE; }
-    else sprite.scale.set(Math.min(1, TILE * layer.maxWidthTiles / texture.width, TILE * layer.maxHeightTiles / texture.height));
-    // Keep art on whole pixels and inside its tile horizontally / below its tile's
-    // bottom edge: jittered decor that crossed a chunk edge gave the cached chunk
-    // fractional bounds, which showed up as 1 px seams between chunks.
-    const x = (TILE - sprite.width) / 2 + layer.offsetX;
-    const y = (layer.align === 'bottom' ? TILE - sprite.height : (TILE - sprite.height) / 2) + layer.offsetY;
-    sprite.x = Math.round(Math.min(Math.max(x, 0), TILE - sprite.width));
-    sprite.y = Math.round(Math.min(Math.max(y, Math.min(0, TILE - sprite.height)), TILE - sprite.height));
-    return sprite;
-  }
-
   private tag<T extends Container>(sprite: T, assetId: string, layer: string): T {
     this.spriteInfo.set(sprite, { assetId, layer });
     return sprite;
   }
 
   setWorld(world: WorldData): void {
-    for (const chunk of this.chunks.values()) chunk.destroy({ children: true });
-    this.chunks.clear();
-    for (const soil of this.soilChunks.values()) soil.destroy();
-    this.soilChunks.clear();
+    this.viewRequest++;this.desiredView=null;
+    this.terrainChunks?.setWorld(world);
+    this.worldObjects.clear();
+    this.visibility.reset();
+    this.residencyTime = 0;
     for (const visual of this.entities.values()) { visual.sprite.destroy(); visual.shadow?.destroy(); }
     this.entities.clear();
     for (const { view } of this.portals.values()) view.destroy({ children: true });
     this.portals.clear();
-    for (const sprite of this.objects) sprite.destroy();
-    this.objects = [];
-    for (const child of this.bridgeGround.removeChildren()) child.destroy({ children: true });
-    this.propSprites.clear();
     this.animator.clear();
     this.effects?.clear();
     for (const n of this.damageNumbers) n.text.destroy();
@@ -249,6 +244,7 @@ export class PixiRenderer implements IRenderer {
     if (this.enteringPortal) this.effects?.startTransition();
     this.enteringPortal = false;
     this.world = world;
+    this.teleportVersion=world.window?.teleportVersion??0;
     this.lootView.reset();
     this.actors.addChild(this.lootView.container);
     this.lootView.container.zIndex = 1e8;
@@ -257,87 +253,42 @@ export class PixiRenderer implements IRenderer {
     this.groveView.reset();
     this.nestView.reset();
     this.sky.setWorld(world.meta.width, world.meta.height, world.meta.seed, this.fx?.clouds ?? [], world.spawn.x, world.spawn.y);
-    for (const bridge of world.bridges ?? []) {
-      const view = createBridgeView(bridge, this.textures);
-      this.bridgeGround.addChild(view.ground);
-      for (const rail of view.rails) {
-        this.tag(rail, 'procedural:bridge-rail', 'actors/bridge');
-        this.actors.addChild(rail); this.objects.push(rail);
-      }
-    }
-
-    for (const tree of planForestTrees(world)) {
-      const sprite = this.tag(this.vegetationSprite(VEGETATION.compact), 'lpc_trees', 'actors/forest');
-      sprite.x += tree.x * TILE; sprite.y += tree.y * TILE; sprite.zIndex = (tree.y + 1) * TILE;
-      this.actors.addChild(sprite); this.objects.push(sprite);
-    }
-    for (const p of world.props) {
-      const vegetation = vegetationFor(p, world);
-      const sprite = this.tag(vegetation ? this.vegetationSprite(vegetation) : this.art(getWorldPropArt(p)), vegetation?.atlas ?? decorAlias(p.kind), GROUND_PROPS.has(p.kind) ? 'ground/prop' : 'actors/prop');
-      sprite.x += p.tileX * TILE; sprite.y += p.tileY * TILE; sprite.zIndex = propDepth(p) * TILE;
-      (GROUND_PROPS.has(p.kind) ? this.groundProps : this.actors).addChild(sprite); this.objects.push(sprite);
-      this.propSprites.set(p.id, sprite);
-    }
-    this.camera.setWorldSize(world.meta.width * TILE, world.meta.height * TILE);
+    this.worldObjects.setWorld(world);
+    this.ambient?.reset();
+    this.camera.setWorldSize(world.window ? 0 : world.meta.width * TILE, world.window ? 0 : world.meta.height * TILE);
     this.camera.snapTo((world.spawn.x + 0.5) * TILE, (world.spawn.y + 0.5) * TILE);
-    for (let y = 0; y < world.meta.height; y += CHUNK) for (let x = 0; x < world.meta.width; x += CHUNK) this.buildChunk(x, y);
   }
 
-  private vegetationSprite(frame: VegetationFrame): Sprite {
-    const { x, y, w, h } = frame.rect;
-    const sprite = new Sprite(this.textures.getRect(frame.atlas, x, y, w, h));
-    // One atlas pixel per world pixel. Root anchors align with trunk footprints.
-    sprite.position.set(TILE / 2 - frame.root[0], TILE - frame.root[1]);
-    return sprite;
-  }
+  invalidateTile(x: number, y: number): void { this.terrainChunks?.invalidateTile(x, y); }
 
-  private buildChunk(x: number, y: number): void {
-    const world = this.world;
-    if (!world) return;
-    const { width, height } = world.meta;
-    const key = `${x},${y}`;
-    this.chunks.get(key)?.destroy({ children: true });
-    this.soilChunks.get(key)?.destroy();
-    this.soilChunks.delete(key);
-    const soil = createSoilChunkArt(world, x, y, CHUNK);
-    if (soil) this.soilChunks.set(key, soil);
-    const chunk = new Container(); chunk.position.set(x * TILE, y * TILE);
-    for (let ty = y; ty < Math.min(y + CHUNK, height); ty++) for (let tx = x; tx < Math.min(x + CHUNK, width); tx++) {
-      const elevation = elevationMask(world.tiles, width, height, tx, ty);
-      const tile = world.tiles[ty * width + tx] ?? 0;
-      const shore = tile === Tile.RIVER ? waterEdgeMask(world.tiles, width, height, tx, ty) : neighbourMaterialMask(world.tiles, width, height, tx, ty);
-      for (const [index, layer] of getTileArt(tile, tx, ty, elevation, shore).entries()) {
-        const sprite = this.art(layer); sprite.x += (tx - x) * TILE; sprite.y += (ty - y) * TILE; chunk.addChild(sprite);
-        // Compose the material after its grass base and before flowers/contact shadows.
-        const texture = index === 0 ? soil?.tiles.get(ty * width + tx) : undefined;
-        if (texture) {
-          const material = new Sprite(texture);
-          material.position.set((tx - x) * TILE, (ty - y) * TILE);
-          chunk.addChild(material);
-        }
-      }
-    }
-    // Ground-only chunks have exact integer bounds and nearest cache sampling.
-    chunk.cacheAsTexture({ resolution: 1, antialias: false }); this.terrain.addChild(chunk); this.chunks.set(key, chunk);
-  }
-
-  invalidateTile(x: number, y: number): void {
-    // Autotiled art depends on neighbours, so rebuild every chunk the 3×3 neighbourhood touches.
-    const keys = new Set<string>();
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      const cx = Math.floor((x + dx) / CHUNK) * CHUNK, cy = Math.floor((y + dy) / CHUNK) * CHUNK;
-      if (cx >= 0 && cy >= 0 && this.world && cx < this.world.meta.width && cy < this.world.meta.height) keys.add(`${cx},${cy}`);
-    }
-    for (const key of keys) { const [cx, cy] = key.split(',').map(Number); this.buildChunk(cx ?? 0, cy ?? 0); }
-  }
-
-  removeProp(id: number): void {
-    const sprite = this.propSprites.get(id);
-    if (!sprite) return;
-    this.propSprites.delete(id); this.objects = this.objects.filter(object => object !== sprite); sprite.destroy();
-  }
+  removeProp(id: import('../types/world').WorldObjectId): void { this.worldObjects.removeProp(id); }
 
   render(snapshot: RenderSnapshot, alpha: number, dt: number): void {
+    if (snapshot.world !== this.world && snapshot.world.window && this.world?.window) {
+      this.streamingRebase = true;
+      const dx = snapshot.world.window.originX - this.world.window.originX;
+      const dy = snapshot.world.window.originY - this.world.window.originY;
+      const camera = this.camera.getView();
+      const player=snapshot.entities.find(e=>e.id===snapshot.playerId);
+      if(player && Math.max(Math.abs(dx),Math.abs(dy))>64)this.camera.snapTo(player.x*TILE,player.y*TILE);
+      else this.camera.snapTo(camera.x-dx*TILE,camera.y-dy*TILE);
+      this.terrainChunks?.rebase(snapshot.world,dx,dy);
+      this.worldObjects.setWorld(snapshot.world);
+      this.sky.rebase(dx*TILE,dy*TILE,snapshot.world.meta.width,snapshot.world.meta.height);
+      this.ambient?.rebase(dx*TILE,dy*TILE);
+      this.effects?.rebase(dx*TILE,dy*TILE);
+      this.lootView.rebase(dx*TILE,dy*TILE);
+      this.animator.rebase(dx*TILE,dy*TILE);
+      for (const n of this.damageNumbers) { n.text.x -= dx*TILE; n.text.y -= dy*TILE; }
+      this.world = snapshot.world;
+      this.water.rebase(snapshot.world,dx*TILE,dy*TILE);
+      this.surfaceWater.reset();
+    }
+    if(snapshot.world.window&&snapshot.world.window.teleportVersion!==this.teleportVersion){
+      this.teleportVersion=snapshot.world.window.teleportVersion;
+      const p=snapshot.entities.find(e=>e.id===snapshot.playerId);if(p)this.camera.snapTo(p.x*TILE,p.y*TILE);
+    }
+    const renderStart = performance.now();
     const fx = this.fx, effects = this.effects, ambient = this.ambient;
     if (!fx || !effects || !ambient) return;
     this.moisture = snapshot.moisture;
@@ -345,16 +296,16 @@ export class PixiRenderer implements IRenderer {
     if (player) this.camera.follow((player.prevX + (player.x - player.prevX) * alpha) * TILE, (player.prevY + (player.y - player.prevY) * alpha) * TILE, dt);
     const transform = this.camera.getTransform(); this.root.scale.set(transform.scale); this.root.position.set(transform.x, transform.y);
     this.nightGlow.scale.copyFrom(this.root.scale); this.nightGlow.position.copyFrom(this.root.position);
-    const rect = this.camera.getVisibleRect(); this.visibleChunks = 0;
-    for (const chunk of this.chunks.values()) {
-      chunk.visible = chunk.x < rect.x + rect.width && chunk.x + CHUNK * TILE > rect.x && chunk.y < rect.y + rect.height && chunk.y + CHUNK * TILE > rect.y;
-      if (chunk.visible) this.visibleChunks++;
-    }
-    for (const sprite of this.objects) sprite.visible = sprite.x + 64 > rect.x && sprite.x - 64 < rect.x + rect.width && sprite.y + 64 > rect.y && sprite.y - 64 < rect.y + rect.height;
+    const rect = this.camera.getVisibleRect();
+    this.residencyTime += Math.max(0, dt);
+    const regions = this.visibility.update(rect, dt);
+    this.terrainChunks?.update(regions, this.residencyTime);
+    this.worldObjects.update(regions, this.residencyTime);
+    this.visibleChunks = this.terrainChunks?.info.visibleChunks ?? 0;
     const view = this.camera.getView();
     const weather = this.weatherPreview ?? snapshot.environment.weather;
     const raining = weather === 'rain' || weather === 'storm';
-    this.sky.update(dt, view.x, view.y, this.paused, this.cloudsEnabled, raining);
+    this.sky.update(dt, view.x, view.y, this.paused, this.cloudsEnabled, raining, regions.preparation);
     if (!this.paused) this.visualTime += dt;
     this.water.update(dt, this.paused, rect, snapshot.world);
     this.surfaceWater.update(snapshot.world, snapshot.moisture, rect, snapshot.elapsedMs ?? this.visualTime);
@@ -385,7 +336,7 @@ export class PixiRenderer implements IRenderer {
     this.weather.update(dt, raining, { paused: this.paused, enabled: this.particlesEnabled, screenWidth: this.app.screen.width, screenHeight: this.app.screen.height, view: rect, world: snapshot.world, moisture: snapshot.moisture, player, worldToScreen: (x, y) => this.camera.worldToScreen(x, y) });
     effects.update(dt, this.paused, this.app.screen.width, this.app.screen.height);
 
-    this.performanceText.visible = this.performanceEnabled; this.performanceText.text = `${dt > 0 ? Math.round(1000 / dt) : 0} FPS | ${this.visibleChunks}/${this.chunks.size} chunks`; this.performanceText.position.set(20, this.app.screen.height - 24);
+    this.performanceText.visible = this.performanceEnabled; this.performanceText.text = `${dt > 0 ? Math.round(1000 / dt) : 0} FPS | ${this.visibleChunks}/${this.terrainChunks?.info.residentChunks ?? 0} chunks`; this.performanceText.position.set(20, this.app.screen.height - 24);
     const screenScale = this.hudScale * Math.max(1, Math.min(2, this.app.screen.height / 1080));
     this.minimap.visible = this.hudVisible && this.minimap.currentMode !== 'hidden' && !(snapshot.encounters?.boss && this.app.screen.width < 650); this.minimap.layout(this.app.screen.width, this.app.screen.height, screenScale); this.minimap.setView(rect); this.minimap.update(snapshot);
     if (this.hud) { this.hud.layout(this.app.screen.width, this.app.screen.height, screenScale, readSafeAreaInsets(), this.minimap.visible && this.minimap.currentMode === 'radar' ? this.minimap.getBounds() : null); this.hud.visible = this.hudVisible; if (this.hudData) this.hud.update(this.hudData.stats, this.hudData.inventory, this.language); }
@@ -397,6 +348,7 @@ export class PixiRenderer implements IRenderer {
       }, this.app.screen.height);
     }
     this.app.render();
+    this.renderCpuMs = performance.now() - renderStart;
   }
 
   /** Pixel-art wading: submerged silhouette, stepped waterline, dotted ripple rings, trailing splash. */
@@ -463,7 +415,7 @@ export class PixiRenderer implements IRenderer {
       const sprite = visual.sprite;
       visual.kind = e.kind; visual.spriteKey = spriteKey;
       visual.quietRemoval = e.quietRemoval === true;
-      const anim = this.animator.resolve(e.nestEmergence ? { ...e, spriteKey, anim: 'walk', moving: true, animTimeMs: e.nestEmergence.progress * 800 } : spriteKey === e.spriteKey ? e : { ...e, spriteKey }, this.paused ? 0 : dt);
+      const anim = this.animator.resolve(e.nestEmergence ? { ...e, spriteKey, anim: 'walk', moving: true, animTimeMs: e.nestEmergence.progress * 800 } : spriteKey === e.spriteKey ? e : { ...e, spriteKey }, this.paused ? 0 : dt, e.kind === 'player' ? { x, y: y + e.lift * TILE } : undefined);
       const f = resolveSpriteFrame(anim);
       const started = e.kind === 'player'
         ? !!e.attack && e.attack.swingId !== visual.lastSwingId
@@ -529,9 +481,12 @@ export class PixiRenderer implements IRenderer {
       }
 
       // Ground shadow: stays on the ground during a jump and shrinks with height.
+      // The remaster's 64 px cell includes padding; preserve the old 40 px
+      // player presentation width for shadows and water ripples.
+      const effectWidth = e.kind === 'player' ? 40 : Math.abs(sprite.width);
       if (visual.shadow) {
         const groundY = (e.prevY + (e.y - e.prevY) * alpha) * TILE + (e.kind === 'pickup' ? 9 : 8);
-        const w = Math.max(14, Math.min(46, Math.abs(sprite.width) * 0.7)) * (1 - Math.min(0.5, e.lift * 0.3));
+        const w = Math.max(14, Math.min(46, effectWidth * 0.7)) * (1 - Math.min(0.5, e.lift * 0.3));
         visual.shadow.position.set(x, groundY);
         visual.shadow.scale.set(w / 64, (w * 0.34) / 64);
         visual.shadow.alpha = e.nestEmergence ? 0 : 0.42 * sprite.alpha;
@@ -561,7 +516,7 @@ export class PixiRenderer implements IRenderer {
           sprite.mask = this.waterMask;
           for (const b of nearbyWaterBounds(snapshot.world, x, pose.waterlineY))
             this.waterFxMask.rect(b.minX * TILE, b.minY * TILE, (b.maxX - b.minX) * TILE, (b.maxY - b.minY) * TILE).fill(0xffffff);
-          this.drawWading(Math.round(sprite.x), cut, Math.max(6, Math.round(Math.abs(sprite.width) * 0.26)), e.x - e.prevX, e.y - e.prevY);
+          this.drawWading(Math.round(sprite.x), cut, Math.max(6, Math.round(effectWidth * 0.26)), e.x - e.prevX, e.y - e.prevY);
           // The ground shadow would show through the water as a dark blob.
           if (visual.shadow) visual.shadow.alpha = 0;
           this.waterRipple.zIndex = y + 1;
@@ -573,7 +528,7 @@ export class PixiRenderer implements IRenderer {
     for (const [id, visual] of this.entities) {
       if (alive.has(id)) continue;
       const s = visual.sprite;
-      if (!this.paused && !s.destroyed && !visual.quietRemoval) {
+      if (!this.streamingRebase && !this.paused && !s.destroyed && !visual.quietRemoval) {
         if (visual.kind === 'enemy' && visual.diedInView) effects.burst(s.x, s.y - 10, 0xd9d2c4, 7, s.zIndex + 1, 0.05);
         else if (visual.kind === 'enemy') effects.spawnDeath(s.texture, s.x, s.y, s.anchor.x, s.anchor.y, s.scale.x, s.scale.y, s.zIndex);
         else if (visual.kind === 'pickup') effects.burst(s.x, s.y, visual.spriteKey === 'coin' ? 0xffd84a : 0xf0f0ff, 8, s.zIndex + 1);
@@ -584,10 +539,15 @@ export class PixiRenderer implements IRenderer {
     }
     for (const [id, entry] of this.portals) if (!alive.has(id)) { entry.view.destroy({ children: true }); this.portals.delete(id); }
     this.animator.sweep();
+    this.streamingRebase = false;
   }
 
   /** Draws one portal; returns true when the player is inside an open portal's entry radius. */
   private renderPortal(e: RenderEntityView, x: number, y: number, dt: number, snapshot: RenderSnapshot, player: RenderEntityView | undefined, fx: EffectTextures): boolean {
+    if(snapshot.world.window){
+      const rect=this.camera.getVisibleRect();
+      if(x<rect.x-128||y<rect.y-128||x>rect.x+rect.width+128||y>rect.y+rect.height+128){const offscreen=this.portals.get(e.id);if(offscreen)offscreen.view.visible=false;return false;}
+    }
     let entry = this.portals.get(e.id);
     if (!entry) {
       const view = this.tag(new PortalView(this.textures.get(PORTAL_ART_ALIAS), fx), PORTAL_ART_ALIAS, 'actors/portal');
@@ -595,13 +555,14 @@ export class PixiRenderer implements IRenderer {
       this.actors.addChild(view); this.portals.set(e.id, entry);
     }
     if (this.textures.isPlaceholder(entry.view.artTexture)) this.placeholderSprites++;
+    entry.view.visible=true;
     const distance = player ? Math.hypot(e.x - player.x, e.y - player.y) : Infinity;
     const state = entry.machine.update({ active: e.active === true, explicit: e.portalState, playerDistance: distance, dtMs: this.paused ? 0 : dt });
     let label: string;
     if (state === 'open' || state === 'transitioning') label = translate(this.language, 'PORTAL OPEN');
     else {
-      const coins = snapshot.entities.filter(item => item.spriteKey === 'coin' && item.requiredForCompletion !== false).length;
-      const enemies = snapshot.entities.filter(item => item.kind === 'enemy' && item.spriteKey !== 'ghost').length + (snapshot.encounters?.pendingBosses ?? 0);
+      const coins = snapshot.round?.coinsRemaining ?? snapshot.entities.filter(item => item.spriteKey === 'coin' && item.requiredForCompletion !== false).length;
+      const enemies = snapshot.round?.enemiesRemaining ?? snapshot.entities.filter(item => item.kind === 'enemy' && item.spriteKey !== 'ghost').length + (snapshot.encounters?.pendingBosses ?? 0);
       const progress = `${coins} ${translate(this.language, 'Coins')} • ${enemies} ${translate(this.language, 'foes')}`;
       label = state === 'reacting' ? `${translate(this.language, 'Portal sealed')}\n${progress}` : progress;
     }
@@ -615,6 +576,10 @@ export class PixiRenderer implements IRenderer {
   }
 
   resize(width: number, height: number, resolution: number): void {
+    if(this.world?.window&&this.prepareView){this.requestView({width,height,resolution});return;}
+    this.applyResize(width,height,resolution);
+  }
+  private applyResize(width:number,height:number,resolution:number):void{
     this.app.renderer.resolution = resolution; this.app.renderer.resize(width, height); this.camera.setViewport(width, height, resolution);
     this.ambient?.resizeStars(width, height);
   }
@@ -639,14 +604,19 @@ export class PixiRenderer implements IRenderer {
   }
 
   shake(magnitude: number, durationMs: number): void { if (this.cameraShakeEnabled) this.camera.shake(magnitude, durationMs); }
-  setZoom(zoom: number | 'auto'): void { this.camera.setZoom(zoom); }
+  setZoom(zoom: number | 'auto'): void {
+    if(this.world?.window&&this.prepareView){this.requestView({zoom:zoom==='auto'?'auto':Number.isFinite(zoom)?Math.max(.5,zoom):'auto'});return;}
+    this.camera.setZoom(zoom);
+  }
   getCamera() { return this.camera.getView(); }
-  getStats() { return { backend: 'webgl' as const, canvasWidth: this.app.canvas.width, canvasHeight: this.app.canvas.height, pixelRatio: this.app.renderer.resolution, visibleChunks: this.visibleChunks, totalChunks: this.chunks.size, renderedEntities: this.renderedEntities, placeholderSprites: this.placeholderSprites }; }
+  getStats() { return { backend: 'webgl' as const, canvasWidth: this.app.canvas.width, canvasHeight: this.app.canvas.height, pixelRatio: this.app.renderer.resolution, visibleChunks: this.visibleChunks, totalChunks: this.world ? Math.ceil(this.world.meta.width / 16) * Math.ceil(this.world.meta.height / 16) : 0, renderedEntities: this.renderedEntities, placeholderSprites: this.placeholderSprites, residency: this.terrainChunks ? { ...this.terrainChunks.info, renderCpuMs: this.renderCpuMs } : undefined }; }
   /** Debug-only counters for visual regression tests. */
   getVisualDebugInfo(): VisualDebugInfo {
     const player = [...this.entities.values()].find(v => v.kind === 'player');
     const sprite = player?.sprite;
     const bounds = sprite?.getBounds();
+    const objects = this.worldObjects.debugRecords;
+    const objectInfo = this.worldObjects.info;
     return {
       playerSlash: this.effects?.getPlayerSlash() ?? null,
       playerSprite: sprite && player?.displayed && bounds ? {
@@ -658,12 +628,12 @@ export class PixiRenderer implements IRenderer {
         transform: { a: sprite.worldTransform.a, b: sprite.worldTransform.b, c: sprite.worldTransform.c, d: sprite.worldTransform.d },
         bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
       } : null,
-      propViews: this.propSprites.size,
+      propViews: objectInfo.propViews,
+      worldObjects: objects,
+      residency: { ...this.terrainChunks?.info, ...objectInfo, renderCpuMs: this.renderCpuMs },
+      atmosphere: this.sky.info,
       groveViews: this.groveView.info,
-      hilltopViews: (this.world?.props ?? []).filter(p => p.hilltop).flatMap(p => {
-        const sprite = this.propSprites.get(p.id);
-        return sprite ? [{ id: p.id, x: sprite.x, y: sprite.y, depth: sprite.zIndex, visible: sprite.visible }] : [];
-      }),
+      hilltopViews: objects.filter(r => r.hilltop && r.resident).map(r => ({ id: r.id ?? -1, x: r.x, y: r.y, depth: r.depth, visible: r.visible })),
       playerDepth: [...this.entities.values()].find(v => v.kind === 'player')?.sprite.zIndex,
       wading: this.wading,
       hud: this.hud?.getLayoutDebug() ?? null,
@@ -681,9 +651,9 @@ export class PixiRenderer implements IRenderer {
       transitionActive: this.effects?.transitionActive ?? false,
       actorChildren: this.actors.children.length,
       projectiles: [...this.entities.values()].filter(v => v.kind === 'projectile').length,
-      forestTrees: this.objects.filter(s => this.spriteInfo.get(s)?.layer === 'actors/forest').length,
+      forestTrees: objectInfo.forestTrees,
       bridges: this.world?.bridges?.length ?? 0,
-      bridgeRailSprites: this.objects.filter(s => this.spriteInfo.get(s)?.layer === 'actors/bridge').length,
+      bridgeRailSprites: objectInfo.bridgeRailSprites,
     };
   }
   worldToScreen(x: number, y: number) { return this.camera.worldToScreen(x, y); }
@@ -691,9 +661,9 @@ export class PixiRenderer implements IRenderer {
   destroy(): void {
     this.groveView.reset();
     this.sky.clear(); this.effects?.clear();
+    this.worldObjects.clear(); this.terrainChunks?.clear();
+    this.app.canvas.removeEventListener('webglcontextrestored', this.restoreTerrain);
     this.app.destroy(true, { children: true }); this.textures.destroy();
-    for (const soil of this.soilChunks.values()) soil.destroy();
-    this.soilChunks.clear();
     if (this.fx) destroyEffectTextures(this.fx);
   }
 }

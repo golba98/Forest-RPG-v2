@@ -23,7 +23,7 @@ export const RENDERER_EXTRA_BUNDLE = 'rendering_extras';
 export const PORTAL_ART_ALIAS = 'portal_forest';
 export const PORTAL_ART_SRC = 'assets/images/objects/portal_forest.png';
 
-export const PLAYER_SHEET_ANIMS = ['idle', 'walk', 'run', 'jump', 'attack'] as const;
+export const PLAYER_SHEET_ANIMS = ['idle', 'walk', 'run', 'jump', 'attack', 'attack2', 'attack3'] as const;
 export type PlayerSheetAnim = (typeof PLAYER_SHEET_ANIMS)[number];
 
 export const DIRECTIONS: readonly Direction[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];

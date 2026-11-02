@@ -20,16 +20,16 @@ Generator version 10 adds authoritative hilltop boulders after terrain, structur
 
 `LandscapePlan` is a read-only view over authoritative state, not a second editable map. `GenGrid.tiles` owns terrain during generation; `WorldData.tiles` owns saved/runtime terrain. `WorldData.props`, `bridges`, `encounterSites`, and spawn descriptors own placements. Plans borrow those records; region labels, summit selection, protection bounds, and access results are disposable derived information. No plan, collision cache, or diagnostic trace is serialized.
 
-| Fact | Authority / producer | Available / consumers |
-| --- | --- | --- |
-| Ground, water, deck, elevation, cliff geometry | Saved tiles; `ElevationTopology`, `SurfaceState`, `HillCollisionGeometry`, `BridgeGeometry` | Queries use current cells and existing physical geometry; hilltop clearance and diagnostics |
-| Cardinal plateau components and summit space | Raised cells; the Milestone 1 summit algorithm | Lazy after final terrain cleanup; hilltop placement, actor recovery, diagnostics |
-| Cardinal water regions | `RiverTopology.channelTerrain` | Lazy from current tiles; diagnostics and later water planning; legacy RAMP/LOG cells retain channel connectivity |
-| Stair protection | STAIRS cells and final elevation mask | Two-tile approach/landing buffer; woodland and hilltop placement |
-| Bridge decks and approach protection | Bridge records / `BridgeGeometry` | After bridge selection; woodland, hilltop placement, existing crossing validation |
-| Nest/grove protection | Encounter site records / `siteBounds` | Nest before hills; groves after ordinary props/spawns; placement consumers use only facts available at their stage |
-| Spawn, portal, spawn-descriptor protection | Existing authoritative coordinates | Spawn early; other positions after selection; hilltop placement |
-| Required gameplay access | Existing generation reachability / sweep checks | At their original validation positions; `LandscapeAccess` and diagnostic replay |
+| Fact                                           | Authority / producer                                                                        | Available / consumers                                                                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Ground, water, deck, elevation, cliff geometry | Saved tiles; `ElevationTopology`, `SurfaceState`, `HillCollisionGeometry`, `BridgeGeometry` | Queries use current cells and existing physical geometry; hilltop clearance and diagnostics                        |
+| Cardinal plateau components and summit space   | Raised cells; the Milestone 1 summit algorithm                                              | Lazy after final terrain cleanup; hilltop placement, actor recovery, diagnostics                                   |
+| Cardinal water regions                         | `RiverTopology.channelTerrain`                                                              | Lazy from current tiles; diagnostics and later water planning; legacy RAMP/LOG cells retain channel connectivity   |
+| Stair protection                               | STAIRS cells and final elevation mask                                                       | Two-tile approach/landing buffer; woodland and hilltop placement                                                   |
+| Bridge decks and approach protection           | Bridge records / `BridgeGeometry`                                                           | After bridge selection; woodland, hilltop placement, existing crossing validation                                  |
+| Nest/grove protection                          | Encounter site records / `siteBounds`                                                       | Nest before hills; groves after ordinary props/spawns; placement consumers use only facts available at their stage |
+| Spawn, portal, spawn-descriptor protection     | Existing authoritative coordinates                                                          | Spawn early; other positions after selection; hilltop placement                                                    |
+| Required gameplay access                       | Existing generation reachability / sweep checks                                             | At their original validation positions; `LandscapeAccess` and diagnostic replay                                    |
 
 All plan coordinates and bounds are in **tiles**. Integer coordinates identify cells; continuous coordinates identify ground contact or actor anchors as documented by the query. Rendering uses 32 logical pixels per tile. No projection offset enters physics. `canOccupy` and `hasClearPath` remain the sole footprint and movement authorities; a region ID or surface label never proves that an actor fits. Legacy CLIFF is opaque terrain, not an invented raised walking surface. Plateau identities cover `isRaisedSurface`; water identities describe existing channels without predicting drainage or classifying permanent ponds.
 
@@ -39,14 +39,14 @@ Region IDs use their minimum row-major coordinate (`plateau:x,y`, `water:x,y`). 
 
 The running order remains base terrain → rivers/safe area/border → reserve/clear nest → hills → restore clearings/edges → stairs → bridges → reachability pruning → woodland → mud → tree-aware pruning → portal → props → collision-aware pruning/edge refresh → bridge validation → spawn plan → nest access validation → ghost groves → hilltop rocks. Named streams, stream salts, traversal/shuffle order, retries, and random consumption are unchanged. The reservation view before woodland is discarded when later pruning changes terrain. A fresh access view uses the finalized cells; the object view adds final sites and spawn descriptors. `Simulation.loadWorld` acquires the final view after compatibility conversion.
 
-| Intended responsibility | Implemented now | Later extension |
-| --- | --- | --- |
-| Broad landforms and gameplay requirements | World options, spawn clearing, existing nest reservation and required-access checks | Milestone 3: hills/valleys planned together |
-| Terrain surfaces, hills, cliffs, valleys | Existing hill generator; shared surfaces, boundaries, plateau IDs | Improved landform shape, without changing physical fit semantics |
-| Waterways and pond locations | Existing rivers run before hills and are protected by them | Milestone 4: coordinated courses and permanent ponds |
-| Final stairs, crossings, required access | Existing stairs/bridges and validation exposed through shared queries | Terrain-aware crossing decisions |
-| Woodland and substantial objects | Existing woodland rules and Milestone 1 rocks consume shared protection | Milestone 5: groves and terrain-aware distributions |
-| Passable local decoration | Existing ground/terrain decoration remains separate from solid props | Later decoration refinement |
+| Intended responsibility                   | Implemented now                                                                     | Later extension                                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Broad landforms and gameplay requirements | World options, spawn clearing, existing nest reservation and required-access checks | Milestone 3: hills/valleys planned together                      |
+| Terrain surfaces, hills, cliffs, valleys  | Existing hill generator; shared surfaces, boundaries, plateau IDs                   | Improved landform shape, without changing physical fit semantics |
+| Waterways and pond locations              | Existing rivers run before hills and are protected by them                          | Milestone 4: coordinated courses and permanent ponds             |
+| Final stairs, crossings, required access  | Existing stairs/bridges and validation exposed through shared queries               | Terrain-aware crossing decisions                                 |
+| Woodland and substantial objects          | Existing woodland rules and Milestone 1 rocks consume shared protection             | Milestone 5: groves and terrain-aware distributions              |
+| Passable local decoration                 | Existing ground/terrain decoration remains separate from solid props                | Later decoration refinement                                      |
 
 These are responsibilities, not a reordered generator. There are no placeholder basin, drainage, valley, or grove fields.
 
@@ -61,3 +61,98 @@ Required gameplay access is distinct from optional exploration or decoration den
 With `?debug=1`, `/landscape 70.5 96.5` in the existing terminal, or `window.__GAME__.getLandscapeDebug(70.5, 96.5)`, shows surfaces, stable region IDs, cliff/deck bounds, protection IDs, and current placement explanations. Append `access` to the terminal command or pass `true` as the API's third argument for the more expensive required-access replay. It runs only on request. Inspector coordinates are continuous ground-contact positions in tiles.
 
 Debug generation/conversion captures actual acceptance, relocation and rejection counts and reasons for woodland and hilltop objects, retaining at most 256 records per consumer. Traces live in a WeakMap, consume no RNG, and disappear on reload. Counts include all decisions; retained entries are bounded and filtered around the inspected coordinate. Static hypothetical explanations are labeled separately; woodland explanations cover protection, not random density/spacing, and hilltop explanations do not replay transient saved-actor recovery. No diagnostic information appears on the normal HUD.
+
+## Streamed forest worlds (generator 13)
+
+New games use independently addressable 32×32 data chunks. The finite generator
+remains version 12 and is still used by the training glade's finite adapter,
+compatibility tests and `?world=finite` diagnostics. Its historical seed output
+has not been replaced. A seed reproduces geography within its generation and
+biome versions; newly created version-13 worlds have different geography from
+version-12 worlds with the same seed.
+
+`ChunkSource` owns bounded baseline residency. `ForestGenerator` samples signed,
+coordinate-hashed coherent fields rather than consuming one map-wide random
+sequence. Water bands, hills and woodland density continue across chunk borders.
+Bridges have deterministic spatial candidates and priorities; ownership belongs
+to the anchor chunk while neighboring queries include their full reservations.
+Trees obey spacing, canopy/stair and bridge protections. Hilltop rocks use the
+existing physical footprint and continuous swept-bypass validation.
+
+The fixed starting plan reserves a clearing, twenty required coins, the existing
+difficulty-dependent enemy count, a nest and a progression portal. Exploring
+farther adds optional enemies, chests and ghost groves. Portal completion uses a
+persistent objective ledger, including objectives outside the active area.
+Taking the portal still advances to a new seeded world and carries character
+progression, inventory and buffs; it does not add return travel to earlier levels.
+
+### Local gameplay adapter
+
+The authoritative world is the chunk source plus saved changes. Existing swept
+collision, surfaces, navigation and rendering consume a bounded `WorldData`
+window. Its `meta.width/height` describe that local view, not the world's extent.
+`world.window.originX/originY` convert local actor/tile coordinates to global
+coordinates. Origins are chunk-aligned; floor division and positive local
+remainders handle negative coordinates. The usual window is 192×192 tiles and
+can grow for viewport/zoom preparation. Baselines remain independently generated
+chunks; this window is neither a repeated map nor a pre-generated complete world.
+
+Generation runs in a module worker with transferred tile buffers. The fallback
+yields between rows. Preparation includes a surrounding chunk halo; inactive
+baseline chunks have a five-second retention period and a hard residency limit
+of 128 or the larger mandatory viewport set. Pending preparation adds a bounded
+working set. Actor records, colliders, AI clearance and object catalogs remain
+local. Before eviction, changes and the global player checkpoint are committed
+together. Actors moving between chunks have one owner; managed encounter actors
+remain owned by their site. Unloaded actors suspend rather than receiving new
+health or rewards when reactivated.
+
+Ordinary window shifts prepare an owned candidate while the active window keeps
+simulating. Terrain rows in the overlap are copied from the active view; only
+entering chunks need baseline/delta assembly. Surface eligibility and prop
+collider indexes are built cooperatively with a 2 ms task target. This target is
+cooperative, not a hard deadline. Surface hashes still use the established local
+coordinates, so the target surface index is rebuilt rather than reused with
+different coordinates.
+
+Publication is one synchronous operation between simulation calls. It captures
+the latest edits, actors and discovery, copies live overlapping moisture without
+byte quantization, rebases retained actors, and installs the prepared indexes.
+Edits or a viewport/teleport change during preparation invalidate the candidate.
+The serialized checkpoint may finish afterward; pruning waits for durability.
+Only one automatic checkpoint is pending. A persistence error retains changes
+and prevents another shift; the existing edge guard still stops unsafe travel.
+An explicit successful save can recover that condition. Initial loading,
+explicit distant teleportation and save restoration retain synchronous setup.
+
+Rendering rebases coordinates before they reach Pixi. Terrain textures retain
+their global identity across rebases; actor animation, effects, sky, soil grain,
+water and depth ordering use the same translation. Texture chunks remain 16×16,
+independent of the data-chunk size. Camera bounds belong only to finite worlds.
+Minimaps use a local image and persisted discovery masks; preparation alone does
+not reveal terrain. M cycles radar, a larger regional view, and hidden.
+
+Supported global tile coordinates are bounded by ±2,147,483,647. Runtime travel
+reserves a 1,024-tile margin for feature and viewport queries. This is practical
+unbounded exploration, not mathematical infinity. Numeric diagnostic zoom in
+streamed worlds is at least 0.5; normal automatic zoom remains pixel-aligned.
+
+### Biome and region identity
+
+Only Forest is registered for play. The biome registry versions terrain tuning,
+asset palettes, object distributions, features, encounter lists, effects and
+transition settings. Climate fields are stable, large-scale signed-coordinate
+fields. Explicit allowed-version lists control selection: installing a new
+biome definition alone cannot change an existing world's selection policy.
+
+The first preparation of a 256×256 generation region commits its biome and
+generator identity. Existing region records and inherited snapshot records must
+match before generation can proceed; unsupported versions fail instead of being
+silently regenerated. Version 13 shares global hydrology/elevation fields across
+all chunk edges. A future expansion release must retain those boundary facts,
+resolve established region versions first, and adapt new territory on its side
+of a transition. There are no placeholder playable biomes in this release.
+
+`WorldEdits` supplies typed tile, removal, placement and event records for future
+systems. Existing cutting, loot, chest and encounter changes already persist.
+There are no new player building or terrain-editing controls.

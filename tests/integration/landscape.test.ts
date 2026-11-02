@@ -99,7 +99,7 @@ it('keeps partial conversion and alternate source iteration deterministic withou
     bridges: [...old.bridges!].reverse(),
     encounterSites: [...old.encounterSites!].reverse(),
   };
-  const bySource = (w: WorldData) => w.props.filter((p) => p.hilltop).sort((a, b) => a.id - b.id);
+  const bySource = (w: WorldData) => w.props.filter((p) => p.hilltop).sort((a, b) => Number(a.id) - Number(b.id));
   expect(bySource(prepareHilltopObjects(reversed))).toEqual(bySource(captured));
   const partial = {
     ...old,

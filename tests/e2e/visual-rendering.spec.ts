@@ -13,7 +13,7 @@ async function boot(page: Page, query: string): Promise<string[]> {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`/?debug=1&autostart=1&${query}`);
+  await page.goto(`/?world=finite&debug=1&autostart=1&${query}`);
   await page.waitForFunction(() => window.__RENDER_DEBUG__ !== undefined && window.__GAME__?.getState().ui.currentMenu === null);
   await page.evaluate(() => window.__GAME__!.setDaylightRatio(0.5));
   return errors;
@@ -141,7 +141,8 @@ test('enemy attack telegraph and death fade render without errors', async ({ pag
 async function controlledBoot(page: Page, query = 'tutorial=1'): Promise<string[]> {
   await page.clock.install();
   const errors = await boot(page, query);
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
+  // Leave room for Firefox protocol scheduling on a busy host.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   return errors;
 }
 

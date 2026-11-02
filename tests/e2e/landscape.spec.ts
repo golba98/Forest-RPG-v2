@@ -6,7 +6,7 @@ test('shared landscape inspector, required access, terminal and cached-chunk/rel
   test.setTimeout(60000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=42');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=42');
   await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
   const initial = await page.evaluate(() => {
     window.__GAME__!.setDaylightRatio(0.5);

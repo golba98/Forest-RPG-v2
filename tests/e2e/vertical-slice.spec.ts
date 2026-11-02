@@ -4,7 +4,7 @@ test('boots, moves, pauses and resizes without browser errors', async ({ page })
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', msg => { if (msg.type() === 'error' || msg.text().includes('missing texture')) errors.push(msg.text()); });
-  await page.goto('/?debug=1&autostart=1&tutorial=1&seed=123');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=1&seed=123');
   await page.waitForFunction(() => !!window.__GAME__);
   const before = await page.evaluate(() => window.__GAME__!.getState().player.y);
   await page.keyboard.down('KeyW'); await page.waitForTimeout(200); await page.keyboard.up('KeyW');

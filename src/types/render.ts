@@ -93,6 +93,9 @@ export interface EnvironmentView {
 }
 
 export interface RenderSnapshot {
+  readonly round?: import('./gameplay').RoundStatus;
+  readonly travelPrompt?: string | undefined;
+  readonly streamingError?: string;
   readonly moisture?: import('../systems/SurfaceMoisture').MoistureView;
   readonly elapsedMs?: number;
   readonly encounters?: import('./encounters').EncounterPresentation;
@@ -116,6 +119,22 @@ export interface CameraView {
   readonly boundsClamped: boolean;
 }
 
+export interface WorldResidencyStats {
+  readonly renderCpuMs?: number;
+  readonly residentChunks: number;
+  readonly requiredChunks: number;
+  readonly visibleChunks: number;
+  readonly queuedChunks: number;
+  readonly resourceBytes: number;
+  readonly stagingBytes: number;
+  readonly budgetBytes: number;
+  readonly requiredBytes: number;
+  readonly evictions: number;
+  readonly urgentMisses: number;
+  readonly preparationMs: number;
+  readonly maxPreparationMs: number;
+}
+
 export interface RendererStats {
   readonly backend: 'webgl' | 'webgpu' | 'canvas' | 'unknown';
   readonly canvasWidth: number;
@@ -126,6 +145,7 @@ export interface RendererStats {
   readonly renderedEntities: number;
   /** Sprites currently drawn with the missing-art placeholder (should be 0). */
   readonly placeholderSprites?: number;
+  readonly residency?: WorldResidencyStats | undefined;
 }
 
 export interface RendererInitOptions {

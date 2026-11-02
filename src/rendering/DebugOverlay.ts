@@ -29,6 +29,9 @@ interface HudBounds { readonly x: number; readonly y: number; readonly width: nu
 
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
+  readonly worldObjects?: readonly { key: string; id?: import('../types/world').WorldObjectId; hilltop: boolean; x: number; y: number; width: number; height: number; depth: number; assetId: string; resident: boolean; visible: boolean }[];
+  readonly residency?: Partial<import('../types/render').WorldResidencyStats> & { residentObjects: number; worldObjects: number; renderCpuMs: number };
+  readonly atmosphere?: { births: readonly { cloud: import('./chunkMath').WorldRect; shadow: import('./chunkMath').WorldRect; guard: import('./chunkMath').WorldRect }[]; formations: readonly { x: number; y: number; shadowX: number; shadowY: number; age: number }[] };
   readonly playerSlash?: import('./effects/EffectsLayer').PlayerSlashView | null;
   /** Actual displayed texture and transform, rather than the next requested pose. */
   readonly playerSprite?: {
@@ -44,7 +47,7 @@ export interface VisualDebugInfo {
   } | null;
   readonly groveViews?: readonly { id: string; x: number; y: number; width: number; height: number; scaleX: number; scaleY: number; depth: number; fungi: number }[];
   readonly propViews?: number;
-  readonly hilltopViews?: readonly { id: number; x: number; y: number; depth: number; visible: boolean }[];
+  readonly hilltopViews?: readonly { id: import('../types/world').WorldObjectId; x: number; y: number; depth: number; visible: boolean }[];
   readonly playerDepth?: number | undefined;
   readonly wading?: { readonly x: number; readonly waterlineY: number; readonly spriteY: number } | null;
   readonly hud?: {
@@ -75,6 +78,8 @@ export interface VisualDebugInfo {
 
 /** `window.__RENDER_DEBUG__`, installed in debug builds only. */
 export interface RenderDebugGateway {
+  getResidency(): import('../types/render').WorldResidencyStats | null;
+  setZoom(zoom: number | 'auto'): void;
   setFlags(flags: Partial<VisualDebugFlags>): void;
   getFlags(): VisualDebugFlags;
   getInfo(): VisualDebugInfo;

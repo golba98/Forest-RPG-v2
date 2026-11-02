@@ -78,3 +78,30 @@ contributors. Full original contributor lists, source links, licence text and th
 statement ship in the [public attribution folder](../../public/assets/images/environment/lpc/README.md).
 Artwork derivatives must retain that licence; these notices do not change unrelated project-code
 licensing. Source sheets have their original alpha, including translucent contact shadows.
+
+
+## Player character remaster (2026-10-31)
+
+The existing white rounded protagonist is remastered from the project's original player sheets at baseline `a5cd38b`. Original references and the selected image-generation sources are retained in `docs/assets/source/player-remaster/`; `provenance.json` records the tool and direction briefs. No third-party replacement character was downloaded. The original artwork's ownership is inherited from the repository; this work makes no new public-domain claim about that source.
+
+The built-in image-generation tool produced the revised drawings. Large multi-direction drafts were rejected for missing rows and facing drift. That earlier set used separately generated direction sheets; the northeast sheet received a further back-facing correction. It was later superseded by the fixed-model pipeline below. `scripts/prepare-player-remaster.mjs` reproducibly extracts the selected drawings, registers them to a common foot reference, quantizes the shared 13-colour palette and packs 56 strips containing 456 frames. All directions have their own pixels, including southwest running. The two additional punch stages are stored as `attack2` and `attack3`.
+
+The five original movement colours are retained in the expanded palette: ivory `#faf3e8`, outline `#2f2522`, shadow `#b9b3a1`, warm midtone `#e7d5c6`, and cheek pink `#d19da7`. The original head/body relationship, short limbs and facial marks remain the identity references. Additional resolution supports smaller contour steps and shading clusters while the resting body stays approximately 32 world pixels tall.
+
+### Approved player study and final consistency pass
+
+`docs/assets/source/player-rework/` contains reference-guided image-generation drawings, the rejected comparison strips, 69 native sample frames, an explicit preparation manifest and prompts/hashes in `provenance.json`. The original protagonist remains the identity reference. Broader head light/shadow planes, selective outlines, attached limb shapes and revised movement/punch poses are the focus. No external replacement character was imported.
+
+The study uses a shared 12-colour palette and one uniform reduction of every generated sheet. Individual poses are translated onto the foot reference, never independently stretched. Native frames are then packed losslessly for the development-only review server. The user approved this treatment and requested consistent proportions and smoother transitions. The archived sample remains available for comparison.
+
+
+`docs/assets/source/player-final/` contains the completed eight-direction model and 456 native frames. The built-in image-generation tool produced the additional direction reference sheet using the approved turnaround. Three approved sample heads are preserved exactly; five additional heads and torso references use one uniform source reduction. No third-party character was downloaded. Original source rights remain inherited from the project; no public-domain claim is made.
+
+`model.json`, `manifest.json` and `provenance.json` retain dimensions, palette, pose definitions, input/output hashes and the generation prompt. `scripts/player-art/poses.mjs` defines small integer movements of fixed-size parts; `scripts/build-player-final.mjs` creates all 56 production strips with crisp binary alpha. It does not independently scale frames or interpolate between raster images. The old generated sources and the approved sample are retained so the change can be inspected and reproduced.
+
+
+### Approved artwork restored; playback-only refinement
+
+The user clarified that **“Rejected remaster” is the approved appearance** and selected keeping every drawing unchanged. The 56 PNG strips were restored and verified against the hashes recorded before the later rework. The current preparation command is `node scripts/prepare-player-remaster.mjs`; `docs/assets/source/player-remaster/approved-hashes.json` locks the approved bytes. No new artwork, image-generation output, recolouring, resizing or in-between drawings are part of this playback refinement.
+
+The later sample and fixed-model sources remain historical references only. Their earlier acceptance labels above describe the superseded interpretation, not the current choice. The review defaults to **Approved remaster** and compares playback timing using the same sprites. Movement settling and punch dwell times live in presentation metadata/code, with no change to the source artwork or its provenance.

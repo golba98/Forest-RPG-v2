@@ -26,6 +26,11 @@ export class NestView {
     this.particles.clear();
   }
   update(snapshot: RenderSnapshot, actors: Container, textures: TextureStore, time: number): void {
+    const active=new Set((snapshot.encounters?.sites??[]).filter(s=>s.kind==='nest').map(s=>s.id));
+    for(const [id,v] of this.views)if(!active.has(id)){
+      for(const s of [v.body,v.front,v.cleared,v.ground,v.mask])s.destroy();
+      this.views.delete(id);
+    }
     this.particles.clear();
     for (const site of snapshot.encounters?.sites ?? []) {
       if (site.kind !== 'nest') continue;

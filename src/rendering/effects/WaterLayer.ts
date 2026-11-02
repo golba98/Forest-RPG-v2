@@ -13,6 +13,10 @@ interface Crest {
 }
 /** World-space crests cross tile and chunk boundaries instead of restarting inside each cell. */
 export class WaterLayer {
+  rebase(world: RiverGrid, dx: number, dy: number): void {
+    this.field = new RiverField(world);
+    for (const c of this.crests) { c.x -= dx; c.y -= dy; }
+  }
   readonly view = new Graphics();
   private field: RiverField | null = null;
   private sequence = 0;
@@ -51,7 +55,8 @@ export class WaterLayer {
     const x1 = Math.min(w - 1, Math.floor((rect.x + rect.width) / 32)), y1 = Math.min(h - 1, Math.floor((rect.y + rect.height) / 32));
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
       if (world.tiles[ty * w + tx] !== Tile.RIVER) continue;
-      const hash = hashTile(tx, ty);
+      const window = (world as RiverGrid & { window?: { originX: number; originY: number } }).window;
+      const hash = hashTile(tx+(window?.originX??0), ty+(window?.originY??0));
       for (let n = 0; n < 2; n++) {
         const r = n ? hash >>> 13 : hash, period = 1400 + r % 900;
         const phase = (this.time / period + ((r >>> 5) & 255) / 255) % 1;

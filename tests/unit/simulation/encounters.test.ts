@@ -69,7 +69,7 @@ it('cuts a flower tile and a flower prop in the facing cone, but leaves flowers 
   world.tiles[4 * 8 + 3] = Tile.FLOWERS;
   (world.props as import('../../../src/types/world').WorldProp[]).push({ id: 1, kind: 'flower_pink', tileX: 5, tileY: 4, solid: false });
   const s = new Simulation(); s.loadWorld(world); s.player.facing = 'E';
-  const changes: Array<number | undefined> = [];
+  const changes: Array<import('../../../src/types/world').WorldObjectId | undefined> = [];
   s.onCut = (_x, _y, id) => changes.push(id);
   s.step(1 / 60, { ...IDLE_INTENT, attack: true });
   for (let i = 0; i < 10; i++) s.step(1 / 60, { ...IDLE_INTENT });

@@ -20,6 +20,7 @@ export class GameShell implements Shell {
   private panel = document.createElement('section');
   private cancelCapture: (() => void) | null = null;
   private t(text: string): string { return translate(this.settings.value.language, text); }
+  private savePending=false;
   private previousFocus: HTMLElement | null = null;
   constructor(private settings: SettingsStore, private applySettings: () => void) {
     this.panel.id = 'game-overlay'; this.panel.hidden = true;
@@ -38,12 +39,13 @@ export class GameShell implements Shell {
     });
   }
   onLoadingProgress(progress: number, status: string): void {
+    document.querySelector('#loading-screen')?.classList.remove('hidden');
     const label = document.querySelector('#loading-screen span'); if (label) label.textContent = `${status} ${Math.round(progress * 100)}%`;
   }
   onLoadingFailed(error: Error): void { const el = document.querySelector('#loading-screen'); if (el) el.textContent = `Unable to start: ${error.message}`; }
   onSceneChanged(scene: SceneState): void {
     this.cancelCapture?.(); this.cancelCapture = null;
-    if (scene === 'loading' || scene === 'error') return;
+    if (scene === 'loading' || scene === 'error') { this.panel.hidden = true; this.video.hidden = true; return; }
     document.querySelector('#loading-screen')?.classList.add('hidden');
     this.panel.hidden = scene === 'playing';
     this.video.hidden = scene !== 'menu';
@@ -92,21 +94,23 @@ export class GameShell implements Shell {
     };
     render();
   }
-  private withSave(action: () => void): void {
-    try { action(); } catch (error) {
+  private withSave(action: () => void | Promise<void>): void {
+    if(this.savePending)return;
+    const failed = (error: unknown) => {
       const notice = document.createElement('p'); notice.setAttribute('role', 'alert'); notice.textContent = error instanceof Error ? error.message : 'Unable to access saved game'; this.panel.firstElementChild?.append(notice);
-    }
+    };
+    try { const pending=action(); if(pending instanceof Promise){this.savePending=true;const buttons=[...this.panel.querySelectorAll('button')];for(const button of buttons)button.disabled=true;void pending.catch(failed).finally(()=>{this.savePending=false;for(const button of buttons)button.disabled=false;});} } catch(error) { failed(error); }
   }
   private exportSave(): void {
-    this.withSave(() => {
+    this.withSave(async () => {
       if (!this.saves) throw new Error('Save manager unavailable');
-      const url = URL.createObjectURL(new Blob([this.saves.export()], { type: 'application/json' }));
-      const link = document.createElement('a'); link.href = url; link.download = 'forest-rpg-save.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const url = URL.createObjectURL(await this.saves.exportFile());
+      const link = document.createElement('a'); link.href = url; link.download = this.simulation?.stream ? 'forest-rpg-world.jsonl' : 'forest-rpg-save.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
   }
   private importSave(): void {
-    const input = document.createElement('input'); input.type = 'file'; input.accept = 'application/json,.json';
-    input.onchange = () => { const file = input.files?.[0]; if (file) void file.text().then(text => this.withSave(() => this.saves?.import(text))); }; input.click();
+    const input = document.createElement('input'); input.type = 'file'; input.accept = 'application/json,application/x-ndjson,.json,.jsonl';
+    input.onchange = () => { const file = input.files?.[0]; if (file) this.withSave(async () => { if(file.name.endsWith('.jsonl')) await this.saves?.importArchive(file); else await this.saves?.import(await file.text()); }); }; input.click();
   }
   private play(): void {
     if (!this.settings.value.tutorials || this.onboarding.value.seen || this.onboarding.value.complete) {

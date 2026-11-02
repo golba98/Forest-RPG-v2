@@ -1,0 +1,13 @@
+{
+  "provenance": "Pre-optimization production source map, baseline build 233277b6603e46ac24eb76312ab40deb32e5f900c0179bbbd6c4192f9eae1caf",
+  "rows": [
+    {
+      "vertical": false,
+      "hash": "4d0bc0ca8c05deb431c9172aec2d67791d7d4c14cd4504069ab9c6bc1810dbdb"
+    },
+    {
+      "vertical": true,
+      "hash": "51b994a9e5e3db2cc582264b38027e1f0206d168daa686ffd581d97cf88e4f25"
+    }
+  ]
+}

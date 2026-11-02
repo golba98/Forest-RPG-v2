@@ -17,7 +17,21 @@
     "benchmark": "vitest bench --run",
     "sanitize-assets": "node scripts/sanitize-assets.js",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "profile:build": "VITE_PERF_PROFILE=1 vite build --outDir artifacts/performance/profile-build",
+    "profile:fixtures": "node scripts/performance/fixtures.mjs",
+    "profile:routes": "node scripts/performance/prepare-routes.mjs",
+    "profile:calibrate": "node scripts/performance/calibrate.mjs",
+    "profile:scenarios": "node scripts/performance/run.mjs scenarios",
+    "profile:stress": "node scripts/performance/run.mjs stress",
+    "profile:analyze": "node scripts/performance/analyze.mjs",
+    "profile:lab": "node scripts/performance/lab.mjs",
+    "profile:trace": "node scripts/performance/trace.mjs",
+    "profile:refresh": "node scripts/performance/refresh.mjs",
+    "profile:record": "node scripts/performance/record.mjs",
+    "profile:report-data": "node scripts/performance/report-data.mjs",
+    "profile:cold": "node scripts/performance/cold.mjs",
+    "profile:platform": "node scripts/performance/platform.mjs"
   },
   "dependencies": {
     "pixi.js": "^8.6.6"
