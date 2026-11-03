@@ -11,7 +11,6 @@ function required<T extends Element>(selector: string): T {
 }
 const frame = required<HTMLIFrameElement>('#game');
 const art = required<HTMLSelectElement>('#art');
-const playback = required<HTMLSelectElement>('#playback');
 const direction = required<HTMLSelectElement>('#direction');
 const scene = required<HTMLSelectElement>('#scene');
 const weather = required<HTMLSelectElement>('#weather');
@@ -44,7 +43,9 @@ async function load() {
       masterVolume: 0,
     }),
   );
-  frame.src = `/?debug=1&autostart=1&tutorial=0&seed=42&playerArt=${art.value}&playerFlow=${playback.value}`;
+  // This matched-scene fixture uses the finite saved-world format. The main
+  // game's streamed worlds now use an asynchronous save repository instead.
+  frame.src = `/?world=finite&debug=1&autostart=1&tutorial=0&seed=42&playerArt=${art.value}`;
   await new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
   for (let i = 0; i < 300 && !frame.contentWindow?.__GAME__; i++) await sleep(100);
   reset();
@@ -68,14 +69,26 @@ const movementKeys: Record<StudyDirection, string[]> = {
   W: ['KeyA'],
   SW: ['KeyS', 'KeyA'],
 };
-async function action(kind: 'walk' | 'run' | 'jump' | 'punch' | 'combo') {
+async function action(kind: 'walk' | 'run' | 'jump' | 'punch' | 'combo' | 'connected') {
   if (busy) return;
   busy = true;
   const held: string[] = [];
   try {
     reset();
     await sleep(150);
-    if (kind === 'combo') {
+    if (kind === 'connected') {
+      held.push(...movementKeys[direction.value as StudyDirection], 'ShiftLeft');
+      for (const code of held) key(code, true);
+      await sleep(250);
+      key('Space', true);
+      await sleep(50);
+      key('Space', false);
+      await sleep(70);
+      key('KeyE', true);
+      await sleep(40);
+      key('KeyE', false);
+      await sleep(430);
+    } else if (kind === 'combo') {
       for (let stage = 0; stage < 3; stage++) {
         key('KeyE', true);
         await sleep(40);
@@ -100,9 +113,6 @@ async function action(kind: 'walk' | 'run' | 'jump' | 'punch' | 'combo') {
     busy = false;
   }
 }
-playback.addEventListener('change', () => {
-  void load();
-});
 art.addEventListener('change', () => {
   void load();
 });
@@ -114,7 +124,7 @@ document.querySelector('#walk')?.addEventListener('click', () => {
 document.querySelector('#punch')?.addEventListener('click', () => {
   void action('punch');
 });
-for (const kind of ['run', 'jump', 'combo'] as const)
+for (const kind of ['run', 'jump', 'combo', 'connected'] as const)
   document.querySelector(`#${kind}`)?.addEventListener('click', () => {
     void action(kind);
   });

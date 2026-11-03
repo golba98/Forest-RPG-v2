@@ -59,7 +59,7 @@ for (const [facing, keys, suffix, dx, dy] of cases)
         expect(frame.flipX).toBe(false);
         seen.add(frame.frame.x);
       }
-      expect(seen.size).toBe(8);
+      expect(seen.size).toBe(16);
       expect(Math.sign(s.player.x - 20.5)).toBe(dx);
       expect(Math.sign(s.player.y - 20.5)).toBe(dy);
       input.simulateKeyUp('ShiftLeft');
@@ -81,10 +81,15 @@ it('uses distinct southwest source pixels without a runtime mirror', async () =>
   expect(sw.equals(se)).toBe(false);
   // Independently drawn left-facing art keeps its own lighting and frame order.
   for (let frame = 0; frame < 8; frame++) {
-    const view = { spriteKey: 'player', anim: 'run' as const, animTimeMs: frame * 1000 / 34 + .001 };
+    const view = {
+      spriteKey: 'player',
+      anim: 'run' as const,
+      animTimeMs: (frame * 1000) / 34 + 0.001,
+    };
     const left = resolveSpriteFrame({ ...view, facing: 'SW' });
     const right = resolveSpriteFrame({ ...view, facing: 'SE' });
     expect(left.frame).toEqual(right.frame);
-    expect(left.flipX).toBe(false); expect(right.flipX).toBe(false);
+    expect(left.flipX).toBe(false);
+    expect(right.flipX).toBe(false);
   }
 });
