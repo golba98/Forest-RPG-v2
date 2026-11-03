@@ -18,8 +18,8 @@ test('Play opens five real biomes in one world and preserves the adventure save'
     ),
   );
   await page.goto('/?debug=1&seed=42');
-  await page.getByTestId('new-game-button').click();
-  await page.getByTestId('biome-walk-button').click();
+  await page.getByTestId('developer-button').click();
+  await page.getByRole('button', { name: 'Biomes', exact: true }).click();
   await expect(page.locator('.biome-card')).toHaveCount(5);
   await page.waitForFunction(() =>
     [...document.querySelectorAll<HTMLImageElement>('.biome-card img')].every(
@@ -73,7 +73,8 @@ test('Play opens five real biomes in one world and preserves the adventure save'
   expect(await page.evaluate(() => localStorage.getItem('forestrpg.v3.slot.auto'))).toBeNull();
   await page.getByRole('button', { name: 'Return to Menu', exact: true }).click();
   await page.getByTestId('new-game-button').click();
-  await page.getByTestId('adventure-button').click();
+  await page.getByTestId('create-world-button').click();
+  await page.getByRole('button', { name: 'Create and Play', exact: true }).click();
   await page.waitForFunction(
     () =>
       window.__GAME__?.getState().ui.currentMenu === null &&
@@ -85,12 +86,13 @@ test('Play opens five real biomes in one world and preserves the adventure save'
   const adventure = await page.evaluate(() => window.__GAME__!.getStreamingDebug()!.globalPosition);
   await page.keyboard.press('Escape');
   await page.getByTestId('main-menu-button').click();
-  await page.getByTestId('new-game-button').click();
-  await page.getByTestId('biome-walk-button').click();
+  await page.getByTestId('developer-button').click();
+  await page.getByRole('button', { name: 'Biomes', exact: true }).click();
   await page.getByTestId('explore-forest').click();
   await expect(page.getByTestId('biome-walk-hud')).toBeVisible({ timeout: 60000 });
   await page.getByRole('button', { name: 'Return to Menu', exact: true }).click();
-  await page.getByTestId('continue-button').click();
+  await page.getByTestId('new-game-button').click();
+  await page.getByRole('button', { name: 'Play / Resume', exact: true }).first().click();
   await page.waitForFunction(
     () => window.__GAME__?.getStreamingDebug()?.mode === 'adventure',
     {},
@@ -170,8 +172,8 @@ test('keyboard walking crosses the former map edge and a natural biome boundary'
     ),
   );
   await page.goto('/?debug=1&seed=42');
-  await page.getByTestId('new-game-button').click();
-  await page.getByTestId('biome-walk-button').click();
+  await page.getByTestId('developer-button').click();
+  await page.getByRole('button', { name: 'Biomes', exact: true }).click();
   await page.getByTestId('explore-forest').click();
   await expect(page.getByTestId('biome-walk-hud')).toBeVisible({ timeout: 60000 });
   // Keep timers running while streaming prepares a diagnostic approach. A paused
@@ -228,8 +230,8 @@ test('failed biome artwork loading keeps the current world intact and allows ret
 }) => {
   test.setTimeout(120000);
   await page.goto('/?debug=1&seed=42');
-  await page.getByTestId('new-game-button').click();
-  await page.getByTestId('biome-walk-button').click();
+  await page.getByTestId('developer-button').click();
+  await page.getByRole('button', { name: 'Biomes', exact: true }).click();
   await page.getByTestId('explore-forest').click();
   await expect(page.getByTestId('biome-walk-hud')).toBeVisible({ timeout: 60000 });
   const before = await page.evaluate(() => window.__GAME__!.getStreamingDebug()!);

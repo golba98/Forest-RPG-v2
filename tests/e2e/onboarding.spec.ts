@@ -1,14 +1,9 @@
 import { test, expect } from '@playwright/test';
-test('first-time welcome is remembered after skipping', async ({ page }) => {
+test('Play opens worlds without forcing the tutorial', async ({ page }) => {
   await page.goto('/?debug=1');
   await page.getByTestId('new-game-button').click();
-  await page.getByTestId('adventure-button').click();
-  await expect(page.getByRole('heading', { name: 'Welcome to the forest' })).toBeVisible();
-  await page.getByRole('button', { name: 'Skip for now' }).click();
-  await page.reload();
-  await page.getByTestId('new-game-button').click();
-  await page.getByTestId('adventure-button').click();
-  await expect(page.locator('#game-overlay')).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Your Worlds' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to the forest' })).toHaveCount(0);
 });
 test('settings exposes tutorial preferences and controls', async ({ page }) => {
   await page.goto('/?debug=1');
@@ -20,6 +15,5 @@ test('settings exposes tutorial preferences and controls', async ({ page }) => {
   await page.screenshot({ path: 'test-results/settings.png' });
   await page.reload();
   await page.getByTestId('new-game-button').click();
-  await page.getByTestId('adventure-button').click();
-  await expect(page.locator('#game-overlay')).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Your Worlds' })).toBeVisible();
 });

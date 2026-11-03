@@ -151,17 +151,12 @@ test('settings keyboard navigation, rebinding, cancel and resets remain usable',
   await expect(page.getByRole('combobox', { name: 'Frame limit', exact: true })).toHaveValue('60');
 });
 
-test('welcome, pause, character and game-over share the theme and return to gameplay', async ({
+test('tutorial, pause, character and game-over share the theme and return to gameplay', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 800, height: 600 });
   await page.goto('/?debug=1');
-  await page.getByTestId('new-game-button').click();
-  await page.getByTestId('adventure-button').click();
-  await expect(page.locator('#game-overlay')).toHaveAttribute('data-screen', 'welcome');
-  await expectPanelFits(page);
-  await capture(page, testInfo, 'welcome');
-  await page.getByRole('button', { name: 'Start tutorial', exact: true }).click();
+  await page.getByTestId('tutorial-button').click();
   await expect(page.locator('#game-overlay')).toBeHidden();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('resume-button')).toBeVisible();

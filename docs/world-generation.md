@@ -299,7 +299,7 @@ publishing terrain. Generators 13, 14 and 15 retain their original fields and ob
 
 ### Biome Walk
 
-Play → Biome Walk selects a safe starting location in a persistent seed-42 world.
+Developer → Biomes selects a safe starting location in a persistent seed-42 world.
 `BiomeLanding` searches the actual generated/edited window, excludes water starts,
 and validates the player footprint plus at least 80 reachable nearby positions
 with the normal swept movement rules. New landings prefer a safe approach

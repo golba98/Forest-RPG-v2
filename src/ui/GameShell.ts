@@ -1,4 +1,5 @@
 import { worldLibraryMenu } from './WorldLibraryMenu';
+import { developerMenu } from './DeveloperMenu';
 import { biomeChoices, BiomeWalkHud } from './BiomeWalk';
 import type { BiomeId } from '../world/Biomes';
 import { STREAM_GENERATOR_VERSION } from '../world/infinite/types';
@@ -158,7 +159,7 @@ export class GameShell implements Shell {
       if (scene === 'menu' && this.saves?.hasTutorialSave()) button('Resume Tutorial', 'continue-button', () => { this.saves?.developerContext(); this.withSave(() => this.saves?.load()); });
       button('Play', 'new-game-button', () => this.showPlay());
       button('Tutorial', 'tutorial-button', () => { this.saves?.developerContext(); this.game.startNewGame({ tutorial: true }); });
-      if (scene === 'menu') button('Biome Walk', 'biome-walk-button', () => this.showBiomes());
+      if (scene === 'menu') button('Developer · Demo', 'developer-button', () => this.showDeveloper());
     }
     if (scene === 'paused') {
       if (this.simulation?.stream?.exploration)
@@ -198,6 +199,13 @@ export class GameShell implements Shell {
     const saves = this.saves;
     if (box && saves) this.withSave(() => worldLibraryMenu(box, saves, this.settings.value.difficulty, () => this.onSceneChanged('menu')));
   }
+  private showDeveloper(): void {
+    this.closeDeveloper?.();
+    this.panel.dataset.screen = 'developer';
+    const box = this.panel.firstElementChild as HTMLElement | null;
+    if (box) this.closeDeveloper = developerMenu(box, () => { this.closeDeveloper?.(); this.showBiomes(); }, () => this.onSceneChanged('menu'));
+    if (box) { const b = document.createElement('button'); b.textContent = 'Import exploration save'; b.onclick = () => { this.saves?.developerContext(); this.importSave(); }; box.append(b); }
+  }
   private showBiomes(): void {
     if (this.game.currentScene === 'playing') this.game.pause();
     this.panel.hidden = false;
@@ -208,7 +216,7 @@ export class GameShell implements Shell {
       box,
       (id) => this.withSave(() => this.exploreBiome(id)),
       () => {
-        if (this.game.currentScene === 'menu') this.onSceneChanged('menu');
+        if (this.game.currentScene === 'menu') this.showDeveloper();
         else this.onSceneChanged('paused');
       },
     );

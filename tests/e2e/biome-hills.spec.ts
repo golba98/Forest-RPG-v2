@@ -11,8 +11,8 @@ async function choose(page: Page, id: (typeof ids)[number]) {
   await expect(page.getByTestId('biome-walk-hud')).toBeVisible({ timeout: 60000 });
 }
 async function playMenu(page: Page) {
-  await page.getByTestId('new-game-button').click();
-  await page.getByTestId('biome-walk-button').click();
+  await page.getByTestId('developer-button').click();
+  await page.getByRole('button', { name: 'Biomes', exact: true }).click();
 }
 test('every biome has visible high ground, walkable slopes and solid cliff faces', async ({
   page,

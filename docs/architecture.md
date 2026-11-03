@@ -48,3 +48,9 @@ residency classes, world types and save/UI entry points. Renderer integration de
 `TerrainChunks`, `WorldObjects`, `WorldVisibility` and `ResidencyCache`; source
 artwork remains owned by the existing asset pipelines. Rendering data chunks (32 tiles)
 and existing texture chunks (16 tiles) deliberately remain separate concerns.
+
+## World library and demo content browser
+
+`WorldLibraryMenu` owns the Play world-list and creation screens; `SaveManager` coordinates library operations with `WorldRepository`. `WorldLibraryEntry` defines stable player-facing identity. Each streamed session captures its library context at construction, so automatic streaming checkpoints cannot target a different adventure after menu navigation. New level sessions inherit the active library context.
+
+`DeveloperMenu` is a demo-only registration in `GameShell`, independent of player-world operations. Its canvas previews use the runtime visual manifest, environment catalog and animation frame resolver, without advancing simulation or emitting gameplay audio. Leaving the browser cancels its animation frame and releases image references. Biome exploration uses the existing isolated exploration save slots. Remove the Developer menu registration and module when the demo tools are retired.
