@@ -15,10 +15,10 @@ const directions = [
   ['SW', ['KeyS', 'KeyA']],
 ] as const;
 
-test('approved sprite delivery and idle appearance are unchanged', async ({ page }, info) => {
+test('corrected sprite delivery and stable idle appearance', async ({ page }, info) => {
   const errors = await boot(page);
   const hashes = JSON.parse(
-    await fs.readFile('docs/assets/source/player-remaster/approved-hashes.json', 'utf8'),
+    await fs.readFile('docs/assets/source/player-face-continuity/sheet-hashes.json', 'utf8'),
   ) as Record<string, string>;
   for (const [file, hash] of Object.entries(hashes)) {
     const response = await page.request.get(`/assets/images/characters/player/${file}`);
