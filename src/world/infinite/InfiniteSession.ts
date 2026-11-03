@@ -48,6 +48,7 @@ export function infiniteDescriptor(options: WorldGenOptions): InfiniteDescriptor
 }
 /** Authoritative chunks plus a bounded compatibility view for the existing swept physics. */
 export class InfiniteSession {
+  readonly libraryEntry = WorldRepository.libraryContext;
   readonly source: ChunkSource;
   readonly generator: ForestGenerator;
   readonly deltas = new Map<string, ChunkDelta>();
@@ -58,6 +59,7 @@ export class InfiniteSession {
     return this.descriptor.mode === 'biome-walk';
   }
   saveSlot(slot = 'auto'): string {
+    if (slot === 'auto' && this.libraryEntry && !this.exploration) return this.libraryEntry.id;
     return this.exploration
       ? slot === 'auto'
         ? 'biome-walk'
@@ -793,7 +795,12 @@ export class InfiniteSession {
       .catch(() => {})
       .then(() =>
         this.repository
-          .checkpoint(committed, changes, slot === undefined ? undefined : this.saveSlot(slot))
+          .checkpoint(
+            committed,
+            changes,
+            slot === undefined ? undefined : this.saveSlot(slot),
+            this.libraryEntry,
+          )
           .then(() => {
             this.lastCheckpoint = committed;
           }),

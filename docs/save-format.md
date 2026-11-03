@@ -56,7 +56,7 @@ the captured v10 seed-42 world rather than assuming v13 repeats its landforms.
 ## Streamed worlds: schema 3
 
 Streamed worlds use native IndexedDB database `forestrpg.worlds`. Its internal
-database revision is 4; this is separate from save schema 3 and generator versions 13/14/15/16.
+database revision is 5; this is separate from save schema 3 and generator versions 13/14/15/16.
 Settings and finite/tutorial schema-2 saves retain their existing localStorage
 formats. Small `forestrpg.v3.slot.<slot>` values index streamed slots; `1` means a
 streamed save and `0` means a newer finite/tutorial save takes precedence. These
@@ -110,7 +110,7 @@ on startup; localStorage is only an index, not the durable world state.
 
 Exploration autosaves atomically pin an additional `walk-v<generator>` slot to
 the same checkpoint. Startup also pins a pre-existing exploration before opening
-new terrain. Play → Biome Walk opens/resumes version 16, while the versioned **Resume previous
+new terrain. Biome Walk opens/resumes version 16, while the versioned **Resume previous
 landscape** buttons load preserved version-14 or version-15 checkpoints and their edits. Change Biome
 within either session keeps that session's version. Returning from the older
 landscape cannot overwrite the pinned newer one. Adventure saves are unaffected;
@@ -133,3 +133,11 @@ checksum. Export reads records incrementally. Import stages records under a new
 storage identity and validates the complete archive before replacing the game;
 truncated, unsupported or malformed data does not partially load. Failed staging
 is removed. Schema-2 `.json` and original-format import remain supported.
+
+## Named world library
+
+IndexedDB revision 5 adds `library` and `libraryMigrations` stores. A library entry has a stable 32-character ID, display name, original seed, difficulty, level and timestamps. Its ID is also its save slot; runtime streamed descriptors remain independent copy-on-write identities. Library checkpoints commit catalog metadata, slot references and chunk changes together. Portal transitions retain the active library identity while generating the next level.
+
+Play lists adventures by last played date. Creation accepts a 1–64 character trimmed name and an optional unsigned 32-bit seed. Import creates another entry, and export uses the existing JSON/JSONL formats. Supported previous adventure slots migrate once; exploration and tutorial slots remain separate. Deleting an entry removes its catalog and slot references and records a tombstone against late checkpoints; historical chunk records remain available to existing lineages.
+
+Biome Walk retains its existing dedicated slots. Tutorial saves never target an adventure library slot.

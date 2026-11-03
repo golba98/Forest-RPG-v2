@@ -1,3 +1,4 @@
+import { worldLibraryMenu } from './WorldLibraryMenu';
 import { biomeChoices, BiomeWalkHud } from './BiomeWalk';
 import type { BiomeId } from '../world/Biomes';
 import { STREAM_GENERATOR_VERSION } from '../world/infinite/types';
@@ -26,6 +27,7 @@ export class GameShell implements Shell {
     return translate(this.settings.value.language, text);
   }
   private savePending = false;
+  private closeDeveloper: (() => void) | undefined;
   private explorationHud: BiomeWalkHud;
   private previousFocus: HTMLElement | null = null;
   constructor(
@@ -50,12 +52,14 @@ export class GameShell implements Shell {
     this.video.className = 'menu-backdrop';
     document.body.append(this.video, this.panel);
     this.panel.addEventListener('keydown', (e) => {
+      if (this.panel.querySelector('[data-busy=true]')) { if (e.code === 'Escape') e.preventDefault(); return; }
       if (e.code === 'Escape') {
         e.preventDefault();
         if (
           this.panel.dataset.screen === 'settings' ||
           this.panel.dataset.screen === 'welcome' ||
           this.panel.dataset.screen === 'play' ||
+          this.panel.dataset.screen === 'developer' ||
           this.panel.dataset.screen === 'biomes'
         )
           this.onSceneChanged(this.game.currentScene);
@@ -88,6 +92,8 @@ export class GameShell implements Shell {
     if (el) el.textContent = `Unable to start: ${error.message}`;
   }
   onSceneChanged(scene: SceneState): void {
+    this.closeDeveloper?.();
+    this.closeDeveloper = undefined;
     this.cancelCapture?.();
     this.cancelCapture = null;
     if (scene === 'loading' || scene === 'error') {
@@ -146,12 +152,13 @@ export class GameShell implements Shell {
         el.className = 'menu-button--primary';
       box.append(el);
     };
-    if (scene === 'menu' && this.saves?.exists())
-      button('Continue', 'continue-button', () => this.withSave(() => this.saves?.load()));
+
     if (scene === 'paused') button('Resume', 'resume-button', () => this.game.resume());
     else {
+      if (scene === 'menu' && this.saves?.hasTutorialSave()) button('Resume Tutorial', 'continue-button', () => { this.saves?.developerContext(); this.withSave(() => this.saves?.load()); });
       button('Play', 'new-game-button', () => this.showPlay());
-      button('Tutorial', 'tutorial-button', () => this.game.startNewGame({ tutorial: true }));
+      button('Tutorial', 'tutorial-button', () => { this.saves?.developerContext(); this.game.startNewGame({ tutorial: true }); });
+      if (scene === 'menu') button('Biome Walk', 'biome-walk-button', () => this.showBiomes());
     }
     if (scene === 'paused') {
       if (this.simulation?.stream?.exploration)
@@ -159,7 +166,7 @@ export class GameShell implements Shell {
       button('Save game', 'save-button', () => this.withSave(() => this.saves?.save()));
       button('Export save', 'export-button', () => this.exportSave());
     }
-    if (scene === 'menu') button('Import save', 'import-button', () => this.importSave());
+
     button('Settings', 'settings-button', () => this.showSettings(scene));
     if (scene !== 'menu') button('Main Menu', 'main-menu-button', () => this.leaveWorld());
     this.panel.querySelector('button')?.focus();
@@ -184,28 +191,12 @@ export class GameShell implements Shell {
     });
   }
   private showPlay(): void {
+    this.closeDeveloper?.();
+    this.closeDeveloper = undefined;
     this.panel.dataset.screen = 'play';
-    const box = this.panel.firstElementChild;
-    if (!box) return;
-    box.className = 'menu-panel';
-    box.replaceChildren();
-    const title = document.createElement('h1');
-    title.textContent = 'Play';
-    box.append(title);
-    for (const [text, id, action] of [
-      ['Normal Adventure', 'adventure-button', () => this.play()],
-      ['Biome Walk', 'biome-walk-button', () => this.showBiomes()],
-      ['Load Game', 'load-game-button', () => this.withSave(() => this.saves?.load())],
-      ['Back', 'play-back-button', () => this.onSceneChanged('menu')],
-    ] as const) {
-      const b = document.createElement('button');
-      b.textContent = text;
-      b.dataset.testid = id;
-      b.onclick = action;
-      b.disabled = id === 'load-game-button' && !this.saves?.exists();
-      box.append(b);
-    }
-    box.querySelector('button')?.focus();
+    const box = this.panel.firstElementChild as HTMLElement | null;
+    const saves = this.saves;
+    if (box && saves) this.withSave(() => worldLibraryMenu(box, saves, this.settings.value.difficulty, () => this.onSceneChanged('menu')));
   }
   private showBiomes(): void {
     if (this.game.currentScene === 'playing') this.game.pause();
@@ -217,7 +208,7 @@ export class GameShell implements Shell {
       box,
       (id) => this.withSave(() => this.exploreBiome(id)),
       () => {
-        if (this.game.currentScene === 'menu') this.showPlay();
+        if (this.game.currentScene === 'menu') this.onSceneChanged('menu');
         else this.onSceneChanged('paused');
       },
     );
@@ -231,6 +222,7 @@ export class GameShell implements Shell {
       }
   }
   private async exploreBiome(id: BiomeId): Promise<void> {
+    this.saves?.developerContext();
     const menuEntry = this.game.currentScene === 'menu';
     const active = this.simulation?.stream;
     if (
@@ -344,58 +336,6 @@ export class GameShell implements Shell {
         });
     };
     input.click();
-  }
-  private play(): void {
-    if (
-      !this.settings.value.tutorials ||
-      this.onboarding.value.seen ||
-      this.onboarding.value.complete
-    ) {
-      this.game.startNewGame({ difficulty: this.settings.value.difficulty });
-      return;
-    }
-    this.panel.dataset.screen = 'welcome';
-    const box = this.panel.firstElementChild;
-    if (!box) return;
-    box.replaceChildren();
-    box.className = 'menu-panel action-panel';
-    const h = document.createElement('h1');
-    h.textContent = this.t('Welcome to the forest');
-    box.append(h);
-    const p = document.createElement('p');
-    p.textContent = this.t(
-      'Learn to explore, fight and open the portal in a short training glade.',
-    );
-    box.append(p);
-    const start = document.createElement('button');
-    start.className = 'menu-button--primary';
-    start.textContent = this.t('Start tutorial');
-    start.onclick = () => {
-      this.onboarding.value.seen = true;
-      this.onboarding.save();
-      this.game.startNewGame({ tutorial: true });
-    };
-    box.append(start);
-    const skip = document.createElement('button');
-    skip.textContent = this.t('Skip for now');
-    skip.onclick = () => {
-      this.onboarding.value.seen = true;
-      this.onboarding.save();
-      this.game.startNewGame({ difficulty: this.settings.value.difficulty });
-    };
-    box.append(skip);
-    const label = document.createElement('label');
-    label.className = 'menu-choice';
-    label.textContent = this.t('Don’t show automatically again');
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.onchange = () => {
-      this.settings.value.tutorials = !checkbox.checked;
-      this.persist();
-    };
-    label.append(checkbox);
-    box.append(label);
-    start.focus();
   }
   private settingRow(section: HTMLElement, text: string): HTMLLabelElement {
     const row = document.createElement('label');
