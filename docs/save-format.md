@@ -110,7 +110,7 @@ on startup; localStorage is only an index, not the durable world state.
 
 Exploration autosaves atomically pin an additional `walk-v<generator>` slot to
 the same checkpoint. Startup also pins a pre-existing exploration before opening
-new terrain. Biome Walk opens/resumes version 16, while the versioned **Resume previous
+new terrain. Developer → Biomes opens/resumes version 16, while the versioned **Resume previous
 landscape** buttons load preserved version-14 or version-15 checkpoints and their edits. Change Biome
 within either session keeps that session's version. Returning from the older
 landscape cannot overwrite the pinned newer one. Adventure saves are unaffected;
@@ -140,4 +140,4 @@ IndexedDB revision 5 adds `library` and `libraryMigrations` stores. A library en
 
 Play lists adventures by last played date. Creation accepts a 1–64 character trimmed name and an optional unsigned 32-bit seed. Import creates another entry, and export uses the existing JSON/JSONL formats. Supported previous adventure slots migrate once; exploration and tutorial slots remain separate. Deleting an entry removes its catalog and slot references and records a tombstone against late checkpoints; historical chunk records remain available to existing lineages.
 
-Biome Walk retains its existing dedicated slots. Tutorial saves never target an adventure library slot.
+Developer biome exploration retains its existing dedicated slots. Tutorial saves never target an adventure library slot.
