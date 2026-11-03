@@ -27,8 +27,20 @@ export class SoilChunkBuilder {
     private readonly chunkSize: number,
   ) {}
 
-  add(tx: number, ty: number): void {
-    const data = rasterizeSoilTile(this.world, tx, ty);
+  add(tx: number, ty: number, ground?: Uint8ClampedArray): void {
+    const pigment = rasterizeSoilTile(this.world, tx, ty);
+    // An opening needs opaque ground, not transparency revealing the cliff below.
+    const data = ground ?? pigment;
+    if (ground && pigment)
+      for (let i = 0; i < ground.length; i += 4) {
+        const a = (pigment[i + 3] ?? 0) / 255;
+        if (!ground[i + 3]) {
+          ground.set(pigment.subarray(i, i + 4), i);
+          continue;
+        }
+        for (let k = 0; k < 3; k++)
+          ground[i + k] = Math.round((pigment[i + k] ?? 0) * a + (ground[i + k] ?? 0) * (1 - a));
+      }
     if (data) this.pixels.push({ key: ty * this.world.meta.width + tx, data });
   }
 

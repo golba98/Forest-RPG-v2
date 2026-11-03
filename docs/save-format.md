@@ -29,18 +29,34 @@ positions, trunk footprints, collection state and chest rewards remain intact. N
 or additional collectibles are introduced. Sprite selection uses coordinates without consuming
 simulation RNG. The V2 save envelope and existing scoped migrations remain unchanged.
 
-The finite compatibility path retains **save schema 2** and **generator version 12**. `WorldCompatibility` distinguishes these from the independent applied migrations. The existing `riverRepairVersion: 1` and `hilltopObjectsVersion: 1` fields are the persisted migration ledger; `appliedMigrations(meta)` derives `river-repair:1` and `hilltop-objects:1` for inspection. There is no second editable ledger. A missing migration field means unapplied; unsupported values are rejected, including explicit `null` or a future migration version.
+The finite compatibility path keeps **save schema 2** and **generator version 13**. New streamed games use schema 3 / generator 16 below. `WorldCompatibility` distinguishes these from the independent applied migrations. The existing `riverRepairVersion: 1` and `hilltopObjectsVersion: 1` fields are the persisted migration ledger; `appliedMigrations(meta)` derives `river-repair:1` and `hilltop-objects:1` for inspection. There is no second editable ledger. A missing migration field means unapplied; unsupported values are rejected, including explicit `null` or a future migration version.
 
-Stored generator versions **0–12** are loadable; their saved cells/objects are authoritative. A missing `generatorVersion` in an otherwise valid schema-2 payload becomes **0**, meaning legacy/unknown procedural provenance, and exports explicitly as 0. It does not guess v7/v8 from terrain appearance or run their scoped river repair. Original-format conversion also uses 0. Missing top-level schema metadata continues through the existing original-format adapter; it does not reinterpret a malformed V2 payload. Unsupported schema/generator/migration versions fail before replacing the running world, with no fallback to regeneration. Existing encounter compatibility and scoped river/hilltop conversions retain their original order and responsibilities.
+Stored generator versions **0–13** are loadable; their saved cells/objects are authoritative. A missing `generatorVersion` in an otherwise valid schema-2 payload becomes **0**, meaning legacy/unknown procedural provenance, and exports explicitly as 0. It does not guess v7/v8 from terrain appearance or run their scoped river repair. Original-format conversion also uses 0. Missing top-level schema metadata continues through the existing original-format adapter; it does not reinterpret a malformed V2 payload. Unsupported schema/generator/migration versions fail before replacing the running world, with no fallback to regeneration. Existing encounter compatibility and scoped river/hilltop conversions retain their original order and responsibilities.
 
-The finite `generateWorld()` accepts an optional `WorldGenOptions.generatorVersion`, defaulting to 12. That function generates version 12 only; historical finite versions are **load-only**. Regular new games instead call asynchronous `Simulation.prepareInfinite()` for generator 13. Unsupported requests throw before consuming RNG. Loading never calls generation. The reproduction contract is seed + generator version + relevant configuration: dimensions, level and difficulty are already saved; fixed generation constants and generation-relevant `GAME_CONFIG`/`ENCOUNTER_CONFIG` tuning belong to version 10. Changing output-affecting tuning requires a new generator version. Future decisions may use keyed or independent streams; the existing stream salts and consumption order cannot be retroactively changed under v10.
+Finite `generateWorld()` accepts an optional `WorldGenOptions.generatorVersion`, defaulting to 13. It generates finite version 13 only; historical versions are **load-only**. Unsupported requests throw before consuming RNG. Loading never calls generation. The reproduction contract is seed + generator version + relevant configuration: dimensions, level and difficulty are already saved; fixed generation constants and generation-relevant `GAME_CONFIG`/`ENCOUNTER_CONFIG` tuning are part of each version's contract. Changing output-affecting tuning requires a new generator version. Future decisions may use keyed or independent streams; the existing stream salts and consumption order cannot be retroactively changed under v10.
 
 Planning state is reconstructed after encounter preparation, scoped river repair and hilltop conversion from the saved terrain, props, bridge records, site IDs and spawn descriptors. Stable source coordinates on promoted rocks and completion markers preserve relocation/omission decisions. Plateau/water identities, summit protections and clearance queries survive save/reload equivalently without serializing derived maps. Diagnostic traces are intentionally transient. The captured seed-42 v10 fixture remains the reproduction baseline for `(70,96)` and ground reference `(87,37)`.
+
+## Generator 13 environment payload
+
+Schema 2 now accepts generator 13. New non-tutorial worlds require
+`world.environment.version: 1` and seven row-major number arrays: `biome`,
+`secondary` (0–4), `blend`, `cover`, `moisture`, `relief` (0–255), and `material`
+(0–7). Each array must match the saved dimensions. Classifications are saved rather
+than recomputed when loading. Optional prop `variant` and coordinate `featureKey`
+retain artwork selection and ecological source identity. Existing IDs, removed
+props, treasure state, tiles and migration ledgers remain authoritative.
+
+Versions 0–12 retain their previous terrain and art-selection behavior; they do not
+receive a new environment payload or regenerate. Tutorial fixtures keep their
+existing appearance. Unsupported generator/environment versions and malformed arrays
+are rejected before active state changes. Historical coordinate regression tests use
+the captured v10 seed-42 world rather than assuming v13 repeats its landforms.
 
 ## Streamed worlds: schema 3
 
 Streamed worlds use native IndexedDB database `forestrpg.worlds`. Its internal
-database revision is 4; this is separate from save schema 3 and generator 13.
+database revision is 4; this is separate from save schema 3 and generator versions 13/14/15/16.
 Settings and finite/tutorial schema-2 saves retain their existing localStorage
 formats. Small `forestrpg.v3.slot.<slot>` values index streamed slots; `1` means a
 streamed save and `0` means a newer finite/tutorial save takes precedence. These
@@ -75,10 +91,36 @@ player cannot advance into unavailable terrain. The HUD reports the actual
 failure; export can include unsaved active changes without first writing another
 checkpoint. Browser storage remains subject to browser clearing and quotas.
 
+### Biome versions and exploration isolation
+
+New descriptors pin `generatorVersion: 16`, `biomeVersion: 2`, seed, chunk size,
+difficulty, level and mode (`adventure` or `biome-walk`). Version 13 / biome 1
+remains supported with its original forest geography, and version 14 / biome 2
+retains its original five-biome geography. Version 15 retains its original binary hills. Derived biome/relief/elevation arrays
+are regenerated for streamed windows; they are not stored as whole-map payloads.
+Explicit prop `assetKey`/variant values retain stable artwork selection for edits.
+
+Biome Walk maps `auto` to the `biome-walk` slot and named saves to `walk-<name>`.
+It never writes the normal adventure autosave. Optional checkpoint `exploration`
+contains the original spawn and at most five validated biome landings. Restoring
+that checkpoint reuses its seed, versions and chunk changes through the existing
+copy-on-write lineage mechanism. Changing biome within play keeps the same live
+world identity. Both autosave markers are recovered from committed checkpoints
+on startup; localStorage is only an index, not the durable world state.
+
+Exploration autosaves atomically pin an additional `walk-v<generator>` slot to
+the same checkpoint. Startup also pins a pre-existing exploration before opening
+new terrain. Play → Biome Walk opens/resumes version 16, while the versioned **Resume previous
+landscape** buttons load preserved version-14 or version-15 checkpoints and their edits. Change Biome
+within either session keeps that session's version. Returning from the older
+landscape cannot overwrite the pinned newer one. Adventure saves are unaffected;
+no baseline terrain is silently regenerated under existing edits or actors.
+
 ### Conversion and portable archives
 
-Supported original/V2 saves run their existing validated compatibility passes,
-then become preserved finite snapshot regions. Original coordinates, saved cells,
+Supported original/V2 generator-0–12 saves run their existing validated compatibility
+passes, then become preserved finite snapshot regions. Finite generator-13 saves
+remain bounded and preserve their saved environment arrays. Original coordinates, saved cells,
 props, bridges, actor progress and legacy extras remain the baseline; the seed
 is not used to regenerate them. Only recorded artificial `BORDER` exits are
 opened where an existing reachable approach is clear. If none is safe, an

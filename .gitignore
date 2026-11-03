@@ -52,6 +52,9 @@ Thumbs.db
 /artifacts/
 /docs/tmp/
 
+# Superseded player art, experiments, tooling and local review captures
+/archive/player-character/
+
 # Legacy QA output paths (kept ignored for older local tooling)
 /docs/qa/evidence/
 /docs/qa/screens/

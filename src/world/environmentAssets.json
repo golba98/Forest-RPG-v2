@@ -1,0 +1,513 @@
+{
+  "trees": [
+    {
+      "id": "tree-0",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-1",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "meadow"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-2",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "highlands"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-3",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "highlands"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-4",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "wetlands"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-5",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "wetlands"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-6",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "autumn"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-7",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "autumn"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-8",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "meadow"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-9",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "autumn"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-10",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "highlands"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-11",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-12",
+      "family": "tree",
+      "origin": "reused-lpc",
+      "width": 64,
+      "height": 64,
+      "anchor": [
+        32,
+        60
+      ],
+      "collision": [
+        -0.18,
+        -0.35,
+        0.18,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        64,
+        54
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "forest"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-13",
+      "family": "tree",
+      "origin": "reused-lpc",
+      "width": 64,
+      "height": 64,
+      "anchor": [
+        32,
+        62
+      ],
+      "collision": [
+        -0.18,
+        -0.35,
+        0.18,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        64,
+        54
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "forest"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    }
+  ],
+  "upland": {
+    "width": 360,
+    "height": 648,
+    "variantStride": 216,
+    "variants": 3,
+    "framesPerVariant": 58,
+    "tileSize": 32,
+    "anchor": [
+      0,
+      0
+    ],
+    "layer": "terrain",
+    "origin": "authored-project-relief",
+    "geometry": "HillCollisionGeometry",
+    "frames": "rendering/generated/cliff_tileset.json",
+    "biomes": [
+      "forest",
+      "meadow",
+      "highlands",
+      "wetlands",
+      "autumn"
+    ]
+  }
+}

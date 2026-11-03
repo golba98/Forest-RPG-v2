@@ -80,3 +80,58 @@ it('matches sampling across tile/chunk borders for every 8-neighbor material arr
       expect(Math.abs(alpha(a, 31, y) - alpha(b, 0, y)), `mask ${mask}, row ${y}`).toBeLessThan(32);
   }
 });
+
+it('highland rock pigment fades continuously when primary and secondary biomes exchange', () => {
+  const world: SoilWorld = {
+    meta: { width: 5, height: 5 },
+    tiles: new Uint8Array(25).fill(Tile.GRASS),
+    window: { originX: -320, originY: 96 },
+    environment: {
+      version: 1,
+      biome: Array.from({ length: 25 }, (_, i) => (i % 5 < 3 ? 2 : 1)),
+      secondary: Array.from({ length: 25 }, (_, i) => (i % 5 < 3 ? 1 : 2)),
+      blend: Array(25).fill(127),
+      relief: Array(25).fill(210),
+      moisture: Array(25).fill(60),
+      cover: Array(25).fill(20),
+      material: Array(25).fill(5),
+    },
+  };
+  const a = rasterizeSoilTile(world, 2, 2)!,
+    b = rasterizeSoilTile(world, 3, 2)!;
+  expect(alpha(a, 16, 16)).toBeGreaterThan(80);
+  expect(alpha(b, 16, 16)).toBeGreaterThan(80);
+  for (let y = 0; y < 32; y++) expect(Math.abs(alpha(a, 31, y) - alpha(b, 0, y))).toBeLessThan(3);
+});
+
+it('covers highland summit edges without painting over any cliff face', () => {
+  for (const [low, face, top] of [
+    [1, [16, 1], [16, 8]],
+    [5, [30, 16], [8, 16]],
+    [7, [16, 20], [16, 8]],
+    [3, [1, 16], [16, 16]],
+  ] as const) {
+    const tiles = new Uint8Array(9).fill(Tile.PLATEAU);
+    tiles[4] = Tile.HILL_S;
+    tiles[low] = Tile.GRASS;
+    const world: SoilWorld = {
+      meta: { width: 3, height: 3 },
+      tiles,
+      window: { originX: 0, originY: 0, descriptor: { generatorVersion: 15 } },
+      environment: {
+        version: 1,
+        biome: Array(9).fill(2),
+        secondary: Array(9).fill(0),
+        blend: Array(9).fill(0),
+        relief: Array(9).fill(220),
+        cover: Array(9).fill(20),
+        moisture: Array(9).fill(20),
+        material: Array(9).fill(5),
+      },
+    };
+    const image = rasterizeSoilTile(world, 1, 1)!;
+    expect(alpha(image, face[0], face[1])).toBe(0);
+    expect(alpha(image, top[0], top[1])).toBeGreaterThan(100);
+    expect(rasterizeSoilTile({ ...world, window: { originX: 0, originY: 0 } }, 1, 1)).toBeNull();
+  }
+});

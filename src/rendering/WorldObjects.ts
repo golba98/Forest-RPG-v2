@@ -29,6 +29,7 @@ interface ObjectRecord {
   readonly tint?: number;
   readonly propId?: import('../types/world').WorldObjectId;
   readonly hilltop?: boolean;
+  readonly canopy?: boolean;
   readonly bridge?: WorldBridge;
 }
 interface ObjectView {
@@ -113,7 +114,16 @@ export class WorldObjects {
       const layer = GROUND_PROPS.has(prop.kind) ? 'ground/prop' : 'actors/prop';
       const vegetation = vegetationFor(prop, world);
       if (vegetation)
-        this.vegetation(key, prop.tileX, prop.tileY, depth, vegetation, layer, prop.id);
+        this.vegetation(
+          key,
+          prop.tileX,
+          prop.tileY,
+          depth,
+          vegetation,
+          layer,
+          prop.id,
+          prop.kind === 'tree',
+        );
       else {
         const art = getWorldPropArt(prop),
           texture = tileArtTexture(art, this.textures);
@@ -142,6 +152,7 @@ export class WorldObjects {
     frame: VegetationFrame,
     layer: string,
     propId?: import('../types/world').WorldObjectId,
+    canopy = false,
   ): void {
     const r = frame.rect;
     this.catalog.add({
@@ -150,6 +161,7 @@ export class WorldObjects {
       depth,
       layer,
       assetId: frame.atlas,
+      canopy,
       bounds: {
         x: x * 32 + 16 - frame.root[0],
         y: y * 32 + 32 - frame.root[1],
@@ -161,7 +173,7 @@ export class WorldObjects {
     });
   }
 
-  update(regions: VisibilityRegions, now: number): void {
+  update(regions: VisibilityRegions, now: number, player?: { x: number; y: number }): void {
     const last = this.previousRequired;
     this.previousRequired = this.required;
     this.required = last;
@@ -188,6 +200,16 @@ export class WorldObjects {
       if (view.ground) view.ground.visible = intersects(view.record.bounds, regions.visible);
       for (const [i, sprite] of view.sprites.entries()) {
         sprite.visible = intersects(view.bounds[i] ?? view.record.bounds, regions.visible);
+        const b = view.record.bounds;
+        sprite.alpha =
+          view.record.canopy &&
+          player &&
+          player.x > b.x - 8 &&
+          player.x < b.x + b.width + 8 &&
+          player.y > b.y &&
+          player.y < view.record.depth - 12
+            ? 0.45
+            : 1;
       }
     }
   }

@@ -1,4 +1,6 @@
 import { CancelledWork } from '../core/WorkSlice';
+import { findBiomeLanding } from '../world/infinite/BiomeLanding';
+import type { BiomeId } from '../world/Biomes';
 import { copyWindowOverlap } from '../world/infinite/WindowOverlap';
 import { SurfaceSites } from '../systems/SurfaceMoisture';
 import { preparePropIndex } from '../systems/CollisionSystem';
@@ -48,11 +50,21 @@ import {
 } from '../systems/MovementSystem';
 
 export class Simulation implements ISimulation {
+  preparePresentation: ((world: WorldData) => Promise<void>) | undefined;
+  async travelToBiome(biome: BiomeId): Promise<void> {
+    const stream = this.stream;
+    if (!stream?.exploration) throw new Error('Biome travel is available in Biome Walk');
+    while (this.preparingStream) await new Promise<void>((resolve) => setTimeout(resolve, 1));
+    stream.capture(this.world, this.entities, this.getRuntimeState(), this.elapsedMs);
+    const landing = await findBiomeLanding(stream, biome, this.world);
+    await this.setGlobalPosition(landing.position.x, landing.position.y);
+    await this.saveInfinite('auto');
+  }
   viewDimensions: (() => { width: number; height: number }) | undefined;
   destroy(): void {
     this.streamEpoch++;
-    this.preparingStream=false;
-    this.installingStream=false;
+    this.preparingStream = false;
+    this.installingStream = false;
     this.stream?.dispose();
     this.preparingSession?.dispose();
   }
@@ -63,7 +75,7 @@ export class Simulation implements ISimulation {
   private streamEpoch = 0;
   private transitionSave: Promise<void> | undefined;
   async prepareInfinite(options: WorldGenOptions, state?: WorldCheckpoint): Promise<WorldData> {
-    if (options.generatorVersion !== undefined && options.generatorVersion !== 13)
+    if (options.generatorVersion !== undefined && ![13, 14, 15, 16].includes(options.generatorVersion))
       throw new Error('Unsupported streamed generation request');
     this.preparingSession?.dispose();
     const session = new InfiniteSession(
@@ -76,25 +88,45 @@ export class Simulation implements ISimulation {
     this.preparingSession = session;
     if (state) {
       session.revision = state.revision;
+      if (state.exploration) {
+        session.home = state.exploration.home;
+        session.landings = { ...state.exploration.landings };
+      }
       for (const id of state.objectives) session.objectives.add(id);
     }
     const p = state?.entities.find((e) => e.kind === 'player') ??
       state?.legacy?.entities.find((e) => e.kind === 'player') ?? { x: 0.5, y: 0.5 };
     try {
+      if (!state && options.mode === 'biome-walk') {
+        const landing = await findBiomeLanding(session, options.biome ?? 'forest');
+        if (this.preparingSession !== session) throw new Error('World preparation cancelled');
+        session.home = landing.position;
+        session.commitWindow(landing.world);
+        await this.preparePresentation?.(landing.world);
+        this.preparingSession = undefined;
+        return bindSession(landing.world, session);
+      }
       await session.prepareAt(p.x, p.y);
       if (this.preparingSession !== session) throw new Error('World preparation cancelled');
       this.preparingSession = undefined;
-      return bindSession(session.buildWindow(), session);
+      const world = session.buildWindow();
+      await this.preparePresentation?.(world);
+      return bindSession(world, session);
     } catch (error) {
       session.dispose();
       throw error;
     }
   }
-  getWorldWaitReason(): 'installation' | 'preparation-edge' | 'stream-error-edge' | 'persistence-edge' | null {
+  getWorldWaitReason():
+    'installation' | 'preparation-edge' | 'stream-error-edge' | 'persistence-edge' | null {
     if (this.installingStream) return 'installation';
-    const edge = this.stream && this.player &&
-      (this.player.x < 16 || this.player.y < 16 ||
-       this.player.x > this.world.meta.width - 16 || this.player.y > this.world.meta.height - 16);
+    const edge =
+      this.stream &&
+      this.player &&
+      (this.player.x < 16 ||
+        this.player.y < 16 ||
+        this.player.x > this.world.meta.width - 16 ||
+        this.player.y > this.world.meta.height - 16);
     if (edge && this.stream?.error) return 'stream-error-edge';
     if (edge && this.transitionSave) return 'persistence-edge';
     if (edge && this.preparingStream) return 'preparation-edge';
@@ -118,6 +150,14 @@ export class Simulation implements ISimulation {
     return this.stream
       ? {
           ...this.stream.source.info,
+          worldId: this.stream.descriptor.id,
+          generatorVersion: this.stream.descriptor.generatorVersion,
+          mode: this.stream.descriptor.mode ?? 'adventure',
+          biome:
+            this.stream.generator.geography?.sample(
+              Math.floor(this.player.x + this.stream.origin.x),
+              Math.floor(this.player.y + this.stream.origin.y),
+            ).biome ?? 0,
           origin: this.stream.origin,
           globalPosition: this.stream.globalPosition(this.player),
           transitions: this.stream.transitions,
@@ -251,8 +291,19 @@ export class Simulation implements ISimulation {
       stream.capture(this.world, this.entities, runtime, this.elapsedMs);
       await stream.checkpoint(this.entities, runtime, this.time, this.elapsedMs, 'auto');
       stream.teleportVersion++;
-      const world = stream.buildWindow(),
-        next = stream.origin;
+      // Keep the active origin and scene intact if decoding an entering biome
+      // fails. Only publish after both terrain and its artwork are ready.
+      let world: WorldData;
+      try {
+        world = await stream.stageWindow(this.world, () => this.stream === stream);
+        await this.preparePresentation?.(world);
+        if (this.stream !== stream) throw new CancelledWork();
+      } catch (error) {
+        if (this.stream === stream) stream.prune(false);
+        throw error;
+      }
+      stream.commitWindow(world);
+      const next = stream.origin;
       const player = translateEntity(this.player, old.x - next.x, old.y - next.y);
       player.x = player.prevX = x - next.x;
       player.y = player.prevY = y - next.y;
@@ -291,11 +342,18 @@ export class Simulation implements ISimulation {
       this.encounters.rebase(world, old.originX - next.originX, old.originY - next.originY);
     const mounted = stream.hydrate(world, player, portal, runtime);
     this.world = bindSession(world, stream);
-    const retained = new Map(live?.map(e => [e.id,e]));
-    this.entities = [...mounted.entities, ...transient].map(e => {
+    const retained = new Map(live?.map((e) => [e.id, e]));
+    this.entities = [...mounted.entities, ...transient].map((e) => {
       const current = retained.get(e.id);
       if (!current || current.kind !== e.kind || e.id === player.id) return e;
-      Object.assign(current, translateEntity(current, (old?.originX??0)-(next?.originX??0), (old?.originY??0)-(next?.originY??0)));
+      Object.assign(
+        current,
+        translateEntity(
+          current,
+          (old?.originX ?? 0) - (next?.originX ?? 0),
+          (old?.originY ?? 0) - (next?.originY ?? 0),
+        ),
+      );
       return current;
     });
     this.player = player;
@@ -317,7 +375,7 @@ export class Simulation implements ISimulation {
     );
     this.moisture = new SurfaceMoisture(surfaceSites(world));
     this.moisture.restore(stream.restoreMoisture(world, this.elapsedMs));
-    if(previousMoisture) this.moisture.copyOverlap(previousMoisture);
+    if (previousMoisture) this.moisture.copyOverlap(previousMoisture);
     stream.reveal(world, player);
     prepareLoot(world, this.entities);
     this.worldVersion++;
@@ -363,61 +421,110 @@ export class Simulation implements ISimulation {
     this.portal.restore(this.entities, 0, stream.objectiveStatus());
   }
   private async advanceStream(): Promise<void> {
-    const stream=this.stream, epoch=this.streamEpoch;
-    if(!stream || this.preparingStream || this.transitionSave || stream.error ||
-      (!stream.needsShift(this.player) && this.world.meta.width===stream.windowSize)) return;
-    this.preparingStream=true;
+    const stream = this.stream,
+      epoch = this.streamEpoch;
+    if (
+      !stream ||
+      this.preparingStream ||
+      this.transitionSave ||
+      stream.error ||
+      (!stream.needsShift(this.player) && this.world.meta.width === stream.windowSize)
+    )
+      return;
+    this.preparingStream = true;
     try {
-      const p=stream.globalPosition(this.player);
-      await stream.prepareAt(p.x,p.y);
+      const p = stream.globalPosition(this.player);
+      await stream.prepareAt(p.x, p.y);
       let world: WorldData;
       for (;;) {
-        const active=this.world, count=active.props.length, teleportVersion=stream.teleportVersion;
-        if(this.stream!==stream || epoch!==this.streamEpoch) throw new CancelledWork();
+        const active = this.world,
+          count = active.props.length,
+          teleportVersion = stream.teleportVersion;
+        if (this.stream !== stream || epoch !== this.streamEpoch) throw new CancelledWork();
         // Capture current geometry before preparing metadata; actors/moisture are
         // captured again at publication, not frozen while asynchronous work runs.
-        stream.capture(active,this.entities,this.getRuntimeState(),this.elapsedMs);
-        const valid=()=>this.stream===stream && epoch===this.streamEpoch && this.world===active && active.props.length===count && stream.teleportVersion===teleportVersion && stream.windowSize===worldSize;
-        const worldSize=stream.windowSize;
+        stream.capture(active, this.entities, this.getRuntimeState(), this.elapsedMs);
+        const valid = () =>
+          this.stream === stream &&
+          epoch === this.streamEpoch &&
+          this.world === active &&
+          active.props.length === count &&
+          stream.teleportVersion === teleportVersion &&
+          stream.windowSize === worldSize;
+        const worldSize = stream.windowSize;
         try {
-          world=await stream.stageWindow(active,valid);
-          await SurfaceSites.prepare(world,valid);
-          await preparePropIndex(world,valid);
-          if(!valid()) throw new CancelledWork();
+          world = await stream.stageWindow(active, valid);
+          await SurfaceSites.prepare(world, valid);
+          await preparePropIndex(world, valid);
+          await this.preparePresentation?.(world);
+          if (!valid()) throw new CancelledWork();
           break;
-        } catch(error) {
-          if(!(error instanceof CancelledWork) || this.stream!==stream || epoch!==this.streamEpoch) throw error;
-          const at=stream.globalPosition(this.player);
-          await stream.prepareAt(at.x,at.y);
+        } catch (error) {
+          if (
+            !(error instanceof CancelledWork) ||
+            this.stream !== stream ||
+            epoch !== this.streamEpoch
+          )
+            throw error;
+          const at = stream.globalPosition(this.player);
+          await stream.prepareAt(at.x, at.y);
         }
       }
       // One synchronous publication between simulation calls. No storage await
       // occurs inside the installation guard.
-      this.installingStream=true;
-      const runtime=this.getRuntimeState(), previous=this.world, live=this.entities, moisture=this.moisture;
-      stream.capture(previous,live,runtime,this.elapsedMs);
-      const durable=stream.checkpoint(live,runtime,this.time,this.elapsedMs,'auto');
-      copyWindowOverlap(world,previous);
-      const old=stream.origin;
+      this.installingStream = true;
+      const runtime = this.getRuntimeState(),
+        previous = this.world,
+        live = this.entities,
+        moisture = this.moisture;
+      stream.capture(previous, live, runtime, this.elapsedMs);
+      const durable = stream.checkpoint(live, runtime, this.time, this.elapsedMs, 'auto');
+      copyWindowOverlap(world, previous);
+      const old = stream.origin;
       stream.commitWindow(world);
-      const next=stream.origin,dx=old.x-next.x,dy=old.y-next.y;
-      const player=this.player;
-      player.x+=dx;player.prevX+=dx;player.y+=dy;player.prevY+=dy;
-      rebaseMovementRuntime(player,dx,dy);
-      const portal=live.find(e=>e.kind==='portal');
-      this.installStream(world,player,portal?translateEntity(portal,dx,dy):undefined,runtime,
-        live.filter(e=>e.kind==='projectile').map(e=>translateEntity(e,dx,dy)),moisture,live);
+      const next = stream.origin,
+        dx = old.x - next.x,
+        dy = old.y - next.y;
+      const player = this.player;
+      player.x += dx;
+      player.prevX += dx;
+      player.y += dy;
+      player.prevY += dy;
+      rebaseMovementRuntime(player, dx, dy);
+      const portal = live.find((e) => e.kind === 'portal');
+      this.installStream(
+        world,
+        player,
+        portal ? translateEntity(portal, dx, dy) : undefined,
+        runtime,
+        live.filter((e) => e.kind === 'projectile').map((e) => translateEntity(e, dx, dy)),
+        moisture,
+        live,
+      );
       stream.transitions++;
-      const saving=durable.then(()=>{
-        if(this.stream===stream) {stream.prune(false);stream.error=null;}
-      }).catch((error:unknown)=>{
-        if(this.stream===stream) stream.error=error instanceof Error?error.message:String(error);
-      }).finally(()=>{if(this.transitionSave===saving)this.transitionSave=undefined;});
-      this.transitionSave=saving;
-    } catch(error) {
-      if(!(error instanceof CancelledWork) && this.stream===stream && epoch===this.streamEpoch) stream.error=error instanceof Error?error.message:String(error);
+      const saving = durable
+        .then(() => {
+          if (this.stream === stream) {
+            stream.prune(false);
+            stream.error = null;
+          }
+        })
+        .catch((error: unknown) => {
+          if (this.stream === stream)
+            stream.error = error instanceof Error ? error.message : String(error);
+        })
+        .finally(() => {
+          if (this.transitionSave === saving) this.transitionSave = undefined;
+        });
+      this.transitionSave = saving;
+    } catch (error) {
+      if (!(error instanceof CancelledWork) && this.stream === stream && epoch === this.streamEpoch)
+        stream.error = error instanceof Error ? error.message : String(error);
     } finally {
-      if(epoch===this.streamEpoch) {this.preparingStream=false;this.installingStream=false;}
+      if (epoch === this.streamEpoch) {
+        this.preparingStream = false;
+        this.installingStream = false;
+      }
     }
   }
   onPortalChange: ((change: PortalChange) => void) | null = null;
@@ -484,8 +591,8 @@ export class Simulation implements ISimulation {
   }
   loadWorld(world: WorldData): void {
     this.streamEpoch++;
-    this.preparingStream=false;
-    this.installingStream=false;
+    this.preparingStream = false;
+    this.installingStream = false;
     const stream = sessionFor(world);
     if (world.window && !stream)
       throw new Error('Streamed views must be loaded through their session');
@@ -617,6 +724,10 @@ export class Simulation implements ISimulation {
     this.moisture.step(dt * 1000, this.getWeather() === 'rain' || this.getWeather() === 'storm');
     const night = this.time >= C.dayNight.nightStart || this.time < C.dayNight.nightEnd;
     const effectiveIntent = this.invertY ? { ...intent, moveY: -intent.moveY } : intent;
+    if (this.stream?.exploration) {
+      this.player.stats.stamina = this.player.stats.maxStamina;
+      this.player.stats.mana = this.player.stats.maxMana;
+    }
     const locomotion = movePlayer(this.world, this.player, effectiveIntent, dt, this.sensitivity);
     const encounterInteraction =
       intent.interact === true &&

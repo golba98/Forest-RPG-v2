@@ -25,7 +25,7 @@ export const WATER_PALETTE = {
 
 /** Bridges stand in water, so they never get a shoreline. */
 export function isWaterTile(tile: number): boolean {
-  return channelTerrain(tile);
+  return tile === Tile.SHALLOW_WATER || channelTerrain(tile);
 }
 
 const OFFSETS: ReadonlyArray<readonly [number, number, number]> = [

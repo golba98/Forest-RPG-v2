@@ -1,3 +1,4 @@
+import { environmentAssets, ENV_GROUND, ENV_RELIEF } from './environmentArt';
 import { Assets, Rectangle, Texture, TextureSource } from 'pixi.js';
 import {
   MANIFEST_BUNDLES,
@@ -39,6 +40,9 @@ export class TextureStore {
   private readonly runtime = new Set<string>();
   private placeholder: Texture | null = null;
   private loaded = false;
+  readonly environmentLoadStats: { alias: string; ms: number }[] = [];
+  private readonly unloading = new Set<string>();
+  private readonly loading = new Map<string, Promise<void>>();
 
   constructor(options: TextureStoreOptions = {}) {
     this.manifestUrl = options.manifestUrl ?? MANIFEST_URL;
@@ -56,12 +60,16 @@ export class TextureStore {
     try {
       await this.initAssets();
       this.registerExtras();
+      for (const asset of environmentAssets())
+        if (!Assets.resolver.hasKey(asset.alias)) Assets.add(asset);
       const bundles = this.bundles.filter((name) => Assets.resolver.hasBundle(name));
       for (const name of this.bundles) {
-        if (!bundles.includes(name)) this.warnOnce(`bundle:${name}`, `[TextureStore] bundle "${name}" not in manifest`);
+        if (!bundles.includes(name))
+          this.warnOnce(`bundle:${name}`, `[TextureStore] bundle "${name}" not in manifest`);
       }
       if (Assets.resolver.hasBundle(RENDERER_EXTRA_BUNDLE)) bundles.push(RENDERER_EXTRA_BUNDLE);
       await Assets.loadBundle(bundles, onProgress);
+      await this.ensure([ENV_GROUND, ENV_RELIEF]);
     } catch (error) {
       // Degrade to placeholders rather than blocking the game on asset errors.
       console.error('[TextureStore] asset loading failed; using placeholders', error);
@@ -70,8 +78,62 @@ export class TextureStore {
     onProgress?.(1);
   }
 
+  /** Deduplicated lazy environment loads. Failure stays explicit and retryable. */
+  public async ensure(aliases: readonly string[]): Promise<void> {
+    await Promise.all(
+      aliases.map((alias) => {
+        if (this.has(alias)) return Promise.resolve();
+        const hit = this.loading.get(alias);
+        if (hit) return hit.then(() => (this.has(alias) ? undefined : this.ensure([alias])));
+        const start = performance.now();
+        const promise = Assets.load(alias)
+          .then(() => {
+            this.environmentLoadStats.push({ alias, ms: performance.now() - start });
+            if (this.environmentLoadStats.length > 64) this.environmentLoadStats.shift();
+            if (!this.has(alias)) throw new Error(`Environment asset unavailable: ${alias}`);
+          })
+          .finally(() => this.loading.delete(alias));
+        this.loading.set(alias, promise);
+        return promise;
+      }),
+    );
+  }
+
+  /** Release region-only sources after every sprite and frame using them is gone. */
+  public releaseEnvironmentExcept(keep: ReadonlySet<string>): void {
+    for (const { alias } of environmentAssets()) {
+      if (
+        alias === ENV_GROUND ||
+        alias === ENV_RELIEF ||
+        keep.has(alias) ||
+        this.loading.has(alias) ||
+        !this.has(alias)
+      )
+        continue;
+      for (const cache of [this.cellFrames, this.gridFrames, this.rectFrames]) {
+        const frames = cache.get(alias);
+        if (frames)
+          for (const texture of frames.values()) {
+            this.owned.delete(texture);
+            texture.destroy(false);
+          }
+        cache.delete(alias);
+      }
+      this.unloading.add(alias);
+      const unloading = Assets.unload(alias).finally(() => {
+        this.unloading.delete(alias);
+        this.loading.delete(alias);
+      });
+      this.loading.set(alias, unloading);
+    }
+  }
+
   public has(alias: string): boolean {
-    return Assets.cache.has(alias) && Assets.cache.get(alias) instanceof Texture;
+    return (
+      !this.unloading.has(alias) &&
+      Assets.cache.has(alias) &&
+      Assets.cache.get(alias) instanceof Texture
+    );
   }
 
   /** The loaded texture, or the shared placeholder if missing. */
@@ -88,7 +150,13 @@ export class TextureStore {
    * Fixed-size cell: rect (frameX·frameW, frameY·frameH, frameW, frameH) in
    * source pixels, clipped to the texture. Cached; allocation-free on hits.
    */
-  public getFrame(alias: string, frameX: number, frameY: number, frameW: number, frameH: number): Texture {
+  public getFrame(
+    alias: string,
+    frameX: number,
+    frameY: number,
+    frameW: number,
+    frameH: number,
+  ): Texture {
     // Packs 4 non-negative integers (each < 4096) into one exact double key.
     const key = frameX + frameY * 0x1000 + frameW * 0x1000000 + frameH * 0x1000000000;
     let byAlias = this.cellFrames.get(alias);
@@ -107,7 +175,13 @@ export class TextureStore {
   }
 
   /** Cell (col, row) of the texture split into an equal cols × rows grid (each < 256). */
-  public getGridFrame(alias: string, col: number, row: number, cols: number, rows: number): Texture {
+  public getGridFrame(
+    alias: string,
+    col: number,
+    row: number,
+    cols: number,
+    rows: number,
+  ): Texture {
     const key = col + row * 0x100 + cols * 0x10000 + rows * 0x1000000;
     let byAlias = this.gridFrames.get(alias);
     const hit = byAlias?.get(key);
@@ -201,14 +275,24 @@ export class TextureStore {
     if (missing.length > 0) Assets.addBundle(RENDERER_EXTRA_BUNDLE, missing);
   }
 
-  private clipFrame(base: Texture, x: number, y: number, w: number, h: number, alias: string): Texture {
+  private clipFrame(
+    base: Texture,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    alias: string,
+  ): Texture {
     const src = base.frame;
     const left = Math.max(0, Math.min(src.width, x));
     const top = Math.max(0, Math.min(src.height, y));
     const right = Math.max(left, Math.min(src.width, x + w));
     const bottom = Math.max(top, Math.min(src.height, y + h));
     if (right - left <= 0 || bottom - top <= 0) {
-      this.warnOnce(`${alias}@${x},${y}`, `[TextureStore] frame (${x},${y},${w}x${h}) outside "${alias}"`);
+      this.warnOnce(
+        `${alias}@${x},${y}`,
+        `[TextureStore] frame (${x},${y},${w}x${h}) outside "${alias}"`,
+      );
       return this.getPlaceholder();
     }
     const texture = new Texture({
@@ -234,9 +318,10 @@ function createPlaceholderTexture(): Texture {
   const ctx = canvas.getContext('2d');
   if (!ctx) return Texture.EMPTY;
   const half = PLACEHOLDER_PX / 2;
-  for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
-    ctx.fillStyle = (x + y) % 2 === 0 ? '#ff00ff' : '#000000';
-    ctx.fillRect(x * half, y * half, half, half);
-  }
+  for (let y = 0; y < 2; y++)
+    for (let x = 0; x < 2; x++) {
+      ctx.fillStyle = (x + y) % 2 === 0 ? '#ff00ff' : '#000000';
+      ctx.fillRect(x * half, y * half, half, half);
+    }
   return Texture.from(canvas);
 }

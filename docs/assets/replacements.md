@@ -79,29 +79,69 @@ statement ship in the [public attribution folder](../../public/assets/images/env
 Artwork derivatives must retain that licence; these notices do not change unrelated project-code
 licensing. Source sheets have their original alpha, including translucent contact shadows.
 
+## Coordinated biome library
 
-## Player character remaster (2026-10-31)
+Generator-13 packs use the existing 32-pixel world scale and native-resolution
+rendering. New trees were generated together with ImageGen, then isolated,
+nearest-sized and anchored; original source and provenance are retained in
+`source/environment/`. See the shipped [pack inventory](../../public/assets/images/environment/inventory.json)
+and [attribution](../../public/assets/images/environment/README.md).
 
-The existing white rounded protagonist is remastered from the project's original player sheets at baseline `a5cd38b`. Original references and the selected image-generation sources are retained in `docs/assets/source/player-remaster/`; `provenance.json` records the tool and direction briefs. No third-party replacement character was downloaded. The original artwork's ownership is inherited from the repository; this work makes no new public-domain claim about that source.
+| Family                       | Actual production                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Trees                        | 12 newly generated silhouettes; 2 reused native LPC young trees                                           |
+| Plants                       | 46 biome selections from existing LPC artwork; shared selections are deduplicated in the unique-art count |
+| Rocks                        | 6 newly authored forms using the existing rock art algorithm; original boulder/pebble retained            |
+| Ground                       | 8 authored grain frames plus continuous world-space palette/material rendering                            |
+| Relief                       | Adapted existing complete cliff atlas; 4 natural-slope overlays; unchanged collision geometry             |
+| Water, bridges, logs, stumps | Existing artwork reused; water adjacency includes shallow marsh pools                                     |
+| Transitions and shade        | Runtime world-space ground blending and cached canopy/contact shading, not separate concept-image assets  |
 
-The built-in image-generation tool produced the revised drawings. Large multi-direction drafts were rejected for missing rows and facing drift. That earlier set used separately generated direction sheets; the northeast sheet received a further back-facing correction. It was later superseded by the fixed-model pipeline below. `scripts/prepare-player-remaster.mjs` reproducibly extracts the selected drawings, registers them to a common foot reference, quantizes the shared 13-colour palette and packs 56 strips containing 456 frames. All directions have their own pixels, including southwest running. The two additional punch stages are stored as `attack2` and `attack3`.
+Current streamed tree selections: forest 4 native LPC forms, meadow 2, highlands 3,
+wetlands 2, autumn 3. The ten non-forest species come from the existing generated
+library. Two additional generated forms remain retained for compatibility/source
+review. This streaming milestone authors no new tree or character drawings.
+Plant selections: 10, 10, 6, 10, 10 respectively. Reuse and cross-biome references
+are intentional; these totals must not be summed as unique newly authored sprites.
+The preserved source sheets and metadata allow additional species without replacing
+the engine or producing a fresh art direction for each biome.
 
-The five original movement colours are retained in the expanded palette: ivory `#faf3e8`, outline `#2f2522`, shadow `#b9b3a1`, warm midtone `#e7d5c6`, and cheek pink `#d19da7`. The original head/body relationship, short limbs and facial marks remain the identity references. Additional resolution supports smaller contour steps and shading clusters while the resting body stays approximately 32 world pixels tall.
+The 46 plant selections contain **29 unique native source rectangles**. Relief
+contains 58 frames (including all 47 reduced topology masks, interior variants,
+shadows and four slopes). Source-frame counts are distinct from newly drawn art.
 
-### Approved player study and final consistency pass
+The streamed hill update adds one adapted 58-frame `shared/upland.png` atlas using
+the same topology metadata: brighter upper ground, exposed strata and four fully
+opaque natural ramps. It is reproduced by `prepare-environment-assets.mjs`, with
+no new third-party artwork or character changes. The original `relief.png` remains
+byte-compatible for older landscapes. These are adapted relief frames, not 58 new
+independent illustrations.
 
-`docs/assets/source/player-rework/` contains reference-guided image-generation drawings, the rejected comparison strips, 69 native sample frames, an explicit preparation manifest and prompts/hashes in `provenance.json`. The original protagonist remains the identity reference. Broader head light/shadow planes, selective outlines, attached limb shapes and revised movement/punch poses are the focus. No external replacement character was imported.
+| Pack            | Existing generated tree selections | Native LPC tree selections | LPC plant selections |
+| --------------- | ---------------------------------: | -------------------------: | -------------------: |
+| Forest          |                                  0 |                          4 |                   10 |
+| Meadow          |                                  2 |                          0 |                   10 |
+| Rocky highlands |                                  3 |                          0 |                    6 |
+| Wetlands        |                                  2 |                          0 |                   10 |
+| Autumn woodland |                                  3 |                          0 |                   10 |
 
-The study uses a shared 12-colour palette and one uniform reduction of every generated sheet. Individual poses are translated onto the foot reference, never independently stretched. Native frames are then packed losslessly for the development-only review server. The user approved this treatment and requested consistent proportions and smoother transitions. The archived sample remains available for comparison.
+All packs share the eight ground and 58 relief frames. `inventory.json` distinguishes
+finite `trees` references from `streamedTrees`; forest references the unchanged LPC
+sheet directly. Each other biome has an exclusive interior tree set. Transitional
+placement may select an adjoining biome's species according to its blend weight.
 
+The six additional rocks are shared, with moss/exposure-driven selection. Each
+pack has a real plant atlas and dependencies on the appropriate shared tree PNGs;
+shared files are not duplicated into every folder. The transition library is the
+shared ground/relief atlas plus continuous palette blending and neighboring-biome
+species selection. There is no separately authored transition sprite sheet.
+Trees and plants are static frames; water and existing weather retain their
+existing animation. No tree recolor variants are counted as new artwork.
 
-`docs/assets/source/player-final/` contains the completed eight-direction model and 456 native frames. The built-in image-generation tool produced the additional direction reference sheet using the approved turnaround. Three approved sample heads are preserved exactly; five additional heads and torso references use one uniform source reduction. No third-party character was downloaded. Original source rights remain inherited from the project; no public-domain claim is made.
+## Approved player character (2026-11-03)
 
-`model.json`, `manifest.json` and `provenance.json` retain dimensions, palette, pose definitions, input/output hashes and the generation prompt. `scripts/player-art/poses.mjs` defines small integer movements of fixed-size parts; `scripts/build-player-final.mjs` creates all 56 production strips with crisp binary alpha. It does not independently scale frames or interpolate between raster images. The old generated sources and the approved sample are retained so the change can be inspected and reproduced.
+The user accepted the existing character with the face-continuity and independent eyelid correction. Its exact source frames, native definitions and exported artwork are preserved in `source/player-face-continuity/`. The game uses 56 strips containing 912 slots. No pixels, proportions, palette, animation timing or gameplay behavior changed during approval and archival.
 
+`approval.json` records the accepted source/export/runtime checksums. `node scripts/player-art/face-continuity/pack.mjs` verifies source and output hashes before writing; it cannot silently replace the accepted artwork. [Source documentation](source/player-face-continuity/README.md) describes the files and reproduction command. [Provenance](source/player-face-continuity/provenance.json) retains the existing character's rights, original generation prompts and input hashes; no third-party replacement character was introduced.
 
-### Approved artwork restored; playback-only refinement
-
-The user clarified that **“Rejected remaster” is the approved appearance** and selected keeping every drawing unchanged. The 56 PNG strips were restored and verified against the hashes recorded before the later rework. The current preparation command is `node scripts/prepare-player-remaster.mjs`; `docs/assets/source/player-remaster/approved-hashes.json` locks the approved bytes. No new artwork, image-generation output, recolouring, resizing or in-between drawings are part of this playback refinement.
-
-The later sample and fixed-model sources remain historical references only. Their earlier acceptance labels above describe the superseded interpretation, not the current choice. The review defaults to **Approved remaster** and compares playback timing using the same sprites. Movement settling and punch dwell times live in presentation metadata/code, with no change to the source artwork or its provenance.
+Earlier variants, their generators, obsolete split-body/join/stop sheets, comparison tests and local recordings are archived under `archive/player-character/`, preserving repository-relative paths. That archive is intentionally Git-ignored and is not a build, test or runtime dependency. The active approved sources stay outside ignore rules. A separate local recovery bundle is in ignored `artifacts/player-approved/`.

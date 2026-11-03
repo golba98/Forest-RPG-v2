@@ -1,3 +1,4 @@
+import { validEnvironment, validEnvironmentAssetKey } from '../world/Biomes';
 import {
   SAVE_SCHEMA_VERSION,
   assertGeneratorVersion,
@@ -229,6 +230,11 @@ function decode(raw: string): {
   assertGeneratorVersion(meta.generatorVersion === undefined ? 0 : meta.generatorVersion);
   assertMigrationVersions(meta);
   if (
+    ((meta.generatorVersion === 13 && !meta.isTutorial) || world.environment !== undefined) &&
+    !validEnvironment(world.environment, w * h)
+  )
+    throw new Error('Invalid environment data');
+  if (
     !Array.isArray(world.tiles) ||
     world.tiles.length !== w * h ||
     !world.tiles.every((v: unknown) => integer(v) && isTileId(v))
@@ -286,6 +292,10 @@ function decode(raw: string): {
         integer(p.tileY) &&
         point({ x: p.tileX, y: p.tileY }, w, h) &&
         typeof p.solid === 'boolean' &&
+        validEnvironmentAssetKey(p.assetKey) &&
+        (p.variant === undefined || (integer(p.variant) && p.variant >= 0 && p.variant < 256)) &&
+        (p.featureKey === undefined ||
+          (typeof p.featureKey === 'string' && p.featureKey.length <= 160)) &&
         (p.hilltop === undefined ||
           (object(p.hilltop) &&
             p.kind === 'rock_boulder' &&
@@ -425,9 +435,18 @@ export class SaveManager {
   }
   async initialize(): Promise<void> {
     if (!this.infinite) return;
-    const auto = await this.worlds().load('auto');
-    if (auto && this.storage.getItem('forestrpg.v3.slot.auto') !== '0')
-      this.storage.setItem('forestrpg.v3.slot.auto', '1');
+    for (const slot of ['auto', 'biome-walk', 'walk-v14', 'walk-v15', 'walk-v16']) {
+      const checkpoint = await this.worlds().load(slot);
+      const key = `forestrpg.v3.slot.${slot}`;
+      if (checkpoint && this.storage.getItem(key) !== '0') this.storage.setItem(key, '1');
+      if (slot === 'biome-walk' && checkpoint?.descriptor.mode === 'biome-walk') {
+        const archive = `walk-v${checkpoint.descriptor.generatorVersion}`;
+        // Pin existing exploration snapshots before the first new-version entry.
+        if (!(await this.worlds().load(archive)))
+          await this.worlds().checkpoint(checkpoint, new Map(), archive);
+        this.storage.setItem(`forestrpg.v3.slot.${archive}`, '1');
+      }
+    }
   }
   private validGlobalEntity(value: unknown): boolean {
     if (
@@ -598,7 +617,7 @@ export class SaveManager {
       return;
     }
     const state = decode(raw); // Validate fully before touching the running game.
-    if (this.infinite && !state.world.meta.isTutorial) {
+    if (this.infinite && !state.world.meta.isTutorial && state.world.meta.generatorVersion < 13) {
       this.legacyExtras =
         object(parsed) && object(parsed.legacyExtras) ? parsed.legacyExtras : undefined;
       return this.convertFinite(state);
@@ -614,17 +633,24 @@ export class SaveManager {
         );
     this.legacyExtras =
       object(parsed) && object(parsed.legacyExtras) ? parsed.legacyExtras : undefined;
-    this.game.loadWorld(state.world);
-    this.sim.restoreEntities(
-      state.entities,
-      state.time,
-      state.elapsedMs,
-      state.tutorialStage,
-      state.runtime,
-    );
+    const install = () => {
+      this.game.loadWorld(state.world);
+      this.sim.restoreEntities(
+        state.entities,
+        state.time,
+        state.elapsedMs,
+        state.tutorialStage,
+        state.runtime,
+      );
+    };
+    if (state.world.environment && this.sim.preparePresentation)
+      return this.sim.preparePresentation(state.world).then(install);
+    install();
   }
+
   save(slot = 'auto'): void | Promise<void> {
     if (!/^[a-z0-9_-]{1,32}$/i.test(slot)) throw new Error('Invalid save slot');
+    if (this.sim.stream) slot = this.sim.stream.saveSlot(slot);
     if (this.sim.stream)
       return this.sim.saveInfinite(slot).then(() => {
         this.storage.setItem(`forestrpg.v3.slot.${slot}`, '1');

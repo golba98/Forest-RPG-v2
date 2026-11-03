@@ -1,3 +1,4 @@
+import { landscapeFixture } from '../fixtures/landscape-world';
 import { expect, test, type Page } from '@playwright/test';
 import { PLAYER_FOOTPRINT as F } from '../../src/systems/EntityFootprint';
 import { propFootprint } from '../../src/world/ObjectSemantics';
@@ -27,6 +28,15 @@ test('seed 42: hill/ground blocking, corners, depth, stair access and old-save r
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=42');
   await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
+  const historical=landscapeFixture();
+  await page.evaluate(w=>{
+    window.__GAME__!.saveGame('historical-landscape');
+    const saved=JSON.parse(localStorage.getItem('forestrpg.v2.save.historical-landscape')!);
+    saved.world=w;delete saved.runtime.moisture;delete saved.runtime.encounters;
+    localStorage.setItem('forestrpg.v2.save.historical-landscape',JSON.stringify(saved));
+    if(!window.__GAME__!.loadGame('historical-landscape'))throw new Error('Historical fixture load failed');
+  },{...historical,tiles:Array.from(historical.tiles)});
+
   await page.evaluate(() => {
     window.__GAME__!.setDaylightRatio(0.5);
     window.__RENDER_DEBUG__!.setWeatherPreview('clear');
