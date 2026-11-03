@@ -1,10 +1,20 @@
+import { coordinateRandom } from '../Geography';
+import type { WorldEnvironment } from '../Biomes';
 import { LandscapePlan } from '../LandscapePlan';
 import { reachableFrom } from '../LandscapeAccess';
 import type { Bounds } from '../../types/gameplay';
 import { intersectsReservations } from '../EncounterPlacement';
 import { Tile } from '../../types/tiles';
 import type { EnemyType } from '../../types/entities';
-import type { EnemySpawn, PickupSpawn, PropKind, TilePoint, WorldBridge, WorldProp } from '../../types/world';
+import type {
+  EnemySpawn,
+  PickupSpawn,
+  PropKind,
+  TilePoint,
+  WorldBridge,
+  WorldProp,
+  WorldData,
+} from '../../types/world';
 import { intersectsBridgeReservation } from '../BridgeGeometry';
 import { floodFill } from '../pathfinding';
 import type { Rng } from '../Rng';
@@ -64,9 +74,18 @@ export function restoreSpawnClearing(grid: GenGrid, spawn: TilePoint): void {
 export function pruneUnreachable(grid: GenGrid, spawn: TilePoint): void {
   // FOREST is about to become walkable woodland (placeWoodland), so it does not
   // cut regions off here; the post-woodland pass prunes what is truly unreachable.
-  const reached = floodFill(grid, spawn, (x, y) => isOpen(grid, x, y) || (grid.inBounds(x, y) && grid.get(x, y) === Tile.FOREST));
+  const reached = floodFill(
+    grid,
+    spawn,
+    (x, y) => isOpen(grid, x, y) || (grid.inBounds(x, y) && grid.get(x, y) === Tile.FOREST),
+  );
   for (let i = 0; i < grid.tiles.length; i++) {
-    if (grid.tiles[i] !== Tile.RIVER && reached[i] !== 1 && !tileProperties(grid.tiles[i] ?? 0).solid) grid.tiles[i] = Tile.FOREST;
+    if (
+      grid.tiles[i] !== Tile.RIVER &&
+      reached[i] !== 1 &&
+      !tileProperties(grid.tiles[i] ?? 0).solid
+    )
+      grid.tiles[i] = Tile.FOREST;
   }
 }
 
@@ -88,11 +107,26 @@ export function findPortalTile(
         const x = midX + dx;
         const y = midY + dy;
         if (!grid.inBounds(x, y) || grid.get(x, y) !== Tile.GRASS) continue;
-        if (intersectsBridgeReservation(bridges, { minX: x - 1, minY: y - 1, maxX: x + 2, maxY: y + 2 })) continue;
-        if (intersectsReservations({ minX: x - 1, minY: y - 1, maxX: x + 2, maxY: y + 2 }, reservations)) continue;
+        if (
+          intersectsBridgeReservation(bridges, {
+            minX: x - 1,
+            minY: y - 1,
+            maxX: x + 2,
+            maxY: y + 2,
+          })
+        )
+          continue;
+        if (
+          intersectsReservations(
+            { minX: x - 1, minY: y - 1, maxX: x + 2, maxY: y + 2 },
+            reservations,
+          )
+        )
+          continue;
         if (blocked.some((p) => p.solid && p.tileX === x && p.tileY === y)) continue;
-        if (intersectsReservations({ minX: x, minY: y, maxX: x + 1, maxY: y + 1 }, reservations)) continue;
-      if (Math.hypot(x - spawn.x, y - spawn.y) > SPAWN_CLEAR_RADIUS) return { x, y };
+        if (intersectsReservations({ minX: x, minY: y, maxX: x + 1, maxY: y + 1 }, reservations))
+          continue;
+        if (Math.hypot(x - spawn.x, y - spawn.y) > SPAWN_CLEAR_RADIUS) return { x, y };
       }
     }
   }
@@ -113,6 +147,7 @@ export function placeProps(
   existing: readonly WorldProp[] = [],
   bridges: readonly WorldBridge[] = [],
   reservations: readonly Bounds[] = [],
+  environment?: WorldEnvironment,
 ): WorldProp[] {
   const grass: TilePoint[] = [];
   for (let y = 0; y < grid.height; y++) {
@@ -137,13 +172,36 @@ export function placeProps(
     isOpen(grid, x, y) && blocked[y * grid.width + x] !== 1;
   const add = (tile: TilePoint, kind: PropKind, solid: boolean): void => {
     const idx = tile.y * grid.width + tile.x;
-    props.push({ id: props.length, kind, tileX: tile.x, tileY: tile.y, solid });
+    props.push({
+      id: props.length,
+      kind,
+      tileX: tile.x,
+      tileY: tile.y,
+      solid,
+      ...(environment && kind === 'rock_boulder'
+        ? {
+            variant:
+              environment.biome[idx] === 2
+                ? (tile.x * 17 + tile.y * 31) % 6
+                : 3 + ((tile.x + tile.y) % 3),
+            featureKey: `rock:${tile.x},${tile.y}`,
+          }
+        : {}),
+    });
     occupied[idx] = 1;
     if (solid) blocked[idx] = 1;
   };
   const nearProtected = (t: TilePoint): boolean =>
-    intersectsReservations({ minX: t.x - 1, minY: t.y - 1, maxX: t.x + 2, maxY: t.y + 2 }, reservations) ||
-    intersectsBridgeReservation(bridges, { minX: t.x - 0.5, minY: t.y - 0.5, maxX: t.x + 1.5, maxY: t.y + 1.5 }) ||
+    intersectsReservations(
+      { minX: t.x - 1, minY: t.y - 1, maxX: t.x + 2, maxY: t.y + 2 },
+      reservations,
+    ) ||
+    intersectsBridgeReservation(bridges, {
+      minX: t.x - 0.5,
+      minY: t.y - 0.5,
+      maxX: t.x + 1.5,
+      maxY: t.y + 1.5,
+    }) ||
     Math.hypot(t.x - spawn.x, t.y - spawn.y) <= SPAWN_CLEAR_RADIUS ||
     Math.hypot(t.x - portal.x, t.y - portal.y) <= 1;
 
@@ -152,18 +210,36 @@ export function placeProps(
     if (
       nearProtected(tile) ||
       occupied[tile.y * grid.width + tile.x] ||
-      grid.neighbors8(tile.x, tile.y).some((p) => grid.get(p.x, p.y) === Tile.RAMP || grid.get(p.x, p.y) === Tile.STAIRS)
+      grid
+        .neighbors8(tile.x, tile.y)
+        .some((p) => grid.get(p.x, p.y) === Tile.RAMP || grid.get(p.x, p.y) === Tile.STAIRS)
     )
       continue;
     const roll = rng.nextFloat();
     if (allowObstacles && obstacles < maxObstacles && roll < DECOR_OBSTACLE_CHANCE) {
-      const kind = rng.pick(OBSTACLE_DECOR);
+      const idx = tile.y * grid.width + tile.x;
+      const kind: PropKind = environment
+        ? environment.relief[idx]! > 150 || environment.biome[idx] === 2
+          ? 'rock_boulder'
+          : environment.cover[idx]! > 60
+            ? rng.pick(['log_horizontal', 'log_stump'] as const)
+            : 'bush_obstacle'
+        : rng.pick(OBSTACLE_DECOR);
       if (isSafeToBlock(tile, passable)) {
         add(tile, kind, true);
         obstacles++;
       }
     } else if (roll < DECOR_OBSTACLE_CHANCE + DECOR_WALKABLE_CHANCE) {
-      add(tile, rng.pick(WALKABLE_DECOR), false);
+      const idx = tile.y * grid.width + tile.x;
+      add(
+        tile,
+        environment
+          ? environment.biome[idx] === 2 && rng.chance(0.6)
+            ? 'rock_pebble'
+            : 'flower_clump'
+          : rng.pick(WALKABLE_DECOR),
+        false,
+      );
     }
   }
 
@@ -283,8 +359,10 @@ export function planSpawns(
     for (let x = 0; x < grid.width; x++) {
       const idx = y * grid.width + x;
       if (reached[idx] !== 1 || solidProp[idx] === 1 || grid.get(x, y) !== Tile.GRASS) continue;
-      if (intersectsBridgeReservation(bridges, { minX: x, minY: y, maxX: x + 1, maxY: y + 1 })) continue;
-      if (intersectsReservations({ minX: x, minY: y, maxX: x + 1, maxY: y + 1 }, reservations)) continue;
+      if (intersectsBridgeReservation(bridges, { minX: x, minY: y, maxX: x + 1, maxY: y + 1 }))
+        continue;
+      if (intersectsReservations({ minX: x, minY: y, maxX: x + 1, maxY: y + 1 }, reservations))
+        continue;
       if (Math.hypot(x - spawn.x, y - spawn.y) <= SPAWN_CLEAR_RADIUS) continue;
       if (Math.hypot(x - portal.x, y - portal.y) <= 1) continue;
       available.push({ x, y });
@@ -314,4 +392,50 @@ export function planSpawns(
     pickupSpawns.push({ type: 'coin', x: t.x, y: t.y });
   }
   return { enemySpawns, pickupSpawns };
+}
+
+/** Passable ecological companions, placed after required gameplay positions are known. */
+export function composeEnvironment(world: WorldData): WorldData {
+  const env = world.environment;
+  if (!env) return world;
+  const { width, height, seed } = world.meta,
+    props = [...world.props],
+    occupied = new Set(props.map((p) => p.tileY * width + p.tileX));
+  const plan = new LandscapePlan(world, 'woodland');
+  for (const host of world.props) {
+    const log = host.kind === 'log_horizontal' || host.kind === 'log_stump';
+    if (!log && host.kind !== 'tree') continue;
+    if (!log && coordinateRandom(seed, host.tileX, host.tileY, 201) > 0.4) continue;
+    for (let n = 0; n < (log ? 3 : 1); n++) {
+      const x =
+        host.tileX + Math.floor(coordinateRandom(seed, host.tileX, host.tileY, 202 + n) * 5) - 2;
+      const y =
+        host.tileY + Math.floor(coordinateRandom(seed, host.tileX, host.tileY, 212 + n) * 4) - 1;
+      const i = y * width + x;
+      if (
+        x < 2 ||
+        y < 2 ||
+        x >= width - 2 ||
+        y >= height - 2 ||
+        occupied.has(i) ||
+        ![Tile.GRASS, Tile.PLATEAU].includes(world.tiles[i] as 1 | 21)
+      )
+        continue;
+      if (plan.woodlandRejection({ x, y }, { minX: x, minY: y, maxX: x + 1, maxY: y + 1 }))
+        continue;
+      const biome = env.biome[i] ?? 0,
+        variant = biome === 0 ? (log ? 1 : 0) : biome === 3 ? 4 : biome === 4 ? (log ? 4 : 0) : 0;
+      props.push({
+        id: props.length,
+        kind: 'flower_clump',
+        tileX: x,
+        tileY: y,
+        solid: false,
+        variant,
+        featureKey: `understory:${x},${y}`,
+      });
+      occupied.add(i);
+    }
+  }
+  return { ...world, props };
 }

@@ -14,25 +14,34 @@ const descriptor = {
   level: 1,
   difficulty: 'normal',
 } as const;
-it('keeps baseline cells and object identities independent of partition size', () => {
-  const small = new ForestGenerator(descriptor),
-    large = new ForestGenerator({ ...descriptor, chunkSize: 64 });
-  const chunks = [
-    small.generate({ x: -2, y: -2 }),
-    small.generate({ x: -1, y: -2 }),
-    small.generate({ x: -2, y: -1 }),
-    small.generate({ x: -1, y: -1 }),
-  ];
-  const combined = large.generate({ x: -1, y: -1 });
-  expect(
-    chunks.flatMap((c) => c.props).sort((a, b) => String(a.id).localeCompare(String(b.id))),
-  ).toEqual([...combined.props].sort((a, b) => String(a.id).localeCompare(String(b.id))));
-  for (let y = 0; y < 64; y++)
-    for (let x = 0; x < 64; x++) {
-      const chunk = chunks[Math.floor(y / 32) * 2 + Math.floor(x / 32)]!;
-      expect(chunk.tiles[(y % 32) * 32 + (x % 32)]).toBe(combined.tiles[y * 64 + x]);
-    }
-});
+it.each([13, 14, 15, 16] as const)(
+  'v%i keeps cells and object identities independent of partition size',
+  (version) => {
+    const versioned = {
+      ...descriptor,
+      generatorVersion: version,
+      biomeVersion: version === 13 ? (1 as const) : (2 as const),
+    };
+    const small = new ForestGenerator(versioned),
+      large = new ForestGenerator({ ...versioned, chunkSize: 64 });
+    const chunks = [
+      small.generate({ x: -2, y: -2 }),
+      small.generate({ x: -1, y: -2 }),
+      small.generate({ x: -2, y: -1 }),
+      small.generate({ x: -1, y: -1 }),
+    ];
+    const combined = large.generate({ x: -1, y: -1 });
+    expect(
+      chunks.flatMap((c) => c.props).sort((a, b) => String(a.id).localeCompare(String(b.id))),
+    ).toEqual([...combined.props].sort((a, b) => String(a.id).localeCompare(String(b.id))));
+    for (let y = 0; y < 64; y++)
+      for (let x = 0; x < 64; x++) {
+        const chunk = chunks[Math.floor(y / 32) * 2 + Math.floor(x / 32)]!;
+        expect(chunk.tiles[(y % 32) * 32 + (x % 32)]).toBe(combined.tiles[y * 64 + x]);
+        expect(chunk.elevations?.[(y % 32) * 32 + (x % 32)]).toBe(combined.elevations?.[y * 64 + x]);
+      }
+  },
+);
 it('retains real bridge decks, rails and continuously swept hilltop bypasses', () => {
   const g = new ForestGenerator(descriptor),
     size = 192,

@@ -9,6 +9,10 @@ import type { SimulationRuntime } from '../types/encounters';
 
 export interface WorldCheckpoint {
   readonly version: 3;
+  readonly exploration?: {
+    home: { x: number; y: number };
+    landings: Partial<Record<import('../world/Biomes').BiomeId, { x: number; y: number }>>;
+  };
   readonly descriptor: InfiniteDescriptor;
   readonly revision: number;
   readonly entities: readonly Entity[];
@@ -208,11 +212,24 @@ export class WorldRepository {
     tx.objectStore('checkpoints').put(state, [state.descriptor.id, state.revision]);
     if (slot)
       tx.objectStore('slots').put({ id: state.descriptor.id, revision: state.revision }, slot);
+    // Keep one durable exploration per generator. Installing new terrain must
+    // never discard the preceding landscape or mix its edits into a new baseline.
+    const explorationSlot =
+      slot === 'biome-walk' && state.descriptor.mode === 'biome-walk'
+        ? `walk-v${state.descriptor.generatorVersion}`
+        : undefined;
+    if (explorationSlot)
+      tx.objectStore('slots').put(
+        { id: state.descriptor.id, revision: state.revision },
+        explorationSlot,
+      );
     await done;
     if (slot)
       try {
         if (typeof localStorage !== 'undefined')
           localStorage.setItem(`forestrpg.v3.slot.${slot}`, '1');
+        if (typeof localStorage !== 'undefined' && explorationSlot)
+          localStorage.setItem(`forestrpg.v3.slot.${explorationSlot}`, '1');
       } catch {
         /* Secondary index; IndexedDB remains authoritative. */
       }

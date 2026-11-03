@@ -8,7 +8,7 @@ import type { EntityBase } from '../types/entities';
 import type { Bounds, Collider, CollisionFootprint, TraversalProfile } from '../types/gameplay';
 import type { WorldData } from '../types/world';
 import { bridgeAtTile, bridgeGeometry, boundsOverlap, subtractDeck } from '../world/BridgeGeometry';
-export type CollisionWorld = Pick<WorldData, 'tiles' | 'props' | 'bridges' | 'encounterSites'> & {
+export type CollisionWorld = Pick<WorldData, 'tiles' | 'elevations' | 'props' | 'bridges' | 'encounterSites'> & {
   readonly meta: Pick<WorldData['meta'], 'width' | 'height'>;
 };
 import { Tile, TILE_PROPERTIES, type TileId, type TileProperties } from '../types/tiles';
@@ -141,9 +141,9 @@ export function queryColliders(
     ) {
       const properties = TILE_PROPERTIES[world.tiles[y * width + x] as TileId];
       const tile = world.tiles[y * width + x] ?? Tile.BORDER;
-      if (isRaisedSurface(tile)) {
+      if ((world.elevations?.[y*width+x] ?? Number(isRaisedSurface(tile))) > 0) {
         if (profile !== 'jumping') {
-          const mask = elevationMask(world.tiles, width, height, x, y);
+          const mask = elevationMask(world.tiles, width, height, x, y, world.elevations);
           const bridge = bridgeAtTile(world, x, y);
           for (const [i, b] of cachedHillBounds(tile, mask).entries()) {
             const bounds = { minX: x + b.minX, minY: y + b.minY, maxX: x + b.maxX, maxY: y + b.maxY };

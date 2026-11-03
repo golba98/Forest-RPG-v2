@@ -9,6 +9,250 @@ and limitations; frozen diagnostic routes are not active-play stress tests.
 
 These measurements are local observations, not guarantees for other hardware. Run `npm run benchmark` for seeded 150×150 generation and `node scripts/profile-browser.mjs` against a running production preview for browser cadence and regeneration heap. The browser script uses Chrome's debugging protocol and requires an installed Google Chrome.
 
+## Nested terraces, 2026-11-03
+
+The same seed-42 diagnostic route, 1280×720 production build and Chromium/ANGLE
+configuration were used for generator 16. This is a shared Linux i7-13700/RTX 4080
+workstation (Node 22.23.1); unrelated work was active, so the comparison cannot
+isolate generator cost from host contention. Simulation is frozen and diagnostic
+positioning moves the camera; keyboard exploration is validated separately.
+
+| First 60 seconds                                    |       Prior hills v15 |          Terraces v16 |
+| --------------------------------------------------- | --------------------: | --------------------: |
+| RAF p95 / p99 / maximum                             | 16.8 / 16.8 / 50.0 ms | 16.7 / 16.8 / 83.3 ms |
+| Post-GC JS heap, start → end                        |     15.73 → 18.17 MiB |     16.22 → 18.20 MiB |
+| Generated / evicted / resident chunks               |         144 / 80 / 64 |         144 / 80 / 64 |
+| Window transitions                                  |                    10 |                    10 |
+| Generation request p50 / p95                        |        17.9 / 35.1 ms |       33.5 / 121.4 ms |
+| Maximum generation request, including startup       |              152.6 ms |              421.0 ms |
+| Maximum terrain preparation, including startup      |               27.0 ms |               92.8 ms |
+| Owned terrain textures at end                       |                18 MiB |                18 MiB |
+| Long tasks / urgent terrain misses / browser errors |             0 / 0 / 0 |             1 / 0 / 0 |
+
+An initial v16 sample exposed synchronous terrace planning during adventure actor
+publication: `baselineActors` called the generator for already-prepared cells.
+Reading `ChunkSource`'s immutable baseline instead removed that duplicate work;
+a regression test forbids generator queries during publication. Before this fix,
+the first minute recorded eight long tasks and a 183.4 ms maximum frame interval;
+afterward it recorded one long task and 83.3 ms. An occasional stall remains, and
+worker generation is measurably more expensive than v15. Prefetch kept visible
+terrain ready on this route; these figures are not a claim of universally smooth
+60 FPS or an improvement in every latency measure.
+
+Nearby relief sources loaded in 4.3–6.0 ms in the first minute. These include
+fetch/decode on localhost, not separately measured GPU upload. Height arrays add
+64 KiB for the 64 resident chunks and 36 KiB for the 192×192 gameplay window;
+terrace plans retain at most 256 KiB of height arrays per generator. Heap readings
+exclude total worker/GPU/driver allocations. Sources, staging and terrain textures
+keep their existing independent retention limits.
+
+The completed five-minute route reached approximately (1691, −340), crossing
+forest and highland regions. It generated 550 chunks, evicted 486 and recorded
+52 window transitions; all six residency samples held 64 data chunks. Post-GC JS
+heap was 16.22 MiB initially, peaked at 20.53 MiB at four minutes and ended at
+20.29 MiB. Terrain textures ended at 23 MiB within their 64 MiB budget. Each minute
+reported p95 16.7–16.8 ms and p99 16.8 ms; after the first minute, sampled maximum
+intervals were 16.8 ms. The entire run recorded one long task, no urgent terrain
+misses and no browser errors. Quantiles use the profiler's rolling 3,600-frame
+buffer, excluding its deliberate GC windows. This five-minute diagnostic sample
+supplements, rather than replaces, extended active-play qualification.
+
+Raw results live in `artifacts/terraces/profile/`; the diagnostic pre-fix sample
+is retained in `artifacts/terraces/profile-before-fix/`. Reproduce with:
+
+```sh
+FOREST_BENCH_URL=http://localhost:4174 FOREST_PROFILE_MS=300000 FOREST_PROFILE_OUTPUT=artifacts/terraces/profile node scripts/profile-infinite-world.mjs
+```
+
+## Biome hills, 2026-11-03
+
+Generator 15 was sampled after its unit/browser checks, using the same production
+60-second route, seed 42, 1280×720, Chromium 156.0.8078.4, ANGLE/OpenGL and
+Node 22.23.1 as the generator-14 comparison below. Hardware remains the shared
+Linux i7-13700/RTX 4080 workstation. This freezes simulation and moves the camera
+through diagnostic positioning; real keyboard collision is verified separately.
+
+| Same 60-second route                                |          Previous v14 |             Hills v15 |
+| --------------------------------------------------- | --------------------: | --------------------: |
+| RAF p95 / p99 / maximum                             | 16.7 / 16.8 / 16.8 ms | 16.8 / 16.8 / 50.0 ms |
+| Post-GC JS heap, start → end                        |     16.74 → 19.27 MiB |     15.73 → 18.17 MiB |
+| Generated / evicted data chunks                     |              144 / 80 |              144 / 80 |
+| Resident data chunks, start / end                   |               64 / 64 |               64 / 64 |
+| Local-window transitions                            |                    10 |                    10 |
+| Generation request p50 / p95                        |        14.1 / 28.3 ms |        17.9 / 35.1 ms |
+| Maximum generation request, including startup       |              152.2 ms |              152.6 ms |
+| Maximum terrain preparation, including startup      |               26.2 ms |               27.0 ms |
+| Owned terrain textures at end                       |                18 MiB |                18 MiB |
+| Long tasks / urgent terrain misses / browser errors |             0 / 0 / 0 |             0 / 0 / 0 |
+
+Local landform sampling and four-sided slope planning increase worker request
+cost. Prefetch kept the visible terrain ready on this route. The 50 ms maximum
+frame interval remains a limitation; no matching long task or urgent terrain miss
+was recorded, and this sample does not attribute GPU or host scheduling delays.
+The lower heap sample does not establish a general memory improvement: object
+composition differs. Total worker/GPU/driver memory is not included. The short
+run does not replace the earlier extended streaming profile.
+
+The additional hill atlas loaded in 2.6 ms; recorded environment-source loads
+ranged from 2.2 to 5.5 ms on localhost. These `Assets.load` intervals include
+fetch/decode but do not separate them or measure GPU upload. Raw results are in
+`artifacts/biome-hills/profile/result.json`. Reproduce against a production preview:
+
+```sh
+FOREST_BENCH_URL=http://localhost:4174 FOREST_PROFILE_MS=60000 FOREST_PROFILE_OUTPUT=artifacts/biome-hills/profile node scripts/profile-infinite-world.mjs
+```
+
+## Five-biome infinite world, 2026-11-03
+
+The comparison below uses the restored streaming generator 13 as its baseline,
+then the final five-biome streaming generator 14. It does **not** compare a finite
+150×150 map with a streamed map. The earlier finite-biome p95 of approximately
+16.8 ms is historical context; its camera route and retained world differ.
+
+Both 60-second samples use `scripts/profile-infinite-world.mjs`, seed 42,
+1280×720, Chromium 156.0.8078.4, ANGLE/OpenGL, Node 22.23.1, Linux, an Intel
+i7-13700 and NVIDIA RTX 4080. The final short profile ran after the test suites
+finished. This remains a shared workstation, not an isolated hardware lab.
+The diagnostic route advances at 5.625 tiles/s with simulation time frozen and
+collision bypassed. Ordinary keyboard traversal is tested separately in both
+browsers. Cadence is capped at 60 Hz; it is not GPU execution time.
+
+| Same 60-second route                                | Restored forest baseline |      Five-biome final |
+| --------------------------------------------------- | -----------------------: | --------------------: |
+| RAF p95 / p99 / maximum                             |    16.7 / 16.8 / 16.8 ms | 16.7 / 16.8 / 16.8 ms |
+| Post-GC JS heap, start → end                        |        10.30 → 13.25 MiB |     16.74 → 19.27 MiB |
+| Generated / evicted data chunks                     |                 144 / 80 |              144 / 80 |
+| Resident data chunks, start / end                   |                  64 / 64 |               64 / 64 |
+| Local-window transitions                            |                       10 |                    10 |
+| Maximum generation request, including startup       |                  77.5 ms |              152.2 ms |
+| Maximum terrain preparation, including startup      |                  24.9 ms |               26.2 ms |
+| Long tasks / urgent terrain misses / browser errors |                0 / 0 / 0 |             0 / 0 / 0 |
+
+Final generation requests measured p50 14.1 ms and p95 28.3 ms over the latest
+128 requests. These include backend/worker round trips, not pure worker CPU.
+The richer biome fields increase retained heap and startup generation cost.
+Source chunks are prefetched ahead of the camera; a generation request is not a
+main-thread frame. Owned terrain textures ended at 18 MiB in both samples, with
+a 64 MiB target. JS heap excludes total GPU/driver memory.
+
+A separate final-build menu sample entered all five biomes in one world, then
+sampled 180 stationary RAF intervals per biome after settling and forced GC:
+
+| Biome           | Explore click → playable HUD | Stationary p95 / p99 | Resident props / visible objects |
+| --------------- | ---------------------------: | -------------------: | -------------------------------: |
+| Forest          |                     1,426 ms |       16.8 / 16.8 ms |                         148 / 77 |
+| Meadow          |                     1,822 ms |       16.7 / 16.8 ms |                          69 / 34 |
+| Rocky Highlands |                     1,373 ms |       16.8 / 16.8 ms |                         119 / 70 |
+| Wetlands        |                     1,825 ms |       16.7 / 16.8 ms |                         111 / 62 |
+| Autumn Woodland |                     1,322 ms |       16.8 / 16.8 ms |                         127 / 77 |
+
+These are after-only Biome Walk samples without combat, not the adventure route
+comparison. Entry includes destination generation, safe landing selection and
+presentation preparation. The largest single terrain preparation during an
+explicit biome jump was **205.9 ms**; gameplay is paused behind the loading screen
+for those jumps. Ordinary adjacent chunks do not use that screen. Recorded lazy
+asset `Assets.load` intervals were 1.9–3.8 ms on localhost; fetch/decode are not
+separated and GPU upload is excluded. This is not a cold-network benchmark.
+All five samples had ready terrain, zero urgent misses and no browser errors.
+Object counts describe culling, not GPU draw calls. Raw measurements are in
+`artifacts/infinite-biome-entry-profile.json` with the local capture script
+`artifacts/profile-biome-entry.mjs`.
+
+A separate **30-minute** generator-14 route produced 3,627 chunks, evicted 3,563,
+and crossed 260 local-window boundaries. Every minute checkpoint held 64 data
+chunks; the largest sampled owned terrain allocation was 28 MiB. Post-GC heap
+was 17.44 → 19.29 MiB, with a 23.76 MiB peak. Minute-window p95 ranged from 16.7
+to 16.8 ms, p99 stayed at or below 16.8 ms, and the maximum interval was **50 ms**.
+There were no recorded long tasks, urgent terrain misses or browser errors.
+Maximum generation round trip was 293.7 ms; maximum terrain preparation was
+72.9 ms, including setup. Browser/unit tests were active during parts of this
+soak, and the final distant-jump failure recovery fix came afterward. The final
+60-second comparison above uses that fix. Neither run proves absence of every
+leak or eliminates occasional stalls; the soak is a cache/streaming test, not
+thirty minutes of collision-driven player input.
+
+Remaining costs include Pixi terrain construction/upload, garbage collection,
+initial worker/region preparation and shared-host scheduling. GPU draw calls and
+total GPU memory were not instrumented. Do not infer uninterrupted 60 FPS on
+weaker devices from a capped desktop cadence sample.
+
+Raw results are in `artifacts/infinite-walk-baseline/`,
+`artifacts/infinite-biomes-after/`, and `artifacts/infinite-biomes-extended/`.
+Reproduce with a production preview on port 4176:
+
+```sh
+FOREST_BENCH_URL=http://localhost:4176 FOREST_PROFILE_MS=60000 FOREST_PROFILE_OUTPUT=artifacts/infinite-biomes-after node scripts/profile-infinite-world.mjs
+```
+
+Omit `FOREST_PROFILE_MS` for the thirty-minute route. The profiler stores at most
+3,600 frame intervals and 2,000 long-task records, samples heap after forced GC,
+and excludes the GC interval and following settling window from cadence.
+
+## Five-biome environment, 2026-11-03
+
+Baseline: commit `a5cd38b`. After: generator 13 working tree. Node 22.23.1,
+Linux 7.2.13, Intel i7-13700, NVIDIA RTX 4080, Chrome 156.0.8078.79 with ANGLE/OpenGL.
+Generation used one warmup and five serial samples per seed, without this
+repository's tests running. Browser samples used the same machine and 60 Hz
+presentation cap. A separate training workload occupied approximately 99% GPU
+utilization during the after measurements. These are shared-host observations,
+not an isolated hardware benchmark or a general speedup claim.
+
+Median milliseconds, **before → after**:
+
+| Seed | Generate 150×150 | Simulation load | Current save import |
+| ---- | ---------------: | --------------: | ------------------: |
+| 1    |  971.63 → 543.59 |    5.88 → 12.02 |       10.17 → 16.38 |
+| 42   |  760.56 → 448.74 |     4.67 → 6.92 |        8.82 → 16.79 |
+| 123  |  976.27 → 443.54 |     5.36 → 7.12 |        9.34 → 16.37 |
+| 1337 |  370.81 → 420.11 |     5.17 → 6.39 |        9.75 → 15.42 |
+
+The layouts intentionally differ. After worlds contain 2,603–2,801 props versus
+1,284–1,834 before, mainly passable ecological details. Generation is faster on
+three sampled seeds and slower on seed 1337. Saved environmental fields and extra
+props increase load/import cost. The profiler's synthetic v9 conversion of a new
+world is not a historical-save comparison; archived-save correctness is tested
+separately. The varying-seed Vitest benchmark completed 10 timed samples: mean
+537.37 ms, range 386.54–693.30 ms (wide ±17.63% relative margin).
+
+With 62 living enemies, 120 RAF samples per resolution:
+
+| Resolution | Before p95 | After p95 | After p99 |
+| ---------- | ---------: | --------: | --------: |
+| 1920×1080  |    16.7 ms |   16.7 ms |   16.8 ms |
+| 2560×1440  |    16.8 ms |   16.7 ms |   16.8 ms |
+| 3840×2160  |    16.8 ms |   16.7 ms |   16.8 ms |
+
+The new camera stress scenario advances 600 frames along a 108-tile eastward arc,
+faster than normal walking. Prefetch initially built an entering row together:
+p95 33.3 ms, maximum 66.7 ms. Budgeted construction reduced p95 to 16.8 ms;
+p99 remained 33.4 ms, maximum 50 ms, with 26 of 599 intervals over 33 ms.
+There were **zero unavailable terrain frames and zero placeholder sprites**.
+Resident chunks ranged from 30 to 56 rather than retaining all 100 map chunks.
+The steady-view sample held 1,219 resident props and 59–74 visible scenery sprites.
+Actual GPU draw calls were not instrumented; these are culling/workload counters.
+
+Recent CPU chunk builds measured median 6.6 ms, p95 7.4 ms, maximum 7.9 ms.
+The 4 ms scheduler budget cannot split a single build. Source fetch/decode intervals
+peaked at 159.8 ms in this local-preview sample; GPU upload is excluded. Remaining
+stalls can include construction, cache upload, garbage collection and host contention.
+This does not establish smooth 60 FPS on weaker hardware or eliminate every hitch.
+
+Forced-GC JavaScript heap over 20 random regenerations was **56.5 → 62.3 MB before**
+and **31.5 → 39.7 MB after**, with an after peak of 42.7 MB. GPU memory is excluded,
+the random worlds differ, and a short run does not establish absence of leaks.
+The asset/residency caches are bounded; the simulation and save still hold the
+entire finite map.
+
+Raw JSON is retained locally under `artifacts/environment-before/`,
+`artifacts/environment-after-generation.json`, and
+`artifacts/environment-after-browser.json`. Reproduce using the profiler commands
+below and `FOREST_BENCH_URL=http://127.0.0.1:4174 node scripts/profile-browser.mjs`
+with a production preview on that port. Browser profile samples should run after
+prefetch settles and without concurrent test suites.
+
+## Earlier measurements
+
 ## World visibility and residency
 
 The October 31, 2026 comparison uses seed 42, a production build, Chromium

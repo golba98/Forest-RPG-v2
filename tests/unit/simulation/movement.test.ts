@@ -161,3 +161,24 @@ describe('jump distance', () => {
     ).toBeLessThanOrEqual(2.2);
   });
 });
+
+it.each([1, 2, 3])('jumps at most one elevation tier (destination %i)', async (level) => {
+  const { makeWorld } = await import('../game/fakes');
+  const { Tile } = await import('../../../src/types/tiles');
+  const { movePlayer } = await import('../../../src/systems/MovementSystem');
+  const world = { ...makeWorld(), elevations: new Uint8Array(64) };
+  for (let y = 0; y < 8; y++)
+    for (let x = 0; x < 8; x++) {
+      world.tiles[y * 8 + x] = x >= 4 ? Tile.PLATEAU : Tile.GRASS;
+      world.elevations[y * 8 + x] = x >= 4 ? level : 0;
+    }
+  const s = new Simulation();
+  s.loadWorld(world);
+  s.setPlayerPosition(3.5, 3.5);
+  const start = { x: s.player.x, y: s.player.y };
+  movePlayer(world, s.player, { ...IDLE_INTENT, jump: true, moveX: 1 }, 1 / 60);
+  for (let n = 0; n < 29; n++) movePlayer(world, s.player, { ...IDLE_INTENT, moveX: 1 }, 1 / 60);
+  expect(s.player.isJumping).toBe(false);
+  if (level === 1) expect(s.player.x).toBeGreaterThan(4.5);
+  else expect(s.player.x).toBeLessThan(start.x + 0.2);
+});

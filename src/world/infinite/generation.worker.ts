@@ -15,7 +15,7 @@ function normal(data: Request): void {
   try {
     if (generator?.descriptor.id !== descriptor.id) generator = new ForestGenerator(descriptor);
     const chunk = generator.generate(address);
-    self.postMessage({ id, chunk }, { transfer: [chunk.tiles.buffer] });
+    self.postMessage({ id, chunk }, { transfer: [chunk.tiles.buffer, ...(chunk.elevations ? [chunk.elevations.buffer] : [])] });
   } catch (error) {
     self.postMessage({ id, error: error instanceof Error ? error.message : String(error) });
   }
@@ -35,8 +35,8 @@ if (PERF_BUILD) {
         constructed: performance.timeOrigin + constructed, finished: performance.timeOrigin + finished,
         posted: performance.timeOrigin + performance.now(), executeMs: finished - constructed,
         constructMs: constructed - received, inboundMs: performance.timeOrigin + received - (dispatched ?? 0),
-        bytes: chunk.tiles.byteLength, props: chunk.props.length,
-      } }, { transfer: [chunk.tiles.buffer] });
+        bytes: chunk.tiles.byteLength + (chunk.elevations?.byteLength ?? 0), props: chunk.props.length,
+      } }, { transfer: [chunk.tiles.buffer, ...(chunk.elevations ? [chunk.elevations.buffer] : [])] });
     } catch (error) {
       self.postMessage({ id, error: error instanceof Error ? error.message : String(error) });
     }

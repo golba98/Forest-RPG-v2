@@ -28,6 +28,7 @@ export const Tile = {
   MUD: 22,
   /** Stone steps cut into a hill edge: walkable link between ground and hill top. */
   STAIRS: 23,
+  SHALLOW_WATER: 24,
 } as const;
 
 export type TileId = (typeof Tile)[keyof typeof Tile];
@@ -82,6 +83,7 @@ export const TILE_PROPERTIES: Readonly<Record<TileId, TileProperties>> = {
   [Tile.PLATEAU]: OPEN,
   [Tile.MUD]: { ...OPEN, speedMultiplier: 0.72 },
   [Tile.STAIRS]: OPEN,
+  [Tile.SHALLOW_WATER]: { ...OPEN, speedMultiplier: 0.72 },
 };
 
 const TILE_IDS = new Set<number>(Object.values(Tile));

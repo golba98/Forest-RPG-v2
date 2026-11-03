@@ -2,7 +2,7 @@ import type { Entity, PickupEntity, PlayerEntity } from '../types/entities';
 import type { WorldData } from '../types/world';
 import { hasClearPath, registerChestColliders } from './CollisionSystem';
 import { groundPosition } from './EntityFootprint';
-import { isRaisedSurface } from '../world/HillCollisionGeometry';
+import { elevationAt } from '../world/ElevationTopology';
 
 export const LOOT_RULES = { pickupRadius: 0.7, chestRadius: 1.25, openingMs: 600 } as const;
 export const chestReward = (variant: 'wooden' | 'reinforced'): number =>
@@ -16,11 +16,9 @@ export function prepareLoot(world: WorldData, entities: readonly Entity[]): void
 }
 export function canReachLoot(world: WorldData, p: PlayerEntity, e: PickupEntity): boolean {
   const ground = groundPosition(p);
-  const raised = (x: number, y: number) =>
-    isRaisedSurface(world.tiles[Math.floor(y) * world.meta.width + Math.floor(x)] ?? 0);
   return (
     !p.isJumping &&
-    raised(ground.x, ground.y) === raised(e.x, e.y) &&
+    elevationAt(world, ground.x, ground.y) === elevationAt(world, e.x, e.y) &&
     hasClearPath(world, ground.x, ground.y, e.x, e.y, 0.01, 'player', { ignoreChestId: e.id })
   );
 }

@@ -1,5 +1,4 @@
 import type { WorldData } from '../../src/types/world';
-import { WORLD_GENERATOR_VERSION } from '../../src/types/world';
 import { Tile } from '../../src/types/tiles';
 import { siteId } from '../../src/world/EncounterPlacement';
 
@@ -13,7 +12,7 @@ export function encounterFixture(seed = 123): WorldData {
   return {
     meta: {
       seed,
-      generatorVersion: WORLD_GENERATOR_VERSION,
+      generatorVersion: 12,
       width,
       height: width,
       isTutorial: false,

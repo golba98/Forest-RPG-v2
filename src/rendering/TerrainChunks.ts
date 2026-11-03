@@ -1,8 +1,11 @@
+import { BIOMES } from '../world/Biomes';
+import { stairGround } from './stairGround';
+import { biomeGroundTint, raisedSurfaceTint, uplandVariantOffset } from './environmentArt';
 import { Container, RenderTexture, Sprite, type Renderer } from 'pixi.js';
 import type { WorldData } from '../types/world';
 import { Tile } from '../types/tiles';
 import { computeVisibleChunks, createChunkRange, chunksAlong } from './chunkMath';
-import { elevationMask } from './hillAutotile';
+import { elevationMask, isElevatedTile } from './hillAutotile';
 import { ResidencyCache } from './ResidencyCache';
 import { SoilChunkBuilder } from './SoilArt';
 import { createTileSprite } from './SpriteArt';
@@ -79,10 +82,12 @@ export class TerrainChunks {
     for (const entry of entries) {
       entry.value.sprite.x -= dx * 32;
       entry.value.sprite.y -= dy * 32;
-      const bounds = {...entry.bounds, x:entry.bounds.x-dx*32,y:entry.bounds.y-dy*32};
-      this.cache.entries.set(`${bounds.x / 32},${bounds.y / 32}`, {...entry,bounds});
+      const bounds = { ...entry.bounds, x: entry.bounds.x - dx * 32, y: entry.bounds.y - dy * 32 };
+      this.cache.entries.set(`${bounds.x / 32},${bounds.y / 32}`, { ...entry, bounds });
     }
-    this.dirty.clear(); this.requests.length = 0; this.world = world;
+    this.dirty.clear();
+    this.requests.length = 0;
+    this.world = world;
   }
 
   update(regions: VisibilityRegions, now: number): void {
@@ -190,19 +195,111 @@ export class TerrainChunks {
     const tx = request.x + (job.next % cols),
       ty = request.y + Math.floor(job.next / cols);
     job.next++;
-    job.soil.add(tx, ty);
-    const tile = world.tiles[ty * world.meta.width + tx] ?? 0;
-    const elevation = elevationMask(world.tiles, world.meta.width, world.meta.height, tx, ty);
+
+    const savedTile = world.tiles[ty * world.meta.width + tx] ?? 0;
+    const tile =
+      (world.elevations?.[ty * world.meta.width + tx] ?? 0) > 0 && !isElevatedTile(savedTile)
+        ? Tile.PLATEAU
+        : savedTile;
+    const elevation = elevationMask(
+      world.tiles,
+      world.meta.width,
+      world.meta.height,
+      tx,
+      ty,
+      world.elevations,
+    );
+    job.soil.add(
+      tx,
+      ty,
+      tile === Tile.STAIRS && (world.window?.descriptor.generatorVersion ?? 0) >= 15
+        ? stairGround(world, tx, ty, elevation, this.textures)
+        : undefined,
+    );
     const shore =
-      tile === Tile.RIVER
+      tile === Tile.RIVER || tile === Tile.SHALLOW_WATER
         ? waterEdgeMask(world.tiles, world.meta.width, world.meta.height, tx, ty)
         : neighbourMaterialMask(world.tiles, world.meta.width, world.meta.height, tx, ty);
-    for (const [i, layer] of getTileArt(tile, tx + (world.window?.originX ?? 0), ty + (world.window?.originY ?? 0), elevation, shore).entries()) {
+    const level = world.elevations?.[ty * world.meta.width + tx] ?? 0;
+    const higher =
+      level > 0
+        ? ((world.elevations?.[(ty - 1) * world.meta.width + tx] ?? 0) > level ? 1 : 0) |
+          ((world.elevations?.[ty * world.meta.width + tx - 1] ?? 0) > level ? 64 : 0)
+        : 0;
+    for (const [i, originalLayer] of getTileArt(
+      tile,
+      tx + (world.window?.originX ?? 0),
+      ty + (world.window?.originY ?? 0),
+      elevation,
+      shore,
+      higher,
+    ).entries()) {
+      let layer = originalLayer;
+      const upland = (world.window?.descriptor.generatorVersion ?? 0) >= 15;
+      const biome = world.environment?.biome[ty * world.meta.width + tx];
+      if (
+        (world.window?.descriptor.generatorVersion ?? 0) >= 14 &&
+        biome !== undefined &&
+        biome !== 0
+      ) {
+        if (layer.alias === 'lpc_plants') {
+          const b = BIOMES[biome]!,
+            variant =
+              Math.abs(
+                (tx + (world.window?.originX ?? 0)) * 17 + (ty + (world.window?.originY ?? 0)) * 31,
+              ) % b.plants.length;
+          layer = {
+            ...layer,
+            alias: b.assets,
+            source: { type: 'rect', rect: { x: variant * 32, y: 0, w: 32, h: 32 } },
+          };
+        }
+        if (layer.alias === 'hill_cliff_tileset') layer = { ...layer, alias: 'environment_relief' };
+      }
+      if (upland && originalLayer.alias === 'hill_cliff_tileset') {
+        const gx = tx + (world.window?.originX ?? 0),
+          gy = ty + (world.window?.originY ?? 0);
+        layer = {
+          ...layer,
+          alias: `${BIOMES[biome ?? 0]!.assets}_upland`,
+          source:
+            layer.source.type === 'rect'
+              ? {
+                  type: 'rect',
+                  rect: {
+                    ...layer.source.rect,
+                    y: layer.source.rect.y + uplandVariantOffset(gx, gy),
+                  },
+                }
+              : layer.source,
+        };
+      }
       const sprite = createTileSprite(layer, this.textures);
+      if (layer.alias === 'tile_grass' && world.environment) {
+        const tint = biomeGroundTint(world, tx, ty),
+          old = layer.tint;
+        sprite.tint = [16, 8, 0].reduce(
+          (v, shift) =>
+            v | (Math.round((((tint >> shift) & 255) * ((old >> shift) & 255)) / 255) << shift),
+          0,
+        );
+      }
+      // A small height cue on upper surfaces; soil uses the same tier distinction.
+      if (
+        world.elevations &&
+        i === 1 &&
+        originalLayer.alias === 'hill_cliff_tileset' &&
+        level > 0
+      ) {
+        sprite.tint = raisedSurfaceTint(sprite.tint, level);
+      }
       sprite.x += (tx - request.x) * 32;
       sprite.y += (ty - request.y) * 32;
       job.container.addChild(sprite);
       if (i === 0) job.slots.push({ base: sprite, tx, ty });
+      // The soil raster masks out cliff faces/rims and covers the upper surface.
+      // Slopes and decorations follow this layer in the tile stack.
+      if (upland && isElevatedTile(tile) && i === 1) job.slots[job.slots.length - 1]!.base = sprite;
     }
     return job.next < cols * rows;
   }

@@ -8,5 +8,6 @@ public/assets
 
 .vite
 artifacts
+archive/player-character
 docs/tmp
 *.tsbuildinfo

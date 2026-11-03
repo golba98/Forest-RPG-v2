@@ -1,3 +1,4 @@
+import { elevationAt } from './ElevationTopology';
 import { isRaisedSurface } from './HillCollisionGeometry';
 import { Tile, isHillTile, TILE_PROPERTIES, type TileId } from '../types/tiles';
 import type { TerrainInfo } from '../types/gameplay';
@@ -19,7 +20,9 @@ const NEIGHBORS = [
 ] as const;
 /** Derives topology from final cells, never from an image or stale generation mask. */
 export function describeTerrain(
-  world: Pick<WorldData, 'tiles' | 'bridges'> & { readonly meta: Pick<WorldData['meta'], 'width' | 'height'> },
+  world: Pick<WorldData, 'tiles' | 'bridges' | 'elevations'> & {
+    readonly meta: Pick<WorldData['meta'], 'width' | 'height'>;
+  },
   x: number,
   y: number,
 ): TerrainInfo {
@@ -29,13 +32,18 @@ export function describeTerrain(
       ? Tile.BORDER
       : (world.tiles[ty * width + tx] ?? Tile.BORDER);
   const tileId = at(x, y) as TileId,
-    hill = isHillTerrain(tileId);
+    hill = world.elevations ? elevationAt(world, x, y) > 0 : isHillTerrain(tileId);
   let hillNeighbors = 0,
     exposedEdges = 0,
     convexCorners = 0,
     concaveCorners = 0;
   NEIGHBORS.forEach(([dx, dy], i) => {
-    if (isHillTerrain(at(x + dx, y + dy))) hillNeighbors |= 1 << i;
+    if (
+      world.elevations
+        ? elevationAt(world, x + dx, y + dy) >= Math.max(1, elevationAt(world, x, y))
+        : isHillTerrain(at(x + dx, y + dy))
+    )
+      hillNeighbors |= 1 << i;
   });
   const n = (i: number) => (hillNeighbors & (1 << (i % 8))) !== 0;
   if (hill) {
@@ -47,7 +55,11 @@ export function describeTerrain(
       if (a && b && !n(i * 2 + 1)) concaveCorners |= 1 << i;
     }
   }
-  const crossing = tileId === Tile.RAMP || tileId === Tile.LOG || tileId === Tile.STAIRS || onBridgeDeck(world, x + 0.5, y + 0.5);
+  const crossing =
+    tileId === Tile.RAMP ||
+    tileId === Tile.LOG ||
+    tileId === Tile.STAIRS ||
+    onBridgeDeck(world, x + 0.5, y + 0.5);
   return {
     tileId,
     category: hill
@@ -59,8 +71,10 @@ export function describeTerrain(
           : TILE_PROPERTIES[tileId]?.solid
             ? 'solid'
             : 'ground',
-    elevation: hill ? 1 : 0,
-    walkable: isRaisedSurface(tileId) || !(TILE_PROPERTIES[tileId]?.solid ?? true),
+    elevation: world.elevations ? elevationAt(world, x, y) : hill ? 1 : 0,
+    walkable:
+      (world.elevations ? elevationAt(world, x, y) > 0 : isRaisedSurface(tileId)) ||
+      !(TILE_PROPERTIES[tileId]?.solid ?? true),
     hillNeighbors,
     exposedEdges,
     convexCorners,

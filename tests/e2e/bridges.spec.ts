@@ -35,6 +35,18 @@ async function traverse(page: Page, bridge: WorldBridge, cross = 1): Promise<voi
   };
   await page.evaluate((p) => window.__GAME__!.setPlayerPosition(p.x, p.y), start);
   await page.clock.runFor(400);
+  for (
+    let attempt = 0;
+    attempt < 20 &&
+    !(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().environment?.ready));
+    attempt++
+  ) {
+    await page.waitForTimeout(50);
+    await page.clock.runFor(100);
+  }
+  expect(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().environment?.ready)).toBe(
+    true,
+  );
   const axis = horizontal ? 'x' : 'y',
     forward = horizontal ? 'KeyD' : 'KeyS',
     reverse = horizontal ? 'KeyA' : 'KeyW';
@@ -64,8 +76,8 @@ for (const orientation of ['horizontal', 'vertical'] as const) {
             window.__GAME__!.saveGame('bridge-fixture');
             const payload = JSON.parse(localStorage.getItem('forestrpg.v2.save.bridge-fixture')!);
             delete payload.runtime.encounters;
-    delete payload.runtime.moisture;
-    payload.world = w;
+            delete payload.runtime.moisture;
+            payload.world = w;
             payload.entities = payload.entities.filter(
               (e: { kind: string }) => e.kind === 'player' || e.kind === 'portal',
             );

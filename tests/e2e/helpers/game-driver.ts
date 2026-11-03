@@ -75,7 +75,8 @@ export class GameDriver {
           typeof window !== 'undefined' &&
           window.__GAME__ !== undefined &&
           typeof window.__GAME__.getState === 'function' &&
-          window.__GAME__.getState().engine.isRunning
+          window.__GAME__.getState().engine.isRunning &&
+          window.__RENDER_DEBUG__?.getInfo().environment?.ready !== false
         );
       },
       undefined,

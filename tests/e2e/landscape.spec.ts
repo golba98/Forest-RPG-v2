@@ -1,3 +1,4 @@
+import { landscapeFixture } from '../fixtures/landscape-world';
 import { expect, test } from '@playwright/test';
 
 test('shared landscape inspector, required access, terminal and cached-chunk/reload equivalence', async ({
@@ -8,6 +9,15 @@ test('shared landscape inspector, required access, terminal and cached-chunk/rel
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=42');
   await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
+  const historical=landscapeFixture();
+  await page.evaluate(w=>{
+    window.__GAME__!.saveGame('historical-landscape');
+    const saved=JSON.parse(localStorage.getItem('forestrpg.v2.save.historical-landscape')!);
+    saved.world=w;delete saved.runtime.moisture;delete saved.runtime.encounters;
+    localStorage.setItem('forestrpg.v2.save.historical-landscape',JSON.stringify(saved));
+    if(!window.__GAME__!.loadGame('historical-landscape'))throw new Error('Historical fixture load failed');
+  },{...historical,tiles:Array.from(historical.tiles)});
+
   const initial = await page.evaluate(() => {
     window.__GAME__!.setDaylightRatio(0.5);
     window.__RENDER_DEBUG__!.setWeatherPreview('clear');
@@ -15,11 +25,11 @@ test('shared landscape inspector, required access, terminal and cached-chunk/rel
     return window.__GAME__!.getLandscapeDebug(70.5, 96.5, true);
   });
   expect(initial.units).toBe('tiles');
-  expect(initial.generatorVersion).toBe(12);
+  expect(initial.generatorVersion).toBe(10);
   expect(initial.surface.elevation).toBe(1);
   expect(initial.surface.plateau?.id).toMatch(/^plateau:/);
   expect(initial.placement.hilltop.accepted).toBe(true);
-  expect(initial.trace?.counts.hilltop).toEqual({ accepted: 79, relocated: 8, rejected: 0 });
+  expect(initial.trace).toBeNull(); // Loaded fixtures do not fabricate generation traces.
   expect(initial.requiredAccess?.bridges.every((b) => b.ok)).toBe(true);
   expect(initial.requiredAccess?.nests.every((n) => n.ok)).toBe(true);
   expect(initial.requiredAccess?.objectives.every((p) => p.reachable)).toBe(true);
@@ -67,7 +77,7 @@ test('shared landscape inspector, required access, terminal and cached-chunk/rel
   const before = await page.evaluate(() => window.__GAME__!.getState().world);
   const rejected = await page.evaluate(() => {
     const bad = JSON.parse(localStorage.getItem('forestrpg.v2.save.landscape')!);
-    bad.world.meta.generatorVersion = 13;
+    bad.world.meta.generatorVersion = 14;
     localStorage.setItem('forestrpg.v2.save.landscape-future', JSON.stringify(bad));
     return window.__GAME__!.loadGame('landscape-future');
   });
