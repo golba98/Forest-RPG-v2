@@ -15,6 +15,7 @@ export interface PopulationContext {
   readonly deltas: ReadonlyMap<string, ChunkDelta>;
   readonly generator: ForestGenerator;
   keyAt(x: number, y: number): string;
+  baselineTile(x: number, y: number): number;
   legacyTile(x: number, y: number): number | undefined;
 }
 export interface MountedWindow {
@@ -29,6 +30,12 @@ export function hydrateWindow(
   runtime: SimulationRuntime,
   context: PopulationContext,
 ): MountedWindow {
+  if (context.descriptor.mode === 'biome-walk')
+    return {
+      world,
+      entities: [player],
+      runtime: { ...runtime, encounters: { version: 1, bosses: [], groves: [] } },
+    };
   const entities: Entity[] = [player];
   if (portal) entities.push(portal);
   const encounters: EncounterState = { version: 1, bosses: [], groves: [] };
@@ -150,7 +157,7 @@ export function baselineActors(world: WorldData, context: PopulationContext): En
         ((gx % 96 === 48 || gx % 96 === -48) &&
           (gy % 96 === 48 || gy % 96 === -48) &&
           context.generator.hasGrove(Math.floor(gx / 96), Math.floor(gy / 96))) ||
-        context.generator.tileAt(gx, gy) !== Tile.GRASS ||
+        context.baselineTile(gx, gy) !== Tile.GRASS ||
         context.legacyTile(gx, gy) !== undefined
       )
         continue;
@@ -165,7 +172,7 @@ export function baselineActors(world: WorldData, context: PopulationContext): En
         hurtTimerMs: 0,
         attackCooldownMs: 0,
       });
-      if ((a.x + a.y) % 4 === 0 && context.generator.tileAt(gx + 3, gy) === Tile.GRASS)
+      if ((a.x + a.y) % 4 === 0 && context.baselineTile(gx + 3, gy) === Tile.GRASS)
         result.push({
           ...base(`chest:${a.x},${a.y}`, gx - context.origin.x + 3, gy - context.origin.y),
           kind: 'pickup',

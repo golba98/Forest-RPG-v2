@@ -137,8 +137,8 @@ export class SurfaceSites {
       tile = this.world.tiles[i] ?? Tile.BORDER;
     if (this.obstacles.get(i)?.some((b) => x >= b.minX && x < b.maxX && y >= b.minY && y < b.maxY))
       return null;
-    if (isRaisedSurface(tile)) {
-      const mask = elevationMask(this.world.tiles, w, h, tx, ty);
+    if ((this.world.elevations?.[i] ?? Number(isRaisedSurface(tile))) > 0) {
+      const mask = elevationMask(this.world.tiles, w, h, tx, ty, this.world.elevations);
       if (
         cachedHillBounds(tile, mask).some(
           (b) => x - tx >= b.minX && x - tx < b.maxX && y - ty >= b.minY && y - ty < b.maxY,

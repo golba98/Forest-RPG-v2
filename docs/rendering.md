@@ -109,19 +109,72 @@ from the preceding overhaul. The rejected procedural vegetation implementation w
 hints share the simulation reach check. Opening animations read saved simulation progress;
 particles and floating labels are cosmetic and are reset on world load.
 
+## Biome environment rendering
+
+Streamed v14 restores the original native LPC forest trees and grass presentation.
+The other biomes use their curated generated species and LPC understory selections.
+`vegetationArt.ts` owns native frame/root metadata; `environmentAssets.json` owns
+shared generated-tree anchors and collision dimensions. Stable prop `assetKey`
+values select art independent of the current window origin. Tree sprites fade to
+45% opacity while covering the player. Complete sprite bounds drive culling,
+including canopies rooted beyond viewport/chunk edges.
+
+Ground starts with existing pixel-art tiles, tinted by primary/secondary biome
+weights. Highlands add relief-driven stone exposure, wetlands use actual mud and
+shallow-water terrain, and slopes retain the existing collision topology. Original
+bridges, boulders and player sprites remain intact. Soil grain uses global coordinates
+so it stays anchored during local window rebases.
+
+Streamed versions 15 and 16 use each biome's `upland.png`: a native 360×648 atlas
+with three 58-frame banks. `scripts/build-upland-art.mjs`, called by the environment
+pipeline, authors irregular rock strata, moss/soil rims and four oriented stone-step
+flights over the existing cliff collision silhouette. Forest, meadow, highland,
+wetland and autumn materials have distinct palettes. There are 141 mask frames,
+12 step frames, 15 interior frames and 6 shadow frames per pack; material skins
+share geometry and are not 870 unrelated designs. Existing plateau textures and
+shadows are reused. Stair overlays contain stone treads and cheeks, with transparent
+ground margins. `stairGround.ts` fills the 28px passable opening using the existing
+grass/plateau textures and upper/lower floor tints. The soil compositor then applies
+local stone or mud coverage before the steps are drawn. This keeps the opening
+opaque over its cliff while matching the surrounding material at both ends.
+Source-frame pixels are cached with weak texture keys; the completed ground is
+baked into the existing terrain chunk cache, with no per-frame compositing.
+Metadata in `environmentAssets.json` records atlas dimensions,
+variation stride, frame layout, biome support and collision dependency.
+
+World-coordinate hashing selects variants independently of local window rebasing.
+Height-relative masks expose edges between two already-raised surfaces. Highland
+soil exposure stays above plateau grass but below steps, masking out cliff faces.
+Relief sources load only for biomes present in the prepared window and unload with
+the existing environment lifecycle. Versions 13/14 retain their legacy relief.
+
+`prepareWorld()` deduplicates requests for tree sources and plant packs actually
+needed in the nearby window. Initial entry and biome jumps await those assets;
+normal streaming prepares them before publishing the next window. After old sprites
+and subtextures are released, unused biome sources unload. Shared terrain and native
+LPC sources remain resident. No future-biome library is loaded wholesale at startup.
+
+Terrain uses the existing global-identity texture cache and budgeted preparation.
+`__RENDER_DEBUG__.getResidency()` exposes render/cache counters;
+`getInfo().environment.assetLoads` retains the last 64 fetch/decode intervals.
+GPU upload time is separate. These presentation fields never replace authoritative
+tile, trunk, bridge and swept-movement collision rules.
+
 ## Player remaster
 
-The approved artwork is the version previously labelled “Rejected remaster” in the review UI. All 56 strips / 456 frames are restored byte-for-byte. `docs/assets/source/player-remaster/approved-hashes.json` records their SHA-256 hashes. `node scripts/prepare-player-remaster.mjs` reproduces this exact set; the later fixed-head/procedural-body experiment is archived and its builder defaults to ignored artifact output.
+The user-approved native sources live in `docs/assets/source/player-face-continuity/`, with exact source/export/runtime hashes in `approval.json`. Earlier variants are in the ignored `archive/player-character/` folder; the game does not depend on that archive. Each direction reuses the exact first-idle head and open eyes at explicit integer offsets. Core poses keep that head's contour, shading and eye spacing. Idle has one-pixel head breathing; locomotion and combat retain their body poses, with local neck corrections and original fist overlays.
 
-The sprite cells remain 64×64 at one world pixel per source pixel, with source foot `(32,54)` and the unchanged 10-world-pixel foot offset. Visible dimensions, palette, silhouette, outlines and transparent padding are unchanged. Shadow/ripple sizing, collision and camera scale remain unchanged.
+The set still contains 12 idle, 16 walk, 16 run, 16 jump and 18 frames per punch in eight directions (912 slots). The lossless packer exports 64×64 PNGs to 56 strips. Counts, timing, palette and gait offsets are unchanged. This is assisted source-pixel correction, not a redesign or resolution increase.
 
-Locomotion continues to use eight poses per 64 world pixels travelled, preserving phase when switching between walking and running. On stopping, presentation settles through at most two existing chronological poses over at most 80 ms of simulation time. `scripts/player-flow/analyze-poses.mjs` selects the nearest idle join from the current and next two poses using opaque pixel and silhouette differences, without altering any PNG. A zero-step join lasts 40 ms. The settled phase carries into the next stride. New movement, attacks, jumping, damage/death, facing changes, teleports and world resets cancel settling immediately. Simulation movement is never delayed.
+`PlayerBlink` advances from snapshot elapsed time independently of animation/action time. A separate seeded cosmetic random stream selects 2.8–5.2 second open intervals. Opaque authored eyelid patches close for 40 ms, remain closed for 60 ms and reopen for 60 ms. Both eyes share the same phase. All living actions support blinking; rear-facing heads have no visible eyes. Pause, displayed impact holds and death freeze the clock without catch-up. Session replacement resets it.
 
-Idle remains six frames / 1200 ms; jump remains eight frames / 500 ms. Punches keep nine unchanged drawings, with pose durations `[40,40,40,60,40,30,30,40,40]` ms. Wind-up ends at 120 ms, the impact drawing holds for 60 ms, recovery eases through the remaining drawings, and the clip ends at 360 ms. All three combos use this presentation schedule; authoritative strike time, direction and hit detection are untouched. Optional `ClipDef.frameDurationsMs` supports pose dwell times; other clips retain uniform timing. `EntityAnimator` continues to forward the simulation-owned attack clock.
+`PlayerPoseController` still limits action transitions to 60 ms, or 80 ms when stopping. `PlayerNativePresenter` preserves unblinked history on rapid retargets. `PlayerFace` keeps the exact head at an interpolated integer position while the existing body transition runs; head contours and facial materials are never morphed. Foreground fists remain in front of the eyelids. Facing cancellation and locked attack-facing behavior are unchanged.
 
-### Playback comparison
+`PlayerCompositor` uses ordinary PNG rectangles for open-eye core frames and one reusable nearest-filtered 64×64 RGBA texture for transitions or visible blinks. No alpha crossfade, smooth scaling or face filter is used. Debug `playerSprite.playerFace` records the actually displayed phase, head offset and eye rectangles, including held frames.
 
-`npx vite --config scripts/player-study/vite.config.mjs` serves `http://localhost:4328/scripts/player-study/review.html`, defaulting to **Approved remaster / Improved flow**. Both playback options use the same artwork. A development-only transform disables the new playback settings for **Previous timing**; normal production has no URL-dependent playback switch. The old artwork comparisons remain archived in source/evidence folders rather than being presented as approved alternatives.
+Strike time remains 120 ms, attack duration 360 ms and jump duration 500 ms. Foot reference (32,54), cell dimensions, scale, collision and depth sorting are unchanged. Original body pose variation, discrete one-pixel motion and fractional camera sampling remain visible limits.
+
+Start `npx vite --config scripts/player-study/recovery.vite.mjs` and open `http://localhost:4330/`. The viewer displays only the approved character, with the same production assets and presentation code. The inspector provides native pixels, enlargement, normal/quarter speed, pause, frame stepping and **Blink now**. See [testing](testing.md#player-animation-review) and [source provenance and reproduction](assets/source/player-face-continuity/README.md).
 
 ## Streamed coordinates and viewport preparation
 

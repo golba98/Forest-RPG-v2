@@ -1,39 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 test.use({ video: 'on' });
-async function walk(page: Page, dx: number, dy: number) {
-  const p = await page.evaluate(() => window.__GAME__!.getStreamingDebug()!.globalPosition);
-  const route = await page.evaluate((p) => window.__GAME__!.planTravelPath(p.x, p.y), {
-    x: p.x + dx,
-    y: p.y + dy,
-  });
-  expect(route.length).toBeGreaterThan(0);
-  for (const target of route) {
-    for (let tries = 0; tries < 100; tries++) {
-      const at = await page.evaluate(() => {
-        window.__GAME__!.setPlayerHealth(7);
-        return window.__GAME__!.getStreamingDebug()!.globalPosition;
-      });
-      const x = target.x - at.x,
-        y = target.y - at.y;
-      if (Math.max(Math.abs(x), Math.abs(y)) < 0.025) break;
-      if (tries === 99)
-        throw new Error(
-          `Traversal stuck at ${JSON.stringify(at)} heading to ${JSON.stringify(target)}`,
-        );
-      const keys = [
-        ...(Math.abs(x) > 0.015 ? [x > 0 ? 'KeyD' : 'KeyA'] : []),
-        ...(Math.abs(y) > 0.015 ? [y > 0 ? 'KeyS' : 'KeyW'] : []),
-      ];
-      await page.evaluate(
-        (scale) => window.__GAME__!.setTimeScale(scale),
-        Math.max(Math.abs(x), Math.abs(y)) < 0.3 ? 0.2 : 1,
-      );
-      for (const key of keys) await page.keyboard.down(key);
-      await page.clock.runFor(16);
-      for (const key of keys) await page.keyboard.up(key);
-    }
-  }
-}
+import { walk } from './helpers/walk';
 test('real keyboard routes cross chunks in all directions and preserve visible scenery', async ({
   page,
 }, info) => {

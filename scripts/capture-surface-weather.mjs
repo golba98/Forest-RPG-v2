@@ -11,7 +11,7 @@ const { PLAYER_FOOTPRINT } = await server.ssrLoadModule('/src/systems/EntityFoot
 await server.close();
 const browser = await chromium.launch({
   headless: true,
-  args: ['--no-sandbox', '--use-angle=gl', '--enable-webgl', '--ignore-gpu-blocklist'],
+  args: ['--mute-audio', '--no-sandbox', '--use-angle=gl', '--enable-webgl', '--ignore-gpu-blocklist'],
 });
 const evidence = {
   browser: browser.version(),

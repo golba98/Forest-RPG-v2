@@ -8,7 +8,7 @@ let fixture = process.env.FOREST_BASELINE_SAVE
   : null;
 const browser = await chromium.launch({
   headless: true,
-  args: ['--no-sandbox', '--use-angle=gl', '--enable-webgl', '--ignore-gpu-blocklist'],
+  args: ['--mute-audio', '--no-sandbox', '--use-angle=gl', '--enable-webgl', '--ignore-gpu-blocklist'],
 });
 const output = {
   browser: browser.version(),

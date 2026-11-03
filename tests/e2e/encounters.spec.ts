@@ -7,6 +7,7 @@ import { Rng } from '../../src/world/Rng';
 import { siteId } from '../../src/world/EncounterPlacement';
 import { nestLayout, nestBaseBounds } from '../../src/world/NestGeometry';
 import { Tile } from '../../src/types/tiles';
+import { settleEnvironment } from './helpers/environment';
 
 test.setTimeout(90000);
 test.use({ video: 'on' });
@@ -65,6 +66,7 @@ async function boot(page: Page, world: WorldData, introComplete = false) {
     canvas.focus();
   });
   await page.evaluate(() => window.__GAME__!.setDaylightRatio(0.5));
+  await settleEnvironment(page);
   await page.clock.runFor(300);
   return errors;
 }
@@ -78,6 +80,7 @@ async function debug(page: Page) {
 }
 async function atNest(page: Page, x = 15.8, y = 12.2875) {
   await page.evaluate(({ x, y }) => window.__GAME__!.setPlayerPosition(x, y), { x, y });
+  await settleEnvironment(page);
   await page.clock.runFor(300);
 }
 
@@ -281,9 +284,14 @@ test.describe('stump nest presentation', () => {
     await page.screenshot({ path: info.outputPath('stump-emerge-early.png') });
     expect(await page.evaluate(() => window.__GAME__!.saveGame('stump-crawl'))).toBe(true);
     expect(await page.evaluate(() => window.__GAME__!.loadGame('stump-crawl'))).toBe(true);
+    await settleEnvironment(page);
     await page.clock.runFor(280);
     await page.screenshot({ path: info.outputPath('stump-emerge-middle.png') });
     await page.clock.runFor(400);
+    // Reload/camera preparation can pause simulation for a few presentation
+    // frames. Bound that allowance; encounter timing itself is unit-tested.
+    for (let n = 0; n < 12 && (await debug(page)).bosses[0]?.phase === 'emerging'; n++)
+      await page.clock.runFor(17);
     expect((await debug(page)).bosses[0]?.phase).toBe('fighting');
     await page.screenshot({ path: info.outputPath('stump-exit.png') });
     await page.clock.runFor(500);

@@ -6,6 +6,7 @@ import type { RegionIdentity } from '../world/infinite/types';
 import type { ChunkDelta } from '../world/infinite/types';
 import type { WorldCheckpoint, WorldRepository } from './WorldRepository';
 import { validateEncounterState } from './EncounterValidation';
+import { BIOME_IDS, validEnvironmentAssetKey } from '../world/Biomes';
 import type { EncounterState } from '../types/encounters';
 
 export const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -27,14 +28,32 @@ export function validateCheckpoint(
     !Number.isInteger(d.seed) ||
     Number(d.seed) < 0 ||
     Number(d.seed) > 0xffffffff ||
-    d.generatorVersion !== 13 ||
-    d.biomeVersion !== 1 ||
+    !(
+      (d.generatorVersion === 13 && d.biomeVersion === 1) ||
+      ((d.generatorVersion === 14 || d.generatorVersion === 15 || d.generatorVersion === 16) && d.biomeVersion === 2)
+    ) ||
+    (d.mode !== undefined && d.mode !== 'adventure' && d.mode !== 'biome-walk') ||
     ![32, 64].includes(Number(d.chunkSize)) ||
     !Number.isInteger(d.level) ||
     Number(d.level) < 1 ||
     !['easy', 'normal', 'hard'].includes(String(d.difficulty))
   )
     throw new Error('Unsupported infinite world descriptor');
+  if (value.exploration !== undefined) {
+    const e = value.exploration;
+    const point = (p: unknown) => isRecord(p) && coordinate(p.x) && coordinate(p.y);
+    if (
+      d.mode !== 'biome-walk' ||
+      !isRecord(e) ||
+      !point(e.home) ||
+      !isRecord(e.landings) ||
+      Object.keys(e.landings).length > 5 ||
+      Object.entries(e.landings).some(
+        ([id, p]) => !BIOME_IDS.includes(id as (typeof BIOME_IDS)[number]) || !point(p),
+      )
+    )
+      throw new Error('Invalid exploration landings');
+  }
   if (
     !Number.isSafeInteger(value.revision) ||
     Number(value.revision) < 0 ||
@@ -83,7 +102,8 @@ export function validateCheckpoint(
         entity(v) && isRecord(v) && ['player', 'portal', 'projectile'].includes(String(v.kind)),
     ) ||
     value.entities.filter((e) => isRecord(e) && e.kind === 'player').length !== 1 ||
-    value.entities.filter((e) => isRecord(e) && e.kind === 'portal').length !== 1
+    value.entities.filter((e) => isRecord(e) && e.kind === 'portal').length !==
+      (d.mode === 'biome-walk' ? 0 : 1)
   )
     throw new Error('Invalid infinite world entities');
 }
@@ -161,6 +181,7 @@ export function validateDelta(
         Number.isInteger(v.tileX) &&
         Number.isInteger(v.tileY) &&
         kinds.includes(String(v.kind)) &&
+        validEnvironmentAssetKey(v.assetKey) &&
         typeof v.solid === 'boolean',
     )
   )
@@ -307,7 +328,7 @@ export async function importInfinite(
           !Number.isInteger(region.y) ||
           !coordinate(Number(region.x) * 256) ||
           !coordinate(Number(region.y) * 256) ||
-          region.generatorVersion !== 13 ||
+          region.generatorVersion !== state.descriptor.generatorVersion ||
           typeof region.biome !== 'string' ||
           !Number.isInteger(region.biomeVersion)
         )

@@ -5,13 +5,14 @@
 ![PixiJS 8](https://img.shields.io/badge/PixiJS-8-e72264)
 ![Vite 7](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)
 
-A pixel-art action RPG for the browser, built with TypeScript, PixiJS, and Vite. Explore an endless procedural forest, battle enemies, and level up your character. Complete the starting area's coin and enemy objectives to unlock the portal to the next seeded world, or keep exploring farther into the forest.
+A pixel-art action RPG for the browser, built with TypeScript, PixiJS, and Vite. Explore a continuous procedural world of forests, meadows, highlands, wetlands and autumn woodland, battle enemies, and level up your character. Complete the starting area's coin and enemy objectives to unlock the portal to the next seeded world, or keep exploring farther into the forest.
 
 ![Forest RPG V2 gameplay showing the player exploring a woodland with trees, flowers, and a minimap](docs/images/gameplay.png)
 
 ## Features
 
-- Persistent seeded forests that stream as you explore in any direction, with rivers, bridges, cliffs, and walkable hilltops.
+- Persistent seeded landscapes that stream as you explore in any direction, with rivers, bridges, cliffs, and walkable hilltops.
+- **Play → Biome Walk** for peaceful exploration, five biome starting places and travel between them in the same world.
 - A regional minimap that remembers explored terrain and saves that preserve collected treasure and changes to the forest.
 - Day and night, changing weather, and ghosts after dark.
 - Melee combos, spin attacks, magic bolts, and enemies with distinct behaviors.
@@ -29,7 +30,7 @@ npm ci
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000) to play.
+Open [localhost:3000](http://localhost:3000) to play. Choose **Play → Normal Adventure** for combat and progression, or **Play → Biome Walk** to explore freely. Biome Walk saves are separate from adventure progress.
 
 ## Controls
 

@@ -1,3 +1,4 @@
+import { generateWorld } from '../../../src/world/WorldGenerator';
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { EventBus } from '../../../src/core/events/EventBus';
@@ -276,4 +277,13 @@ it('rejects malformed treasure and currency fields before replacing the active w
     coin.chest=chest;expect(()=>saves.import(JSON.stringify(payload))).toThrow('Invalid entities');
     expect(sim.worldVersion).toBe(version);
   }
+});
+
+it('round-trips v13 classifications and rejects invalid environment before replacing active state',()=>{
+  game.loadWorld(generateWorld({seed:42,level:1,difficulty:'normal'}));
+  const raw=saves.export();const current=sim.world;
+  for(const mutate of [(w:Record<string,unknown>)=>delete w.environment,(w:Record<string,unknown>)=>{w.environment={version:2};},(w:Record<string,unknown>)=>{(w.environment as {biome:number[]}).biome=[8];}]){
+    const bad=JSON.parse(raw);mutate(bad.world);expect(()=>saves.import(JSON.stringify(bad))).toThrow('Invalid environment');expect(sim.world).toBe(current);
+  }
+  saves.import(raw);expect(sim.world.environment).toEqual(current.environment);expect(sim.world.props).toEqual(current.props);
 });

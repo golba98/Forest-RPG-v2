@@ -165,6 +165,7 @@ export interface RendererInitOptions {
  * Rendering engine boundary. Implemented in src/rendering; consumed by src/game.
  */
 export interface IRenderer {
+  isReady?(): boolean;
   init(options: RendererInitOptions): Promise<void>;
   /** Loads texture bundles; `onProgress` receives 0..1. */
   loadAssets(onProgress?: (progress: number) => void): Promise<void>;

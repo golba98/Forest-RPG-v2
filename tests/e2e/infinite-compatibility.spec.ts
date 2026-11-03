@@ -7,11 +7,23 @@ test('finite saves preserve their original terrain, landmarks and progress durin
   test.setTimeout(120000);
   await page.goto('/?world=finite&debug=1&autostart=1&seed=42');
   await page.waitForFunction(() => !!window.__GAME__);
-  const old = await page.evaluate(() => {
+  const snapshot = JSON.parse(await readFile('tests/fixtures/landscape/v10-seed-42.json', 'utf8'));
+  const old = await page.evaluate((world) => {
     window.__GAME__!.executeCommand('/give health 4');
     window.__GAME__!.saveGame('legacy-source');
-    return JSON.parse(localStorage.getItem('forestrpg.v2.save.legacy-source')!);
-  });
+    const data = JSON.parse(localStorage.getItem('forestrpg.v2.save.legacy-source')!);
+    const player = data.entities.find((e: { kind: string }) => e.kind === 'player');
+    const portal = data.entities.find((e: { kind: string }) => e.kind === 'portal');
+    player.x = player.prevX = world.spawn.x + 0.5;
+    player.y = player.prevY = world.spawn.y + 0.5;
+    portal.x = portal.prevX = world.portal.x + 0.5;
+    portal.y = portal.prevY = world.portal.y + 0.5;
+    data.world = world;
+    data.entities = [player, portal];
+    data.runtime = { rngState: 42 };
+    data.elapsedMs = 0;
+    return data;
+  }, snapshot);
   await page.goto('/?debug=1&world=infinite');
   await page.waitForFunction(() => !!window.__GAME__);
   expect(await page.evaluate((data) => window.__GAME__!.loadLegacySave(data), old)).toBe(true);
@@ -63,6 +75,7 @@ test('a protected old region with no artificial border receives a two-way travel
       enemySpawns: [],
       pickupSpawns: [{ type: 'coin', x: 1, y: 1 }],
     };
+    delete data.world.environment;
     player.x = player.prevX = 2.5;
     player.y = player.prevY = 2.5;
     portal.x = portal.prevX = 6.5;
@@ -100,4 +113,24 @@ test('a protected old region with no artificial border receives a two-way travel
       { timeout: 10000 },
     )
     .toBeCloseTo(2.5);
+});
+
+test('finite five-biome saves keep their original map and environment', async ({ page }) => {
+  await page.goto('/?world=finite&debug=1&autostart=1&seed=42');
+  await page.waitForFunction(() => !!window.__GAME__);
+  const original = await page.evaluate(() => {
+    window.__GAME__!.saveGame('five-biome');
+    return JSON.parse(localStorage.getItem('forestrpg.v2.save.five-biome')!);
+  });
+  await page.goto('/?debug=1');
+  await page.waitForFunction(() => !!window.__GAME__);
+  expect(await page.evaluate((d) => window.__GAME__!.loadLegacySave(d), original)).toBe(true);
+  expect(await page.evaluate(() => window.__GAME__!.getStreamingDebug())).toBeNull();
+  const restored = await page.evaluate(() => {
+    window.__GAME__!.saveGame('five-biome-restored');
+    return JSON.parse(localStorage.getItem('forestrpg.v2.save.five-biome-restored')!);
+  });
+  expect(restored.world.tiles).toEqual(original.world.tiles);
+  expect(restored.world.props).toEqual(original.world.props);
+  expect(restored.world.environment).toEqual(original.world.environment);
 });

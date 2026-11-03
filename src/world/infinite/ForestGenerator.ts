@@ -1,3 +1,6 @@
+import { TerracePlanner } from './TerracePlanner';
+import { BiomeGeography } from './BiomeGeography';
+import { BIOMES } from '../Biomes';
 import { Tile } from '../../types/tiles';
 import type { TileId } from '../../types/tiles';
 import type { WorldData, WorldBridge, WorldProp } from '../../types/world';
@@ -27,12 +30,16 @@ const plans = new Map<string, StartingPlan>();
 
 /** Worker-local bounded memoization. Baseline geography never depends on these caches. */
 export class ForestGenerator {
+  private readonly terraces: TerracePlanner | undefined;
   private readonly biome: BiomeDefinition;
+  readonly geography: BiomeGeography | undefined;
   private readonly seed: number;
   private readonly waterCache = new Map<string, boolean>();
   private readonly hillCache = new Map<string, boolean>();
   private readonly tileCache = new Map<string, TileId>();
   private readonly treeCache = new Map<string, boolean>();
+  private readonly slopeSites = new Map<string, number>();
+  private readonly slopeCenters = new Map<string, boolean>();
   private readonly waterOffset: number;
   private readonly bridgeCache = new Map<string, WorldBridge | null>();
   private readonly groveCache = new Map<string, boolean>();
@@ -42,20 +49,32 @@ export class ForestGenerator {
     private readonly cacheLimit = 32768,
   ) {
     if (
-      descriptor.generatorVersion !== 13 ||
+      ![13, 14, 15, 16].includes(descriptor.generatorVersion) ||
       ![32, 64].includes(descriptor.chunkSize) ||
       !Number.isInteger(descriptor.seed) ||
       descriptor.seed < 0 ||
       descriptor.seed > 0xffffffff
     )
       throw new Error('Unsupported streamed world descriptor');
-    this.biome = biomes.get('forest', descriptor.biomeVersion);
+    this.biome = biomes.get('forest', 1);
+    this.geography =
+      descriptor.generatorVersion >= 14
+        ? new BiomeGeography(descriptor.seed, descriptor.generatorVersion === 14 ? 14 : 15)
+        : undefined;
     this.seed = descriptor.seed;
     let offset = 0;
     // Avoid clipping a river with an artificial spawn clearing.
     while (offset < 4096 && Math.abs(noise(this.seed, offset / 90, 0, 'water') - 0.5) < 0.18)
       offset += 137;
     this.waterOffset = offset;
+    this.terraces =
+      descriptor.generatorVersion >= 16
+        ? new TerracePlanner(
+            this.seed,
+            (x, y) => this.hill(x, y),
+            (x, y) => this.geography?.sample(x, y).biome ?? 0,
+          )
+        : undefined;
     const key = `${descriptor.generatorVersion}:${descriptor.biomeVersion}:${descriptor.seed}:${descriptor.difficulty}`;
     const prior = plans.get(key);
     this.starting = prior ?? this.planStart();
@@ -71,6 +90,7 @@ export class ForestGenerator {
     return value;
   }
   private rawWater(x: number, y: number): boolean {
+    if (this.geography) return this.geography.sample(x, y).water;
     if (!this.biome.features.includes('rivers')) return false;
     const warp = (noise(this.seed, x / 240, y / 240, 'river-warp') - 0.5) * 48;
     return (
@@ -88,8 +108,21 @@ export class ForestGenerator {
   }
   private rawHill(x: number, y: number): boolean {
     if (!this.biome.features.includes('hills')) return false;
+    if (this.descriptor.generatorVersion >= 15)
+      return !this.water(x, y) && this.geography!.sample(x, y).upland > 0;
     if (Math.hypot(x, y) < 20 || this.water(x, y)) return false;
-    return noise(this.seed, x / 54, y / 54, 'hill') > this.biome.terrain.hillThreshold;
+    return this.geography
+      ? this.geography.sample(x, y).relief > 0.65
+      : noise(this.seed, x / 54, y / 54, 'hill') > this.biome.terrain.hillThreshold;
+  }
+  heightAt(x: number, y: number): number {
+    // Public height-only queries must remain bounded, too (normal chunk generation
+    // already clears these alongside its tile cache).
+    if (this.hillCache.size > Math.max(this.cacheLimit * 2, 8192)) {
+      this.hillCache.clear();
+      this.waterCache.clear();
+    }
+    return this.terraces?.heightAt(x, y) ?? Number(this.hill(x, y));
   }
   tileAt(x: number, y: number): TileId {
     if (this.tileCache.size > this.cacheLimit) {
@@ -97,6 +130,8 @@ export class ForestGenerator {
       this.waterCache.clear();
       this.hillCache.clear();
       this.treeCache.clear();
+      this.slopeSites.clear();
+      this.slopeCenters.clear();
     }
     const key = addressKey(x, y),
       cached = this.tileCache.get(key);
@@ -108,11 +143,14 @@ export class ForestGenerator {
   private rawTile(x: number, y: number): TileId {
     if (this.water(x, y)) return Tile.RIVER;
     if (this.hill(x, y)) {
-      const n = this.hill(x, y - 1),
-        s = this.hill(x, y + 1),
-        e = this.hill(x + 1, y),
-        w = this.hill(x - 1, y);
+      const level = this.heightAt(x, y);
+      const n = this.heightAt(x, y - 1) >= level,
+        s = this.heightAt(x, y + 1) >= level,
+        e = this.heightAt(x + 1, y) >= level,
+        w = this.heightAt(x - 1, y) >= level;
+      if (this.descriptor.generatorVersion >= 15 && this.slopeAt(x, y)) return Tile.STAIRS;
       if (
+        this.descriptor.generatorVersion < 15 &&
         !s &&
         n &&
         e &&
@@ -132,6 +170,11 @@ export class ForestGenerator {
       if (!e) return Tile.HILL_E;
       return Tile.PLATEAU;
     }
+    if (this.geography) {
+      const s = this.geography.sample(x, y);
+      if (s.shallow) return Tile.SHALLOW_WATER;
+      if (s.biome === 3 && noise(this.seed, x / 18, y / 18, 'bog-soil') > 0.39) return Tile.MUD;
+    }
     const h = hash(this.seed, x, y, 'ground');
     if (noise(this.seed, x / 20, y / 20, 'groundcover') > 0.68 && h % 5 === 0)
       return this.biome.terrain.flowers;
@@ -147,9 +190,74 @@ export class ForestGenerator {
       return Tile.MUD;
     return this.biome.terrain.ground;
   }
+
+  /** A three-cell-wide, dry link with two cells of clear terrain at each end. */
+  private slopeSite(x: number, y: number): number {
+    const key = addressKey(x, y),
+      cached = this.slopeSites.get(key);
+    if (cached !== undefined) return cached;
+    let direction = -1;
+    if (this.hill(x, y)) {
+      const normals = [
+        [0, -1],
+        [1, 0],
+        [0, 1],
+        [-1, 0],
+      ] as const;
+      for (const [index, [nx, ny]] of normals.entries()) {
+        if (this.hill(x + nx, y + ny)) continue;
+        let valid = true;
+        for (let side = -1; side <= 1 && valid; side++)
+          for (let depth = -2; depth <= 2; depth++) {
+            const px = x + nx * depth - ny * side,
+              py = y + ny * depth + nx * side;
+            if (depth <= 0 ? !this.hill(px, py) : this.hill(px, py) || this.water(px, py)) {
+              valid = false;
+              break;
+            }
+          }
+        if (valid) {
+          direction = index;
+          break;
+        }
+      }
+    }
+    this.slopeSites.set(key, direction);
+    return direction;
+  }
+  /** Local rank suppression gives stable entrances, including at chunk seams. */
+  private slopeCenter(x: number, y: number): boolean {
+    const key = addressKey(x, y),
+      cached = this.slopeCenters.get(key);
+    if (cached !== undefined) return cached;
+    const rank = hash(this.seed, x, y, 'slope-access');
+    let winner = this.slopeSite(x, y) >= 0;
+    for (let dy = -6; dy <= 6 && winner; dy++)
+      for (let dx = -6; dx <= 6; dx++) {
+        if ((!dx && !dy) || dx * dx + dy * dy > 36) continue;
+        const other = hash(this.seed, x + dx, y + dy, 'slope-access');
+        if (
+          (other < rank || (other === rank && (dy < 0 || (dy === 0 && dx < 0)))) &&
+          this.slopeSite(x + dx, y + dy) >= 0
+        ) {
+          winner = false;
+          break;
+        }
+      }
+    this.slopeCenters.set(key, winner);
+    return winner;
+  }
+  private slopeAt(x: number, y: number): boolean {
+    if (this.terraces && this.heightAt(x, y) > 1) return this.terraces.stairAt(x, y);
+    // One full-footprint opening, with broad clear shoulders and approaches.
+    return this.slopeSite(x, y) >= 0 && this.slopeCenter(x, y);
+  }
   private flat(x: number, y: number, radius: number): boolean {
     for (let dy = -radius; dy <= radius; dy++)
       for (let dx = -radius; dx <= radius; dx++) {
+        // Objective/bridge clearance only needs the base landform, not crown plans.
+        if (this.terraces && (this.hill(x + dx, y + dy) || this.water(x + dx, y + dy)))
+          return false;
         const t = this.tileAt(x + dx, y + dy);
         if (t !== Tile.GRASS && t !== Tile.FLOWERS && t !== Tile.MUD) return false;
       }
@@ -289,16 +397,30 @@ export class ForestGenerator {
     return value;
   }
   private rawTreeCandidate(x: number, y: number): boolean {
-    if (!this.biome.palette.includes('tree') || !this.flat(x, y, 0) || this.protected(x, y))
+    if (
+      !this.biome.palette.includes('tree') ||
+      !(this.flat(x, y, 0) || (this.geography && this.tileAt(x, y) === Tile.PLATEAU)) ||
+      this.protected(x, y)
+    )
       return false;
+    if (this.descriptor.generatorVersion >= 15 && this.tileAt(x, y) === Tile.PLATEAU) {
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++)
+          if (
+            this.tileAt(x + dx, y + dy) !== Tile.PLATEAU ||
+            this.heightAt(x + dx, y + dy) !== this.heightAt(x, y)
+          )
+            return false;
+    }
     if (
       this.biome.features.includes('paths') &&
       Math.abs(noise(this.seed, x / 32, y / 32, 'paths') - 0.5) < 0.045
     )
       return false;
-    const density =
-      this.biome.objects.treeBaseDensity +
-      noise(this.seed, x / 28, y / 28, 'woodland') * this.biome.objects.treeVariation;
+    const density = this.geography
+      ? this.geography.sample(x, y).cover
+      : this.biome.objects.treeBaseDensity +
+        noise(this.seed, x / 28, y / 28, 'woodland') * this.biome.objects.treeVariation;
     return hash(this.seed, x, y, 'tree') / 0xffffffff < density;
   }
   private hillRock(x: number, y: number): WorldProp | null {
@@ -313,6 +435,11 @@ export class ForestGenerator {
         )
           return null;
     const tiles = new Uint8Array(81);
+    const elevations = this.terraces ? new Uint8Array(81) : undefined;
+    if (elevations)
+      for (let ly = 0; ly < 9; ly++)
+        for (let lx = 0; lx < 9; lx++)
+          elevations[ly * 9 + lx] = this.heightAt(x + lx - 4, y + ly - 4);
     for (let ly = 0; ly < 9; ly++)
       for (let lx = 0; lx < 9; lx++) tiles[ly * 9 + lx] = this.tileAt(x + lx - 4, y + ly - 4);
     const local: WorldProp = {
@@ -334,6 +461,7 @@ export class ForestGenerator {
         difficulty: 'normal',
       },
       tiles,
+      ...(elevations ? { elevations } : {}),
       props: [],
       bridges: [],
       encounterSites: [],
@@ -343,6 +471,29 @@ export class ForestGenerator {
       pickupSpawns: [],
     };
     return hasHilltopClearance(patch, local) ? { ...local, tileX: x, tileY: y } : null;
+  }
+  private artAt(
+    x: number,
+    y: number,
+    kind: 'tree' | 'plant',
+  ): Pick<WorldProp, 'assetKey' | 'variant'> {
+    const sample = this.geography?.sample(x, y);
+    if (!sample) return {};
+    const biome =
+      BIOMES[
+        hash(this.seed, x, y, 'species-edge') / 0xffffffff < sample.blend
+          ? sample.secondary
+          : sample.biome
+      ]!;
+    const rank = hash(this.seed, x, y, 'species');
+    if (kind === 'tree')
+      return biome.id === 'forest'
+        ? { assetKey: `native:${['young', 'tall', 'broad', 'compact'][rank % 4]}` }
+        : {
+            assetKey: `tree:${biome.trees[rank % biome.trees.length]}`,
+            variant: biome.trees[rank % biome.trees.length]!,
+          };
+    return { assetKey: `plant:${biome.id}:${rank % biome.plants.length}` };
   }
   generate(address: ChunkAddress): GeneratedChunk {
     const steps = this.generateSteps(address);
@@ -373,11 +524,14 @@ export class ForestGenerator {
       this.waterCache.clear();
       this.hillCache.clear();
       this.treeCache.clear();
+      this.slopeSites.clear();
+      this.slopeCenters.clear();
     }
     const size = this.descriptor.chunkSize,
       ox = address.x * size,
       oy = address.y * size;
     const tiles = new Uint8Array(size * size),
+      elevations = this.terraces ? new Uint8Array(size * size) : undefined,
       props: WorldProp[] = [];
     const allBridges = this.bridgesIn(ox, oy, ox + size, oy + size);
     const reserved = (x: number, y: number) =>
@@ -393,6 +547,7 @@ export class ForestGenerator {
           tile = this.tileAt(x, y),
           h = hash(this.seed, x, y, 'prop');
         tiles[ly * size + lx] = tile;
+        if (elevations) elevations[ly * size + lx] = this.heightAt(x, y);
         if (this.protected(x, y) || reserved(x, y)) continue;
         let nearStairs = false;
         for (let dy = -3; dy <= 2 && !nearStairs; dy++)
@@ -417,7 +572,14 @@ export class ForestGenerator {
                 break;
               }
           if (wins)
-            props.push({ id: `tree:${x},${y}`, kind: 'tree', tileX: x, tileY: y, solid: true });
+            props.push({
+              id: `tree:${x},${y}`,
+              kind: 'tree',
+              tileX: x,
+              tileY: y,
+              solid: true,
+              ...this.artAt(x, y, 'tree'),
+            });
         } else if (
           tile === Tile.PLATEAU &&
           h % this.biome.objects.hillRockFrequency === 0 &&
@@ -428,16 +590,29 @@ export class ForestGenerator {
         ) {
           const rock = this.hillRock(x, y);
           if (rock) props.push(rock);
-        } else if (tile === Tile.GRASS && h % this.biome.objects.decorationFrequency === 0) {
+        } else if (
+          (tile === Tile.GRASS ||
+            (this.geography && (tile === Tile.MUD || tile === Tile.PLATEAU))) &&
+          h % this.biome.objects.decorationFrequency === 0
+        ) {
           const kinds = this.biome.palette.filter(
             (kind) => kind !== 'tree' && kind !== 'rock_boulder',
           );
+          const localBiome = this.geography?.sample(x, y).biome;
+          const palette =
+            localBiome === 2
+              ? (['rock_pebble', 'rock_pebble', 'bush_small', 'flower_clump'] as const)
+              : kinds;
+          const kind = palette[(h >>> 9) % palette.length] ?? 'rock_pebble';
           props.push({
             id: `decor:${x},${y}`,
-            kind: kinds[(h >>> 9) % kinds.length] ?? 'rock_pebble',
+            kind,
             tileX: x,
             tileY: y,
             solid: false,
+            ...(['bush_small', 'flower_clump', 'flower_pink', 'flower_yellow'].includes(kind)
+              ? this.artAt(x, y, 'plant')
+              : {}),
           });
         }
       }
@@ -447,6 +622,14 @@ export class ForestGenerator {
     const bridges = allBridges.filter(
       (b) => Math.floor(b.x / size) === address.x && Math.floor(b.y / size) === address.y,
     );
-    return { address, size, tiles, props, bridges };
+    return {
+      address,
+      size,
+      tiles,
+      ...(elevations ? { elevations } : {}),
+      props,
+      bridges,
+      ...(this.geography ? { environment: this.geography.environment(ox, oy, size, size) } : {}),
+    };
   }
 }

@@ -11,6 +11,7 @@ export const HILL_SURFACE = {
   northRim: 4,
   cornerRadius: 6,
   lip: 1,
+  stairCheek: 2,
 } as const;
 /** Local rectangles cover the drop/face, leaving the upper rim available to feet. */
 export function hillCollisionBounds(tile: number, mask: number): Bounds[] {
@@ -24,7 +25,11 @@ export function hillCollisionBounds(tile: number, mask: number): Bounds[] {
       const dir = stairsDirection(mask);
       // The overlay cuts a flight through the face, retaining two-pixel cheeks.
       // Match scripts/build-hill-tileset.mjs drawStairs, not a full-cell exemption.
-      if ((dir === 'n' || dir === 's') ? x >= 2 && x < 30 : y >= 2 && y < 30)
+      if (
+        dir === 'n' || dir === 's'
+          ? x >= HILL_SURFACE.stairCheek && x < t - HILL_SURFACE.stairCheek
+          : y >= HILL_SURFACE.stairCheek && y < t - HILL_SURFACE.stairCheek
+      )
         return false;
     }
     // Match the atlas' rounded outer corners. The void is not standing space.
