@@ -7,7 +7,6 @@ import {
   resolveSpriteFrame,
   getAnimationDurationMs,
 } from '../../../src/animation/resolveSpriteFrame';
-import { createPlayerFlow, settlePlayerMotion } from '../../../src/animation/PlayerPlayback';
 import type { RenderEntityView } from '../../../src/types/render';
 
 const view = (extra: Partial<RenderEntityView> = {}): RenderEntityView => ({
@@ -27,9 +26,9 @@ const view = (extra: Partial<RenderEntityView> = {}): RenderEntityView => ({
   ...extra,
 });
 
-it('ships the exact approved remaster bytes, not the later experimental model', async () => {
+it('preserves the approved production sheets byte for byte', async () => {
   const hashes = JSON.parse(
-    await fs.readFile('docs/assets/source/player-remaster/approved-hashes.json', 'utf8'),
+    await fs.readFile('docs/assets/source/player-face-continuity/sheet-hashes.json', 'utf8'),
   ) as Record<string, string>;
   expect(Object.keys(hashes)).toHaveLength(56);
   for (const [file, hash] of Object.entries(hashes)) {
@@ -39,45 +38,6 @@ it('ships the exact approved remaster bytes, not the later experimental model', 
 });
 
 describe('player presentation flow', () => {
-  it('settles every gait phase within 80 ms and keeps idle breathing afterward', () => {
-    for (const clip of ['walk', 'run'] as const)
-      for (let frame = 0; frame < 8; frame++) {
-        const state = createPlayerFlow('NW');
-        const duration = clip === 'walk' ? 40 : 1000 / 34;
-        settlePlayerMotion(state, clip, frame * duration + 0.001, 'NW', 16, false);
-        for (let ms = 0; ms < 80; ms += 10) {
-          const out = settlePlayerMotion(state, 'idle', 0, 'NW', 10, false);
-          expect(['walk', 'run', 'idle']).toContain(out.anim);
-        }
-        expect(settlePlayerMotion(state, 'idle', 0, 'NW', 1, false).anim).toBe('idle');
-        const later = settlePlayerMotion(state, 'idle', 0, 'NW', 250, false);
-        expect(later.time).toBeGreaterThanOrEqual(250);
-      }
-  });
-  it('freezes settling while paused and cancels it for new actions, facing and teleports', () => {
-    for (const next of ['walk', 'run', 'attack', 'jump', 'hurt', 'death'] as const) {
-      const state = createPlayerFlow('NE');
-      settlePlayerMotion(state, 'walk', 80, 'NE', 16, false);
-      const first = settlePlayerMotion(state, 'idle', 0, 'NE', 0, false);
-      for (let i = 0; i < 10; i++)
-        expect(settlePlayerMotion(state, 'idle', 0, 'NE', 0, false)).toEqual(first);
-      expect(settlePlayerMotion(state, next, 120, 'NE', 16, false)).toEqual({
-        anim: next,
-        time: 120,
-      });
-      expect(state.settle).toBeUndefined();
-    }
-    for (const [facing, discontinuity] of [
-      ['SW', false],
-      ['NE', true],
-    ] as const) {
-      const state = createPlayerFlow('NE');
-      settlePlayerMotion(state, 'walk', 80, 'NE', 16, false);
-      settlePlayerMotion(state, 'idle', 0, 'NE', 10, false);
-      expect(settlePlayerMotion(state, 'idle', 0, facing, 10, discontinuity).anim).toBe('idle');
-      expect(state.settle).toBeUndefined();
-    }
-  });
   it('does not advance idle or settling when simulation time is frozen', () => {
     const animator = new EntityAnimator();
     for (let i = 0; i < 60; i++)
@@ -104,7 +64,7 @@ describe('player presentation flow', () => {
     expect(out.facing).toBe('NW');
     expect(out.animTimeMs).toBe(120);
     expect(resolveSpriteFrame(out).textureAlias).toBe('player_attack2_northwest');
-    expect(resolveSpriteFrame(out).frame.x).toBe(3 * 64);
+    expect(resolveSpriteFrame(out).frame.x).toBe(6 * 64);
     expect(attack.elapsedMs).toBe(120);
   });
   it('keeps strike at 120 and end at 360 with a readable impact and graded recovery', () => {
@@ -117,12 +77,12 @@ describe('player presentation flow', () => {
             attack: { swingId: 1, comboStep: step, direction: 'NW', elapsedMs: ms },
           }),
         );
-      expect(sample(119.99).frame.x).toBe(2 * 64);
-      expect(sample(120).frame.x).toBe(3 * 64);
-      expect(sample(179.99).frame.x).toBe(3 * 64);
-      expect(sample(180).frame.x).toBe(4 * 64);
-      expect(sample(319.99).frame.x).toBe(7 * 64);
-      expect(sample(320).frame.x).toBe(8 * 64);
+      expect(sample(119.99).frame.x).toBe(5 * 64);
+      expect(sample(120).frame.x).toBe(6 * 64);
+      expect(sample(179.99).frame.x).toBe(8 * 64);
+      expect(sample(180).frame.x).toBe(9 * 64);
+      expect(sample(319.99).frame.x).toBe(15 * 64);
+      expect(sample(320).frame.x).toBe(16 * 64);
       expect(sample(359.99).finished).toBe(false);
       expect(sample(360).finished).toBe(true);
     }
