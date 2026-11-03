@@ -33,7 +33,13 @@ export class LandscapeRegions {
     this.labels = new Int32Array(w * h).fill(-1);
     const regions: LandscapeRegion[] = [];
     for (let start = 0; start < w * h; start++) {
-      if (this.labels[start] !== -1 || !includes(source.tiles[start] ?? 0)) continue;
+      if (
+        this.labels[start] !== -1 ||
+        (kind === 'plateau' && source.elevations
+          ? !source.elevations[start]
+          : !includes(source.tiles[start] ?? 0))
+      )
+        continue;
       const label = regions.length,
         cells = [start];
       this.labels[start] = label;
@@ -51,7 +57,12 @@ export class LandscapeRegions {
             nx >= w ||
             ny >= h ||
             this.labels[ni] !== -1 ||
-            !includes(source.tiles[ni] ?? 0)
+            (kind === 'plateau' && source.elevations
+              ? !source.elevations[ni]
+              : !includes(source.tiles[ni] ?? 0)) ||
+            (kind === 'plateau' &&
+              source.elevations !== undefined &&
+              source.elevations[ni] !== source.elevations[at])
           )
             continue;
           this.labels[ni] = label;
@@ -87,7 +98,8 @@ export class LandscapeRegions {
       const cx = sx / cells.length,
         cy = sy / cells.length;
       const interior = cells.filter(
-        (at) => elevationMask(base.tiles, w, h, at % w, Math.floor(at / w)) === 255,
+        (at) =>
+          elevationMask(base.tiles, w, h, at % w, Math.floor(at / w), base.elevations) === 255,
       );
       interior.sort(
         (a, b) =>
@@ -108,7 +120,7 @@ export class LandscapeRegions {
                   base.tiles[(y + dy) * w + x + dx] ?? 0,
                   x + dx,
                   y + dy,
-                  elevationMask(base.tiles, w, h, x + dx, y + dy),
+                  elevationMask(base.tiles, w, h, x + dx, y + dy, base.elevations),
                 )?.kind === 'rock_boulder'
               )
                 return false;

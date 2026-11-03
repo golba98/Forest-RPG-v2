@@ -1,3 +1,5 @@
+import { BiomeGeography } from './BiomeGeography';
+import { BIOME_IDS } from '../Biomes';
 import { PERF_BUILD, collector, profileEvent } from '../../performance/FrameProfiler';
 import type { ChunkAddress } from './coordinates';
 import { addressKey, splitCoordinate, REGION_SIZE } from './coordinates';
@@ -10,6 +12,7 @@ export interface ChunkBackend {
 }
 /** Only authoritative baseline chunks live here. Modified state belongs to the repository/session. */
 export class ChunkSource implements WorldSource {
+  private climate: BiomeGeography | undefined;
   readonly chunks = new Map<string, GeneratedChunk>();
   private readonly pending = new Map<string, Promise<void>>();
   private worker: Worker | undefined;
@@ -25,11 +28,16 @@ export class ChunkSource implements WorldSource {
   evictions = 0;
   generated = 0;
   maxGenerationMs = 0;
+  private readonly generationTimes: number[] = [];
   constructor(
     readonly descriptor: InfiniteDescriptor,
     private readonly backend?: ChunkBackend,
     useWorker = true,
   ) {
+    this.climate =
+      descriptor.generatorVersion >= 14
+        ? new BiomeGeography(descriptor.seed, descriptor.generatorVersion === 14 ? 14 : 15)
+        : undefined;
     if (useWorker && typeof Worker !== 'undefined') {
       try {
         this.worker = new Worker(new URL('./generation.worker.ts', import.meta.url), {
@@ -148,15 +156,22 @@ export class ChunkSource implements WorldSource {
             const region = {
               x: Math.floor((address.x * this.descriptor.chunkSize) / REGION_SIZE),
               y: Math.floor((address.y * this.descriptor.chunkSize) / REGION_SIZE),
-              generatorVersion: 13,
-              biome: 'forest',
-              biomeVersion: 1,
+              generatorVersion: this.descriptor.generatorVersion,
+              biome: this.climate
+                ? BIOME_IDS[
+                    this.climate.sample(
+                      Math.floor((address.x * this.descriptor.chunkSize) / REGION_SIZE) *
+                        REGION_SIZE +
+                        128,
+                      Math.floor((address.y * this.descriptor.chunkSize) / REGION_SIZE) *
+                        REGION_SIZE +
+                        128,
+                    ).biome
+                  ]!
+                : 'forest',
+              biomeVersion: this.descriptor.biomeVersion,
             } as const;
-            const selected = biomes.selectRegion(this.descriptor.seed, region.x, region.y, [
-              { id: 'forest', version: this.descriptor.biomeVersion },
-            ]);
-            if (selected.id !== region.biome || selected.version !== region.biomeVersion)
-              throw new Error('Unsupported region generation policy');
+            biomes.get(region.biome, region.biomeVersion);
             await this.backend?.establish(region);
             if (PERF_BUILD)
               profileEvent('source.region', started, performance.now() - started, { key });
@@ -170,7 +185,10 @@ export class ChunkSource implements WorldSource {
                   tiles: chunk.tiles.byteLength,
                   props: chunk.props.length,
                 });
-              this.maxGenerationMs = Math.max(this.maxGenerationMs, performance.now() - started);
+              const duration = performance.now() - started;
+              this.maxGenerationMs = Math.max(this.maxGenerationMs, duration);
+              this.generationTimes.push(duration);
+              if (this.generationTimes.length > 128) this.generationTimes.shift();
             }
           })
           .finally(() => {
@@ -200,12 +218,16 @@ export class ChunkSource implements WorldSource {
       }
   }
   get info() {
+    const times = [...this.generationTimes].sort((a, b) => a - b);
     return {
       residentChunks: this.chunks.size,
       queuedChunks: this.pending.size,
       generated: this.generated,
       evictions: this.evictions,
       maxGenerationMs: this.maxGenerationMs,
+      generationP50Ms: times[Math.floor((times.length - 1) * 0.5)] ?? 0,
+      generationP95Ms: times[Math.floor((times.length - 1) * 0.95)] ?? 0,
+      elevationBytes: [...this.chunks.values()].reduce((n, c) => n + (c.elevations?.byteLength ?? 0), 0),
       tileBytes: [...this.chunks.values()].reduce((n, c) => n + c.tiles.byteLength, 0),
     };
   }

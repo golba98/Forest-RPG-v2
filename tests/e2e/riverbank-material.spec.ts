@@ -128,6 +128,8 @@ test('WebGL composes a bank transition across saved mud/grass cells and preserve
     const save = JSON.parse(localStorage.getItem('forestrpg.v2.save.soil-pixels')!);
     delete save.runtime.encounters;
     delete save.runtime.moisture;
+    delete save.world.environment;
+    save.world.meta.generatorVersion = 12;
     const tiles = new Array(32 * 32).fill(1);
     tiles[12 * 32 + 12] = 22;
     for (let x = 0; x < 32; x++) tiles[11 * 32 + x] = 11;

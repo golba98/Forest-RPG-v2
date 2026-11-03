@@ -15,6 +15,11 @@ export type PortalVisualState = 'locked' | 'reacting' | 'open' | 'transitioning'
  * Coordinates are in tiles; the renderer interpolates prev→current with alpha.
  */
 export interface RenderEntityView {
+  readonly isJumping?: boolean;
+  readonly jumpProgress?: number;
+  readonly isSprinting?: boolean;
+  readonly vx?: number;
+  readonly vy?: number;
   readonly chest?: import('./entities').ChestState;
   readonly requiredForCompletion?: boolean;
   readonly formation?: number;
@@ -160,6 +165,7 @@ export interface RendererInitOptions {
  * Rendering engine boundary. Implemented in src/rendering; consumed by src/game.
  */
 export interface IRenderer {
+  isReady?(): boolean;
   init(options: RendererInitOptions): Promise<void>;
   /** Loads texture bundles; `onProgress` receives 0..1. */
   loadAssets(onProgress?: (progress: number) => void): Promise<void>;

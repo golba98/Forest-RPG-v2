@@ -1,14 +1,10 @@
+import { DIRECTION_VECTORS } from '../core/math/Direction';
+import { PlayerPoseController, type PlayerPose } from '../animation/PlayerMotion';
 import type { AnimState, Direction } from '../types/entities';
 import type { RenderEntityView } from '../types/render';
 import { getAnimationDurationMs } from '../animation/resolveSpriteFrame';
 import type { SpriteFrameInput } from '../animation/resolveSpriteFrame';
 import { ANIMATION_DEFS } from '../animation/AnimationDefs';
-import {
-  PLAYER_FLOW_ENABLED,
-  createPlayerFlow,
-  settlePlayerMotion,
-  type PlayerFlowState,
-} from '../animation/PlayerPlayback';
 
 /** A displayed facing must persist this long before the sprite row flips (enemies). */
 export const FACING_HOLD_MS = 120;
@@ -30,7 +26,8 @@ interface Track {
   seenAt: number;
   ground: GroundPoint | undefined;
   gaitDistancePx: number;
-  playerFlow: PlayerFlowState;
+  poseDistancePx: number;
+  poseController: PlayerPoseController;
 }
 
 /** Interpolated ground position before jump lift and camera transforms. */
@@ -40,6 +37,7 @@ export interface GroundPoint {
 }
 
 export interface AnimatedView extends SpriteFrameInput {
+  readonly playerPose?: PlayerPose;
   /** 0..1 strength of the attack wind-up telegraph (0 when none). */
   readonly telegraph: number;
 }
@@ -57,7 +55,8 @@ export interface AnimatedView extends SpriteFrameInput {
  */
 export class EntityAnimator {
   rebase(dx: number, dy: number): void {
-    for(const track of this.tracks.values())if(track.ground)track.ground={x:track.ground.x-dx,y:track.ground.y-dy};
+    for (const track of this.tracks.values())
+      if (track.ground) track.ground = { x: track.ground.x - dx, y: track.ground.y - dy };
   }
   private readonly tracks = new Map<string, Track>();
   private frame = 0;
@@ -80,12 +79,12 @@ export class EntityAnimator {
         seenAt: this.frame,
         ground,
         gaitDistancePx: 0,
-        playerFlow: createPlayerFlow(view.facing),
+        poseDistancePx: 0,
+        poseController: new PlayerPoseController(),
       };
       this.tracks.set(view.id, track);
     }
-    const previousAnim = track.anim;
-    const previousClock = track.lastAnimTimeMs;
+    const simulationDt = dtMs > 0 ? Math.max(0, view.animTimeMs - track.lastAnimTimeMs) : 0;
     track.seenAt = this.frame;
 
     if (view.animStartedAtMs !== undefined) track.offsetMs = view.animStartedAtMs;
@@ -125,9 +124,18 @@ export class EntityAnimator {
       // A discontinuity is a teleport, not a stride. World replacements clear
       // the animator in the renderer's existing reset path.
       discontinuity = distance > 64 || !Number.isFinite(distance);
-      if (discontinuity) track.gaitDistancePx = 0;
-      else if (clip?.stridePx && dtMs > 0)
-        track.gaitDistancePx = (track.gaitDistancePx + distance) % clip.stridePx;
+      if (discontinuity) track.gaitDistancePx = track.poseDistancePx = 0;
+      else if (dtMs > 0) {
+        track.gaitDistancePx = (track.gaitDistancePx + distance) % 64;
+        const [fx, fy] = DIRECTION_VECTORS[view.attack?.direction ?? view.facing];
+        const projection = track.ground
+          ? (ground.x - track.ground.x) * fx + (ground.y - track.ground.y) * fy
+          : 0;
+        // Integrate signed displacement: reversing during a locked punch must
+        // reverse the feet from their current phase, not swap their positions.
+        track.poseDistancePx =
+          (track.poseDistancePx + (projection < 0 ? -distance : distance) + 64) % 64;
+      }
       if (clip?.stridePx)
         time = (track.gaitDistancePx / clip.stridePx) * clip.frameCount * clip.frameDurationMs;
       track.ground = ground;
@@ -138,27 +146,6 @@ export class EntityAnimator {
     if (view.moving === false && (anim === 'walk' || anim === 'run')) {
       anim = 'idle';
       time = 0;
-    }
-    if (view.kind === 'player' && PLAYER_FLOW_ENABLED) {
-      const wasIdle = anim === 'idle';
-      const playerDt =
-        dtMs > 0 && Number.isFinite(dtMs)
-          ? Math.max(0, previousAnim === view.anim ? view.animTimeMs - previousClock : local)
-          : 0;
-      const presentation = settlePlayerMotion(
-        track.playerFlow,
-        anim,
-        time,
-        facing,
-        playerDt,
-        discontinuity,
-      );
-      anim = presentation.anim;
-      time = presentation.time;
-      if (wasIdle && (anim === 'walk' || anim === 'run')) {
-        const duration = anim === 'walk' ? 40 : 1000 / 34;
-        track.gaitDistancePx = ((time / duration) % 8) * 8;
-      }
     }
     if (view.kind === 'enemy' && view.anim === 'attack' && view.attackPhase !== undefined) {
       // Authoritative phases from the AI: telegraph the wind-up, rest after the strike.
@@ -184,6 +171,16 @@ export class EntityAnimator {
       facing,
       animTimeMs: time,
       telegraph,
+      ...(view.kind === 'player'
+        ? {
+            playerPose: track.poseController.update(
+              view,
+              track.poseDistancePx,
+              simulationDt,
+              discontinuity,
+            ),
+          }
+        : {}),
       ...(view.active === undefined ? {} : { active: view.active }),
       ...(view.attack === undefined ? {} : { attack: view.attack }),
     };

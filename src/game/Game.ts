@@ -143,7 +143,46 @@ export class Game {
   // Game flow
   // ---------------------------------------------------------------------------
 
-  public startNewGame(options: NewGameOptions = {}): void {
+  public async startBiomeWalk(biome: import('../world/Biomes').BiomeId): Promise<void> {
+    const generation = ++this.generation;
+    this.setScene('loading');
+    this.deps.shell?.onLoadingProgress?.(0.1, 'Preparing biome');
+    try {
+      const world = await this.deps.worlds.generate({
+        seed: 42,
+        level: 1,
+        difficulty: 'normal',
+        mode: 'biome-walk',
+        biome,
+      });
+      if (generation !== this.generation) {
+        this.deps.worlds.release?.(world);
+        return;
+      }
+      this.loadWorld(world, 'new', generation);
+    } catch (error) {
+      if (generation === this.generation) this.setScene('menu');
+      throw error;
+    }
+  }
+
+  public async changeBiome(biome: import('../world/Biomes').BiomeId): Promise<void> {
+    if (!this.deps.simulation.travelToBiome) throw new Error('Biome travel unavailable');
+    this.pause();
+    this.setScene('loading');
+    this.deps.shell?.onLoadingProgress?.(0.1, 'Preparing biome');
+    try {
+      await this.deps.simulation.travelToBiome(biome);
+      this.deps.renderer.setWorld(this.deps.simulation.world);
+      if (this.loop.isPaused) this.loop.resume();
+      this.setScene('playing');
+    } catch (error) {
+      this.setScene('paused');
+      throw error;
+    }
+  }
+
+  public startNewGame(options: NewGameOptions = {}): void | Promise<void> {
     const generation = ++this.generation;
     if (options.difficulty) this.difficulty = options.difficulty;
     const world = options.tutorial
@@ -156,7 +195,7 @@ export class Game {
     if (world instanceof Promise) {
       this.setScene('loading');
       this.deps.shell?.onLoadingProgress?.(0.1, 'Preparing forest');
-      void world
+      return world
         .then((ready) => {
           if (generation !== this.generation) {
             this.deps.worlds.release?.(ready);
@@ -233,6 +272,7 @@ export class Game {
   }
 
   public returnToMenu(): void {
+    this.generation++;
     if (!this.loop.isPaused) this.loop.pause();
     this.setScene('menu');
   }
@@ -260,7 +300,9 @@ export class Game {
   // ---------------------------------------------------------------------------
 
   public get currentScene(): SceneState {
-    return this.scene;
+    return this.scene === 'playing' && this.deps.renderer.isReady?.() === false
+      ? 'loading'
+      : this.scene;
   }
 
   public get currentDifficulty(): Difficulty {
@@ -286,6 +328,7 @@ export class Game {
   // ---------------------------------------------------------------------------
 
   private fixedUpdate(dtSec: number): void {
+    if (this.deps.renderer.isReady?.() === false) return;
     if (this.scene !== 'playing') return;
     const sim = this.deps.simulation;
     if (sim.isWaitingForWorld?.()) return;

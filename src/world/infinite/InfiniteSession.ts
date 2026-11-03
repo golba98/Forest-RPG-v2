@@ -1,3 +1,5 @@
+import { isRaisedSurface } from '../ElevationTopology';
+import type { BiomeId, WorldEnvironment } from '../Biomes';
 import { prepareInSlices } from '../../core/WorkSlice';
 import { hydrateWindow, type MountedWindow } from './WindowPopulation';
 import { translateEntity } from './EntityCoordinates';
@@ -12,7 +14,12 @@ import { ChunkSource } from './ChunkSource';
 import { ForestGenerator } from './ForestGenerator';
 import { addressKey, COORDINATE_LIMIT } from './coordinates';
 import type { ChunkAddress } from './coordinates';
-import type { ChunkDelta, InfiniteDescriptor, LegacyRegion } from './types';
+import {
+  STREAM_GENERATOR_VERSION,
+  type ChunkDelta,
+  type InfiniteDescriptor,
+  type LegacyRegion,
+} from './types';
 import { WorldRepository } from '../../persistence/WorldRepository';
 import type { SavedMoisture } from '../../systems/SurfaceMoisture';
 import type { WorldCheckpoint } from '../../persistence/WorldRepository';
@@ -26,8 +33,14 @@ export function infiniteDescriptor(options: WorldGenOptions): InfiniteDescriptor
   return {
     id: newWorldId(),
     seed: options.seed >>> 0,
-    generatorVersion: 13,
-    biomeVersion: 1,
+    generatorVersion:
+      options.generatorVersion === 13 ||
+      options.generatorVersion === 14 ||
+      options.generatorVersion === 15
+        ? options.generatorVersion
+        : STREAM_GENERATOR_VERSION,
+    biomeVersion: options.generatorVersion === 13 ? 1 : 2,
+    mode: options.mode ?? 'adventure',
     chunkSize: 32,
     level: options.level,
     difficulty: options.difficulty,
@@ -39,6 +52,20 @@ export class InfiniteSession {
   readonly generator: ForestGenerator;
   readonly deltas = new Map<string, ChunkDelta>();
   readonly objectives = new Set<string>();
+  home = { x: 0.5, y: 0.5 };
+  landings: Partial<Record<BiomeId, { x: number; y: number }>> = {};
+  get exploration(): boolean {
+    return this.descriptor.mode === 'biome-walk';
+  }
+  saveSlot(slot = 'auto'): string {
+    return this.exploration
+      ? slot === 'auto'
+        ? 'biome-walk'
+        : slot === 'biome-walk' || slot.startsWith('walk-')
+          ? slot
+          : `walk-${slot}`
+      : slot;
+  }
   private readonly requiredIds = new Set<string>();
   revision = 0;
   lastCheckpoint: WorldCheckpoint | undefined;
@@ -285,21 +312,14 @@ export class InfiniteSession {
     });
   }
   private sites(origin = this.origin, size = this.size): EncounterSite[] {
+    if (this.exploration) return [];
     const s = this.generator.starting,
       sites: EncounterSite[] = this.legacy
         ? [...(this.legacy.world.encounterSites ?? [])]
         : [{ id: 'start:nest', kind: 'nest', ...s.nest }];
     const cell = 96;
-    for (
-      let y = Math.floor(origin.y / cell);
-      y <= Math.floor((origin.y + size) / cell);
-      y++
-    )
-      for (
-        let x = Math.floor(origin.x / cell);
-        x <= Math.floor((origin.x + size) / cell);
-        x++
-      ) {
+    for (let y = Math.floor(origin.y / cell); y <= Math.floor((origin.y + size) / cell); y++)
+      for (let x = Math.floor(origin.x / cell); x <= Math.floor((origin.x + size) / cell); x++) {
         const px = x * cell + 48,
           py = y * cell + 48;
         if (this.generator.hasGrove(x, y) && this.legacyTile(px, py) === undefined)
@@ -323,14 +343,17 @@ export class InfiniteSession {
     this.commitWindow(result.value);
     return result.value;
   }
-  async stageWindow(current: WorldData, valid: () => boolean): Promise<WorldData> {
+  async stageWindow(current: WorldData | undefined, valid: () => boolean): Promise<WorldData> {
     if (!this.desired) throw new Error('World has not been prepared');
-    const work = this.windowWork({...this.desired}, this.preparedSize, current);
+    const work = this.windowWork({ ...this.desired }, this.preparedSize, current);
     let world: WorldData | undefined;
     function* collect(): Generator<void> {
       for (;;) {
         const next = work.next();
-        if (next.done) { world = next.value; return; }
+        if (next.done) {
+          world = next.value;
+          return;
+        }
         yield;
       }
     }
@@ -344,36 +367,108 @@ export class InfiniteSession {
     this.originY = world.window.originY;
     this.size = world.meta.width;
   }
-  private *windowWork(origin: {x:number;y:number}, size: number, current?: WorldData): Generator<void, WorldData> {
-    const tiles = new Uint8Array(size * size), chunkSize = this.descriptor.chunkSize;
+  private *windowWork(
+    origin: { x: number; y: number },
+    size: number,
+    current?: WorldData,
+  ): Generator<void, WorldData> {
+    const tiles = new Uint8Array(size * size),
+      elevations = this.descriptor.generatorVersion >= 16 ? new Uint8Array(size * size) : undefined,
+      chunkSize = this.descriptor.chunkSize;
+    const fields = [
+      'biome',
+      'secondary',
+      'blend',
+      'cover',
+      'moisture',
+      'relief',
+      'material',
+    ] as const;
+    const environment: WorldEnvironment | undefined =
+      this.descriptor.generatorVersion >= 14
+        ? ({
+            version: 1,
+            ...Object.fromEntries(fields.map((k) => [k, new Array<number>(size * size).fill(0)])),
+          } as unknown as WorldEnvironment)
+        : undefined;
     const old = current?.window;
-    for (let y=0; y<size; y+=chunkSize) for(let x=0;x<size;x+=chunkSize) {
-      const gx=origin.x+x, gy=origin.y+y;
-      if (current && old && gx>=old.originX && gy>=old.originY && gx+chunkSize<=old.originX+current.meta.width && gy+chunkSize<=old.originY+current.meta.height) {
-        for(let row=0;row<chunkSize;row++) {
-          const i=(gy-old.originY+row)*current.meta.width+gx-old.originX;
-          tiles.set(current.tiles.subarray(i,i+chunkSize),(y+row)*size+x);
+    for (let y = 0; y < size; y += chunkSize)
+      for (let x = 0; x < size; x += chunkSize) {
+        const gx = origin.x + x,
+          gy = origin.y + y;
+        if (
+          current &&
+          old &&
+          gx >= old.originX &&
+          gy >= old.originY &&
+          gx + chunkSize <= old.originX + current.meta.width &&
+          gy + chunkSize <= old.originY + current.meta.height
+        ) {
+          for (let row = 0; row < chunkSize; row++) {
+            const i = (gy - old.originY + row) * current.meta.width + gx - old.originX;
+            tiles.set(current.tiles.subarray(i, i + chunkSize), (y + row) * size + x);
+          }
+        } else {
+          const chunk = this.source.chunks.get(addressKey(gx / chunkSize, gy / chunkSize));
+          if (!chunk) throw new Error('Baseline chunk not ready');
+          for (let row = 0; row < chunkSize; row++)
+            tiles.set(
+              chunk.tiles.subarray(row * chunkSize, (row + 1) * chunkSize),
+              (y + row) * size + x,
+            );
+          for (const [key, value] of Object.entries(this.deltaAt(gx, gy).tiles)) {
+            const i = Number(key);
+            tiles[(y + Math.floor(i / chunkSize)) * size + x + (i % chunkSize)] = value;
+          }
+          if (this.legacy)
+            for (let row = 0; row < chunkSize; row++)
+              for (let col = 0; col < chunkSize; col++) {
+                const tile = this.legacyTile(gx + col, gy + row);
+                if (tile !== undefined)
+                  tiles[(y + row) * size + x + col] =
+                    this.deltaAt(gx + col, gy + row).tiles[String(row * chunkSize + col)] ?? tile;
+              }
         }
-      } else {
-        const chunk=this.source.chunks.get(addressKey(gx/chunkSize,gy/chunkSize));
-        if (!chunk) throw new Error('Baseline chunk not ready');
-        for(let row=0;row<chunkSize;row++) tiles.set(chunk.tiles.subarray(row*chunkSize,(row+1)*chunkSize),(y+row)*size+x);
-        for(const [key,value] of Object.entries(this.deltaAt(gx,gy).tiles)) {
-          const i=Number(key); tiles[(y+Math.floor(i/chunkSize))*size+x+i%chunkSize]=value;
+        if (elevations) {
+          const chunk = this.source.chunks.get(addressKey(gx / chunkSize, gy / chunkSize));
+          if (!chunk?.elevations) throw new Error('Elevation chunk not ready');
+          for (let row = 0; row < chunkSize; row++)
+            for (let col = 0; col < chunkSize; col++) {
+              const local = (y + row) * size + x + col;
+              elevations[local] =
+                this.legacyTile(gx + col, gy + row) !== undefined
+                  ? Number(isRaisedSurface(tiles[local] ?? 0))
+                  : (chunk.elevations[row * chunkSize + col] ?? 0);
+            }
         }
-        if(this.legacy) for(let row=0;row<chunkSize;row++) for(let col=0;col<chunkSize;col++) {
-          const tile=this.legacyTile(gx+col,gy+row);
-          if(tile!==undefined) tiles[(y+row)*size+x+col]=this.deltaAt(gx+col,gy+row).tiles[String(row*chunkSize+col)]??tile;
+        if (environment) {
+          const source = this.source.chunks.get(
+            addressKey(gx / chunkSize, gy / chunkSize),
+          )?.environment;
+          if (!source) throw new Error('Climate chunk not ready');
+          for (const k of fields)
+            for (let row = 0; row < chunkSize; row++)
+              for (let col = 0; col < chunkSize; col++)
+                (environment[k] as number[])[(y + row) * size + x + col] =
+                  source[k][row * chunkSize + col]!;
         }
+        yield;
       }
-      yield;
-    }
     const legacy = this.legacy?.world,
       portal = legacy?.portal ?? this.generator.starting.portal;
     const bridges = [...this.source.chunks.values()]
       .flatMap((c) => c.bridges)
       .filter((b) => this.legacyTile(b.x, b.y) === undefined)
       .concat(legacy?.bridges ?? [])
+      // Ownership is global, but only geometry touching this window belongs in
+      // its scene. Cached bridges from an earlier visit must not enter it.
+      .filter(
+        (b) =>
+          b.x + (b.orientation === 'horizontal' ? b.span + 2 : 3) >= origin.x &&
+          b.y + (b.orientation === 'vertical' ? b.span + 2 : 3) >= origin.y &&
+          b.x - 3 < origin.x + size &&
+          b.y - 3 < origin.y + size,
+      )
       .sort((a, b) => (String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0))
       .map((b) => ({ ...b, x: b.x - origin.x, y: b.y - origin.y }));
     const pickups =
@@ -401,6 +496,8 @@ export class InfiniteSession {
       y: p.y - origin.y,
     });
     return {
+      ...(environment ? { environment } : {}),
+      ...(elevations ? { elevations } : {}),
       window: {
         originX: origin.x,
         originY: origin.y,
@@ -411,7 +508,7 @@ export class InfiniteSession {
       },
       meta: {
         seed: this.descriptor.seed,
-        generatorVersion: 13,
+        generatorVersion: this.descriptor.generatorVersion,
         hilltopObjectsVersion: 1,
         width: size,
         height: size,
@@ -427,22 +524,34 @@ export class InfiniteSession {
         y: Math.floor(this.preparedCenter.y) - origin.y,
       },
       portal: local(portal),
-      enemySpawns: enemies.filter(inside).map((p) => ({ ...p, ...local(p) })),
-      pickupSpawns: pickups.filter(inside).map((p) => ({ ...p, ...local(p) })),
+      enemySpawns: (this.exploration ? [] : enemies)
+        .filter(inside)
+        .map((p) => ({ ...p, ...local(p) })),
+      pickupSpawns: (this.exploration ? [] : pickups)
+        .filter(inside)
+        .map((p) => ({ ...p, ...local(p) })),
       encounterSites: this.sites(origin, size),
     };
   }
   private discovery(origin = this.origin, size = this.size): Uint8Array {
-    const out=new Uint8Array(size*size), s=this.descriptor.chunkSize;
-    for(let y=0;y<size;y+=s)for(let x=0;x<size;x+=s) {
-      const gx=origin.x+x,gy=origin.y+y,bits=this.deltaAt(gx,gy).discovered;
-      if(!bits && !this.legacy)continue;
-      for(let row=0;row<s;row++)for(let col=0;col<s;col++) {
-        const i=row*s+col;
-        if(this.legacyTile(gx+col,gy+row)!==undefined || ((bits?.[Math.floor(i/8)]??0)&(1<<(i%8))))
-          out[(y+row)*size+x+col]=1;
+    const out = new Uint8Array(size * size),
+      s = this.descriptor.chunkSize;
+    for (let y = 0; y < size; y += s)
+      for (let x = 0; x < size; x += s) {
+        const gx = origin.x + x,
+          gy = origin.y + y,
+          bits = this.deltaAt(gx, gy).discovered;
+        if (!bits && !this.legacy) continue;
+        for (let row = 0; row < s; row++)
+          for (let col = 0; col < s; col++) {
+            const i = row * s + col;
+            if (
+              this.legacyTile(gx + col, gy + row) !== undefined ||
+              (bits?.[Math.floor(i / 8)] ?? 0) & (1 << (i % 8))
+            )
+              out[(y + row) * size + x + col] = 1;
+          }
       }
-    }
     return out;
   }
   reveal(world: WorldData, player: PlayerEntity): void {
@@ -569,7 +678,9 @@ export class InfiniteSession {
       const encounters: EncounterState = {
         version: 1,
         bosses: [
-          ...(runtime.encounters?.bosses ?? []).filter((b) => sites.has(b.siteId)).map(b => structuredClone(b)),
+          ...(runtime.encounters?.bosses ?? [])
+            .filter((b) => sites.has(b.siteId))
+            .map((b) => structuredClone(b)),
           ...(prior.encounters?.bosses ?? []).filter((b) => !activeSites.has(b.siteId)),
         ],
         groves: (runtime.encounters?.groves ?? [])
@@ -634,6 +745,7 @@ export class InfiniteSession {
     return {
       version: 3,
       descriptor: this.descriptor,
+      ...(this.exploration ? { exploration: { home: this.home, landings: this.landings } } : {}),
       revision: this.revision,
       entities: entities
         .filter(
@@ -680,9 +792,11 @@ export class InfiniteSession {
     this.saveTail = this.saveTail
       .catch(() => {})
       .then(() =>
-        this.repository.checkpoint(committed, changes, slot).then(() => {
-          this.lastCheckpoint = committed;
-        }),
+        this.repository
+          .checkpoint(committed, changes, slot === undefined ? undefined : this.saveSlot(slot))
+          .then(() => {
+            this.lastCheckpoint = committed;
+          }),
       );
     return this.saveTail;
   }
@@ -699,6 +813,13 @@ export class InfiniteSession {
       deltas: this.deltas,
       generator: this.generator,
       keyAt: (x, y) => this.keyAt(x, y),
+      // Actor publication must only read the worker-prepared baseline. Calling the
+      // generator here would synchronously plan new terraces on the render thread.
+      baselineTile: (x, y) => {
+        const tile = this.source.tileAt(x, y);
+        if (tile === undefined) throw new Error('Actor baseline chunk not ready');
+        return tile;
+      },
       legacyTile: (x, y) => this.legacyTile(x, y),
     });
   }
@@ -759,7 +880,11 @@ export class InfiniteSession {
     );
   }
   prune(countTransition = true): void {
-    const keep = new Set([...this.prepared, ...this.addresses(this.originX, this.originY, this.size)].map((a) => addressKey(a.x, a.y)));
+    const keep = new Set(
+      [...this.prepared, ...this.addresses(this.originX, this.originY, this.size)].map((a) =>
+        addressKey(a.x, a.y),
+      ),
+    );
     this.source.evict(keep);
     for (const key of this.deltas.keys()) if (!keep.has(key)) this.deltas.delete(key);
     if (countTransition) this.transitions++;

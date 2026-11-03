@@ -3,12 +3,13 @@ import type { EncounterState } from '../../types/encounters';
 import type { Difficulty, WorldBridge, WorldProp, WorldData } from '../../types/world';
 import type { ChunkAddress } from './coordinates';
 
-export const STREAM_GENERATOR_VERSION = 13;
+export const STREAM_GENERATOR_VERSION = 16;
 export interface InfiniteDescriptor {
   readonly id: string;
   readonly seed: number;
-  readonly generatorVersion: 13;
-  readonly biomeVersion: 1;
+  readonly generatorVersion: 13 | 14 | 15 | 16;
+  readonly biomeVersion: 1 | 2;
+  readonly mode?: 'adventure' | 'biome-walk';
   readonly chunkSize: 32 | 64;
   readonly level: number;
   readonly difficulty: Difficulty;
@@ -16,7 +17,7 @@ export interface InfiniteDescriptor {
 export interface RegionIdentity {
   readonly x: number;
   readonly y: number;
-  readonly generatorVersion: 13;
+  readonly generatorVersion: 13 | 14 | 15 | 16;
   readonly biome: string;
   readonly biomeVersion: number;
 }
@@ -24,6 +25,8 @@ export interface GeneratedChunk {
   readonly address: ChunkAddress;
   readonly size: number;
   readonly tiles: Uint8Array;
+  readonly elevations?: Uint8Array;
+  readonly environment?: import('../Biomes').WorldEnvironment;
   readonly props: readonly WorldProp[];
   readonly bridges: readonly WorldBridge[];
 }

@@ -11,6 +11,7 @@ await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
   args: [
+    '--mute-audio',
     '--no-sandbox',
     '--use-gl=angle',
     '--use-angle=gl',

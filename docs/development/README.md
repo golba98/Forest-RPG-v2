@@ -71,14 +71,14 @@ Add `&tutorial=1` to start in the training glade. In a diagnostic session, open 
 
 ## Scripts and generated output
 
-| Script                                                   | Purpose                                                                                 |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `prepare-grove-assets.mjs`, `prepare-nest-assets.mjs`    | Reproduce shipped sprites from tracked asset sources                                    |
-| `build-hill-tileset.mjs`, `build-rock-sprites.mjs`       | Generate shipped terrain and object art                                                 |
-| `sanitize-assets.js`, `transcode-media.sh`               | Prepare asset manifests and media; review generated asset diffs                         |
-| `profile-landscape.mjs`                                  | Profile generation/loading; fixture regeneration requires explicit `--capture-baseline` |
-| `profile-browser.mjs`, `profile-surface-weather.mjs`     | Measure browser cadence or compare weather builds                                       |
-| `capture-surface-weather.mjs`, `directional-gallery.mjs` | Produce local QA captures and galleries                                                 |
+| Script                                                                     | Purpose                                                                                 |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `prepare-grove-assets.mjs`, `prepare-nest-assets.mjs`                      | Reproduce shipped sprites from tracked asset sources                                    |
+| `build-hill-tileset.mjs`, `build-upland-art.mjs`, `build-rock-sprites.mjs` | Generate shipped terrain and object art                                                 |
+| `sanitize-assets.js`, `transcode-media.sh`                                 | Prepare asset manifests and media; review generated asset diffs                         |
+| `profile-landscape.mjs`                                                    | Profile generation/loading; fixture regeneration requires explicit `--capture-baseline` |
+| `profile-browser.mjs`, `profile-surface-weather.mjs`                       | Measure browser cadence or compare weather builds                                       |
+| `capture-surface-weather.mjs`, `directional-gallery.mjs`                   | Produce local QA captures and galleries                                                 |
 
 Asset preparation intentionally changes shipped files; ordinary tests and captures should not. Browser/profiling scripts may require a running production preview; see [testing](../testing.md) and [performance](../performance.md) for prerequisites and options.
 
@@ -99,3 +99,18 @@ Asset preparation intentionally changes shipped files; ordinary tests and captur
 | `docs/`                                         | Maintained technical guides, source attribution and curated images    |
 
 Before submitting, inspect `git status --short` and `git diff --check`. A normal test run should not modify documentation or tracked images. Keep generated output out of commits; move only deliberately selected documentation images into `docs/images/`.
+
+### Environment art reproduction
+
+The coordinated biome assets have retained sources and an inventory. Rebuild the
+additional rocks without replacing the originals, then prepare the tree/plant,
+ground and relief packs:
+
+```sh
+node scripts/build-rock-sprites.mjs --environment
+node scripts/prepare-environment-assets.mjs
+```
+
+Review changed images at native scale and run the environment-asset validation
+and biome browser gallery. See [asset production](../assets/replacements.md) and
+[rendering](../rendering.md) for metadata, attribution and runtime ownership.

@@ -108,11 +108,13 @@ export function toneTint(x: number, y: number, depth = 0.12): number {
  * tile's 8-neighbour elevated-cell mask (hillAutotile.elevationMask);
  * `shore` is its land-neighbour mask (waterArt.waterEdgeMask), used by water.
  */
-export function getTileArt(tileId: number, x: number, y: number, elevation = 0, shore = 0): TileArtLayer[] {
+export function getTileArt(tileId: number, x: number, y: number, elevation = 0, shore = 0, higher = 0): TileArtLayer[] {
   if (isElevatedTile(tileId)) {
     const h = hashTile(x, y);
     const interior = reduceMask(elevation) === 255;
     const layers = [grass(), fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillFrame(elevation, h) }, interior ? toneTint(x, y, 0.14) : WHITE)];
+    if (higher & NB.N) layers.push(fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillShadowFrame() }));
+    if (higher & NB.W) layers.push(fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillShadowEastFrame() }));
     if (tileId === Tile.STAIRS) layers.push(fill(HILL_ATLAS_ALIAS, { type: 'rect', rect: hillStairsFrame(elevation) }));
     const decor = plateauDecoration(tileId, x, y, elevation);
     // Solid decor is an authoritative world prop, never part of a terrain cache.
@@ -124,10 +126,10 @@ export function getTileArt(tileId: number, x: number, y: number, elevation = 0, 
     }
     return layers;
   }
-  if (tileId === Tile.RIVER) {
+  if (tileId === Tile.RIVER || tileId === Tile.SHALLOW_WATER) {
     const h = hashTile(x, y);
     // Gentle tone tint breaks up the repeating swell; shoreline overlays sit on top.
-    return [fill(waterBaseAlias(h), FULL, toneTint(x, y, 0.18)), ...waterEdges(shore).map((edge) => fill(waterEdgeAlias(edge)))];
+    return [fill(waterBaseAlias(h), FULL, tileId === Tile.SHALLOW_WATER ? 0x9bb898 : toneTint(x, y, 0.18)), ...waterEdges(shore).map((edge) => fill(waterEdgeAlias(edge)))];
   }
   const layers = getGroundArt(tileId, x, y);
   if (shore && [Tile.GRASS, Tile.FLOWERS].includes(tileId as 1 | 9)) layers.push(fill(bankAlias(shore)));

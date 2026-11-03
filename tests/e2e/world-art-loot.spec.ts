@@ -2,6 +2,7 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { bridgeFixture } from '../fixtures/bridge-world';
 import type { Entity, PickupEntity } from '../../src/types/entities';
 import type { WorldData } from '../../src/types/world';
+import { settleEnvironment } from './helpers/environment';
 
 async function capture(page: Page, info: TestInfo, name: string) {
   await page.screenshot({
@@ -16,6 +17,7 @@ async function saved(page: Page) {
 }
 async function move(page: Page, x: number, y: number) {
   await page.evaluate(({ x, y }) => window.__GAME__!.setPlayerPosition(x, y), { x, y });
+  await settleEnvironment(page);
   await page.clock.runFor(800);
 }
 async function boot(page: Page) {
@@ -54,6 +56,7 @@ test('seed 42 forest, chest opening, rewards and reload', async ({ page }, info)
   await capture(page, info, 'chest-opening');
   await saved(page);
   expect(await page.evaluate(() => window.__GAME__!.loadGame('art-qa'))).toBe(true);
+  await settleEnvironment(page);
   await page.clock.runFor(450);
   await capture(page, info, 'chest-reward');
   const opened = await saved(page);
@@ -65,7 +68,7 @@ test('seed 42 forest, chest opening, rewards and reload', async ({ page }, info)
     before + 5,
   );
   await page.reload();
-  await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
+  await settleEnvironment(page);
   expect(await page.evaluate(() => window.__GAME__!.loadGame('art-qa'))).toBe(true);
   await page.clock.runFor(200);
   expect((await saved(page)).entities.find((e: Entity) => e.id === chest.id).chest.state).toBe(
