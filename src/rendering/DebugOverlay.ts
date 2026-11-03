@@ -35,6 +35,8 @@ export interface VisualDebugInfo {
   readonly playerSlash?: import('./effects/EffectsLayer').PlayerSlashView | null;
   /** Actual displayed texture and transform, rather than the next requested pose. */
   readonly playerSprite?: {
+    readonly playerPose?: import('../animation/PlayerMotion').PlayerPose;
+    readonly playerFace?: import('../animation/PlayerFace').PlayerFaceInfo;
     readonly position: { readonly x: number; readonly y: number };
     readonly anim: AnimState;
     readonly facing: Direction;
