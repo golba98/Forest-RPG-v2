@@ -1,3 +1,6 @@
+import { libraryId, worldName, type WorldLibraryEntry } from './WorldLibrary';
+import { randomSeed } from '../game/LaunchParams';
+import type { Difficulty } from '../types/world';
 import { validEnvironment, validEnvironmentAssetKey } from '../world/Biomes';
 import {
   SAVE_SCHEMA_VERSION,
@@ -447,6 +450,195 @@ export class SaveManager {
         this.storage.setItem(`forestrpg.v3.slot.${archive}`, '1');
       }
     }
+    await this.migrateLibrary();
+  }
+  listWorlds(): Promise<WorldLibraryEntry[]> {
+    return this.worlds().listWorlds();
+  }
+  hasTutorialSave(): boolean {
+    try {
+      const raw = this.storage.getItem('forestrpg.v2.save.auto');
+      return !!raw && decode(raw).world.meta.isTutorial === true;
+    } catch {
+      return false;
+    }
+  }
+  developerContext(): void {
+    WorldRepository.libraryContext = undefined;
+  }
+  async createWorld(name: string, seed: number | undefined, difficulty: Difficulty): Promise<void> {
+    const now = Date.now();
+    const entry: WorldLibraryEntry = {
+      id: libraryId(),
+      name: worldName(name),
+      seed: seed ?? randomSeed(),
+      difficulty,
+      level: 1,
+      createdAt: now,
+      lastPlayedAt: now,
+      kind: 'streamed',
+    };
+    const previous = WorldRepository.libraryContext;
+    WorldRepository.libraryContext = entry;
+    try {
+      await this.game.startNewGame({ seed: entry.seed, difficulty });
+      if (this.game.currentScene !== 'playing')
+        throw new Error('World generation failed. Try again.');
+      this.game.pause();
+      await this.save();
+      this.game.resume();
+    } catch (error) {
+      WorldRepository.libraryContext = previous;
+      this.game.returnToMenu();
+      throw error;
+    }
+  }
+  async openWorld(entry: WorldLibraryEntry): Promise<void> {
+    const previous = WorldRepository.libraryContext;
+    WorldRepository.libraryContext = entry;
+    try {
+      if (entry.kind === 'streamed') {
+        const state = await this.worlds().load(entry.id);
+        if (!state) throw new Error('Saved world is missing.');
+        await this.restoreInfinite(state);
+      } else await this.load(entry.id);
+      await this.worlds().putWorld({
+        ...entry,
+        lastPlayedAt: Date.now(),
+        kind: this.sim.stream ? 'streamed' : 'finite',
+      });
+    } catch (error) {
+      WorldRepository.libraryContext = previous;
+      throw error;
+    }
+  }
+  async renameWorld(entry: WorldLibraryEntry, name: string): Promise<void> {
+    const updated = { ...entry, name: worldName(name) };
+    await this.worlds().putWorld(updated);
+    if (WorldRepository.libraryContext?.id === entry.id) WorldRepository.libraryContext = updated;
+    if (this.sim.stream?.libraryEntry?.id === entry.id)
+      this.sim.stream.libraryEntry.name = updated.name;
+  }
+  async deleteWorld(entry: WorldLibraryEntry): Promise<void> {
+    await this.worlds().deleteWorld(entry.id);
+    this.storage.removeItem(`forestrpg.v2.save.${entry.id}`);
+    this.storage.removeItem(`forestrpg.v3.slot.${entry.id}`);
+    if (WorldRepository.libraryContext?.id === entry.id) this.developerContext();
+  }
+  async exportWorld(entry: WorldLibraryEntry): Promise<Blob> {
+    if (entry.kind === 'streamed') {
+      const state = await this.worlds().load(entry.id);
+      if (!state) throw new Error('Saved world is missing.');
+      return exportInfinite(this.worlds(), state, new Map());
+    }
+    const raw = this.storage.getItem(`forestrpg.v2.save.${entry.id}`);
+    if (!raw) throw new Error('Saved world is missing.');
+    return new Blob([raw], { type: 'application/json' });
+  }
+  async importWorld(file: File): Promise<void> {
+    const previous = WorldRepository.libraryContext;
+    this.developerContext();
+    try {
+      if (file.name.endsWith('.jsonl')) {
+        const state = await importInfinite(this.worlds(), file, (v) => this.validGlobalEntity(v));
+        if (state.descriptor.mode === 'biome-walk')
+          throw new Error('Exploration archives belong in Developer.');
+        const now = Date.now();
+        const entry: WorldLibraryEntry = {
+          id: libraryId(),
+          name: worldName(file.name.replace(/\.[^.]+$/, '').slice(0, 64) || 'Imported World'),
+          seed: state.descriptor.seed,
+          difficulty: state.descriptor.difficulty,
+          level: state.descriptor.level,
+          createdAt: now,
+          lastPlayedAt: now,
+          kind: 'streamed',
+        };
+        await this.worlds().checkpoint(state, new Map(), entry.id, entry);
+        this.storage.setItem(`forestrpg.v3.slot.${entry.id}`, '1');
+      } else {
+        const raw = await file.text();
+        const state = decode(raw);
+        if (state.world.meta.isTutorial) throw new Error('Use Tutorial for training saves.');
+        const now = Date.now(),
+          id = libraryId();
+        this.storage.setItem(`forestrpg.v2.save.${id}`, raw);
+        await this.worlds().putWorld({
+          id,
+          name: file.name.replace(/\.[^.]+$/, '').slice(0, 64) || 'Imported World',
+          seed: state.world.meta.seed,
+          difficulty: state.world.meta.difficulty,
+          level: state.world.meta.level,
+          createdAt: now,
+          lastPlayedAt: now,
+          kind: 'finite',
+        });
+      }
+    } finally {
+      WorldRepository.libraryContext = previous;
+    }
+  }
+  private async migrateLibrary(): Promise<void> {
+    const known = new Set((await this.listWorlds()).map((entry) => entry.id));
+    const keys = Array.from({ length: this.storage.length }, (_, i) => this.storage.key(i));
+    for (const slot of await this.worlds().legacySlots()) {
+      if (known.has(slot) || (await this.worlds().wasMigrated(`stream:${slot}`))) continue;
+      const state = await this.worlds().load(slot);
+      if (
+        !state ||
+        state.descriptor.mode === 'biome-walk' ||
+        this.storage.getItem(`forestrpg.v3.slot.${slot}`) === '0'
+      )
+        continue;
+      const id = libraryId(),
+        now = Date.now();
+      const entry: WorldLibraryEntry = {
+        id,
+        name: slot === 'auto' ? 'Previous Adventure' : slot,
+        seed: state.descriptor.seed,
+        difficulty: state.descriptor.difficulty,
+        level: state.descriptor.level,
+        createdAt: now,
+        lastPlayedAt: now,
+        kind: 'streamed',
+      };
+      await this.worlds().checkpoint(state, new Map(), id, entry, `stream:${slot}`);
+      this.storage.setItem(`forestrpg.v3.slot.${id}`, '1');
+    }
+    for (const key of keys) {
+      if (!key?.startsWith('forestrpg.v2.save.') && key !== 'autosave_map') continue;
+      if (await this.worlds().wasMigrated(key)) continue;
+      const slot = key.replace('forestrpg.v2.save.', '');
+      if (known.has(slot)) continue;
+      const raw = this.storage.getItem(key);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw) as { version?: number };
+        const meta =
+          parsed.version === undefined
+            ? adaptLegacySave(parsed).world.meta
+            : decode(raw).world.meta;
+        if (meta.isTutorial) continue;
+        const id = libraryId(),
+          now = Date.now();
+        this.storage.setItem(`forestrpg.v2.save.${id}`, raw);
+        await this.worlds().putWorld(
+          {
+            id,
+            name: slot === 'auto' || key === 'autosave_map' ? 'Previous Adventure' : slot,
+            seed: meta.seed,
+            difficulty: meta.difficulty,
+            level: meta.level,
+            createdAt: now,
+            lastPlayedAt: now,
+            kind: 'finite',
+          },
+          key,
+        );
+      } catch {
+        /* Keep unsupported legacy saves available to the existing importer. */
+      }
+    }
   }
   private validGlobalEntity(value: unknown): boolean {
     if (
@@ -527,6 +719,7 @@ export class SaveManager {
     this.sim.restoreInfinite(state);
   }
   private async convertFinite(state: ReturnType<typeof decode>): Promise<void> {
+    if (WorldRepository.libraryContext) WorldRepository.libraryContext.kind = 'streamed';
     const descriptor = infiniteDescriptor(state.world.meta),
       runtime = state.runtime ?? { rngState: state.world.meta.seed };
     const checkpoint: WorldCheckpoint = {
@@ -649,6 +842,13 @@ export class SaveManager {
   }
 
   save(slot = 'auto'): void | Promise<void> {
+    if (
+      slot === 'auto' &&
+      !this.sim.stream &&
+      !this.sim.world.meta.isTutorial &&
+      WorldRepository.libraryContext
+    )
+      slot = WorldRepository.libraryContext.id;
     if (!/^[a-z0-9_-]{1,32}$/i.test(slot)) throw new Error('Invalid save slot');
     if (this.sim.stream) slot = this.sim.stream.saveSlot(slot);
     if (this.sim.stream)
@@ -658,8 +858,16 @@ export class SaveManager {
     const exported = this.export();
     if (typeof exported !== 'string') throw new Error('World changed while saving');
     this.storage.setItem(`forestrpg.v2.save.${slot}`, exported);
+    const entry = WorldRepository.libraryContext;
     if (this.storage.getItem(`forestrpg.v3.slot.${slot}`) !== null)
       this.storage.setItem(`forestrpg.v3.slot.${slot}`, '0');
+    if (entry && entry.id === slot)
+      return this.worlds().putWorld({
+        ...entry,
+        kind: 'finite',
+        lastPlayedAt: Date.now(),
+        level: this.sim.world.meta.level,
+      });
   }
   load(slot = 'auto'): void | Promise<void> {
     if (!/^[a-z0-9_-]{1,32}$/i.test(slot)) throw new Error('Invalid save slot');

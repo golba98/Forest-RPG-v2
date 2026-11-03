@@ -217,6 +217,7 @@ export class Game {
   public loadWorld(world: WorldData, mode: 'new' | 'loaded' = 'loaded', generation?: number): void {
     if (generation === undefined) this.generation++;
     if (mode === 'loaded') this.pendingProgress = undefined;
+    this.difficulty = world.meta.difficulty;
     this.deps.simulation.loadWorld(world);
     if (mode === 'new' && this.pendingProgress) {
       Object.assign(this.deps.simulation.player, this.pendingProgress);
