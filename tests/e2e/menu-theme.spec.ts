@@ -7,11 +7,18 @@ async function capture(page: Page, testInfo: TestInfo, name: string): Promise<vo
 }
 
 async function expectPanelFits(page: Page): Promise<void> {
-  const dimensions = await page.locator('.menu-panel').evaluate(el => {
+  const dimensions = await page.locator('.menu-panel').evaluate((el) => {
     const rect = el.getBoundingClientRect();
-    return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom,
-      viewportWidth: innerWidth, viewportHeight: innerHeight,
-      content: el.scrollWidth, width: el.clientWidth };
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      viewportWidth: innerWidth,
+      viewportHeight: innerHeight,
+      content: el.scrollWidth,
+      width: el.clientWidth,
+    };
   });
   expect(dimensions.left).toBeGreaterThanOrEqual(0);
   expect(dimensions.top).toBeGreaterThanOrEqual(0);
@@ -32,9 +39,11 @@ const layouts = [
 ];
 
 for (const layout of layouts) {
-  test(`menu layout ${layout.width}x${layout.height}, scale ${layout.scale}, ${layout.language}`, async ({ page }, testInfo) => {
+  test(`menu layout ${layout.width}x${layout.height}, scale ${layout.scale}, ${layout.language}`, async ({
+    page,
+  }, testInfo) => {
     const errors: string[] = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', (error) => errors.push(error.message));
     await page.setViewportSize(layout);
     await page.goto('/?debug=1');
     await page.getByTestId('new-game-button').waitFor();
@@ -43,28 +52,47 @@ for (const layout of layouts) {
     await page.getByTestId('settings-button').click();
     if (layout.scale !== '1' || layout.language !== 'English') {
       await page.locator('.settings-tab').nth(3).click();
-      await page.getByRole('combobox', { name: 'UI scale', exact: true }).selectOption(layout.scale);
-      await page.getByRole('combobox', { name: 'Language', exact: true }).selectOption(layout.language);
+      await page
+        .getByRole('combobox', { name: 'UI scale', exact: true })
+        .selectOption(layout.scale);
+      await page
+        .getByRole('combobox', { name: 'Language', exact: true })
+        .selectOption(layout.language);
     }
 
-    for (const [index, category] of ['Display', 'Gameplay', 'Audio', 'Accessibility', 'Controls'].entries()) {
+    for (const [index, category] of [
+      'Display',
+      'Gameplay',
+      'Audio',
+      'Accessibility',
+      'Controls',
+    ].entries()) {
       const tab = page.locator('.settings-tab').nth(index);
       await tab.click();
       await expect(tab).toHaveAttribute('aria-pressed', 'true');
       await expectPanelFits(page);
       const section = page.locator(`fieldset[data-section="${category}"]`);
       await expect(section).toBeVisible();
-      const overflow = await page.locator('.settings-body').evaluate(el => el.scrollWidth - el.clientWidth);
+      const overflow = await page
+        .locator('.settings-body')
+        .evaluate((el) => el.scrollWidth - el.clientWidth);
       expect(overflow, `${category} must not scroll horizontally`).toBeLessThanOrEqual(1);
       for (const action of await page.locator('.settings-footer button').all()) {
         await expect(action).toBeInViewport({ ratio: 1 });
-        expect(await action.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+        expect(await action.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(
+          1,
+        );
       }
-      const targets = await section.locator('input, select, button').evaluateAll(controls => controls.map(control => {
-        const target = control instanceof HTMLInputElement && control.type === 'checkbox' ? control.closest('label')! : control;
-        const rect = target.getBoundingClientRect();
-        return { width: rect.width, height: rect.height };
-      }));
+      const targets = await section.locator('input, select, button').evaluateAll((controls) =>
+        controls.map((control) => {
+          const target =
+            control instanceof HTMLInputElement && control.type === 'checkbox'
+              ? control.closest('label')!
+              : control;
+          const rect = target.getBoundingClientRect();
+          return { width: rect.width, height: rect.height };
+        }),
+      );
       for (const target of targets) {
         expect(target.width).toBeGreaterThanOrEqual(44);
         expect(target.height).toBeGreaterThanOrEqual(44);
@@ -83,7 +111,9 @@ for (const layout of layouts) {
   });
 }
 
-test('settings keyboard navigation, rebinding, cancel and resets remain usable', async ({ page }) => {
+test('settings keyboard navigation, rebinding, cancel and resets remain usable', async ({
+  page,
+}) => {
   await page.goto('/?debug=1');
   await page.getByTestId('new-game-button').waitFor();
   await page.keyboard.press('Shift+Tab');
@@ -95,7 +125,7 @@ test('settings keyboard navigation, rebinding, cancel and resets remain usable',
   await expect(page.getByRole('button', { name: 'Back', exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(firstTab).toBeFocused();
-  expect(await firstTab.evaluate(el => getComputedStyle(el).outlineStyle)).not.toBe('none');
+  expect(await firstTab.evaluate((el) => getComputedStyle(el).outlineStyle)).not.toBe('none');
 
   await page.getByRole('button', { name: 'Controls', exact: true }).click();
   const up = page.locator('.setting-row').filter({ hasText: 'Move up' }).getByRole('button');
@@ -121,14 +151,12 @@ test('settings keyboard navigation, rebinding, cancel and resets remain usable',
   await expect(page.getByRole('combobox', { name: 'Frame limit', exact: true })).toHaveValue('60');
 });
 
-test('welcome, pause, character and game-over share the theme and return to gameplay', async ({ page }, testInfo) => {
+test('tutorial, pause, character and game-over share the theme and return to gameplay', async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 800, height: 600 });
   await page.goto('/?debug=1');
-  await page.getByTestId('new-game-button').click();
-  await expect(page.locator('#game-overlay')).toHaveAttribute('data-screen', 'welcome');
-  await expectPanelFits(page);
-  await capture(page, testInfo, 'welcome');
-  await page.getByRole('button', { name: 'Start tutorial', exact: true }).click();
+  await page.getByTestId('tutorial-button').click();
   await expect(page.locator('#game-overlay')).toBeHidden();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('resume-button')).toBeVisible();
@@ -155,7 +183,7 @@ test('welcome, pause, character and game-over share the theme and return to game
 });
 
 test('blocked menu video falls back to the woodland poster', async ({ page }, testInfo) => {
-  await page.route('**/assets/video/menu_vid.webm', route => route.abort());
+  await page.route('**/assets/video/menu_vid.webm', (route) => route.abort());
   await page.goto('/?debug=1');
   const overlay = page.locator('#game-overlay');
   await expect(overlay).toHaveAttribute('data-video', 'fallback');
@@ -166,5 +194,7 @@ test('blocked menu video falls back to the woodland poster', async ({ page }, te
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-button').click();
   await expect(overlay).toHaveAttribute('data-backdrop', 'world');
-  expect(await overlay.evaluate(el => getComputedStyle(el).backgroundImage)).not.toContain('woodland_menu');
+  expect(await overlay.evaluate((el) => getComputedStyle(el).backgroundImage)).not.toContain(
+    'woodland_menu',
+  );
 });

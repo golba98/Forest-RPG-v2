@@ -1,3 +1,4 @@
+import type { WorldLibraryEntry } from './WorldLibrary';
 import type {
   ChunkDelta,
   InfiniteDescriptor,
@@ -9,6 +10,10 @@ import type { SimulationRuntime } from '../types/encounters';
 
 export interface WorldCheckpoint {
   readonly version: 3;
+  readonly exploration?: {
+    home: { x: number; y: number };
+    landings: Partial<Record<import('../world/Biomes').BiomeId, { x: number; y: number }>>;
+  };
   readonly descriptor: InfiniteDescriptor;
   readonly revision: number;
   readonly entities: readonly Entity[];
@@ -31,6 +36,7 @@ const result = <T>(req: IDBRequest<T>) =>
   });
 /** Native IndexedDB, with atomic checkpoints and immutable historical chunk revisions. */
 export class WorldRepository {
+  static libraryContext: WorldLibraryEntry | undefined;
   close(): void {
     const pending = this.db;
     this.db = undefined;
@@ -40,6 +46,40 @@ export class WorldRepository {
         () => {},
       );
     this.parents.clear();
+  }
+  async listWorlds(): Promise<WorldLibraryEntry[]> {
+    const db = await this.open();
+    const rows = (await result(
+      db.transaction('library').objectStore('library').getAll(),
+    )) as WorldLibraryEntry[];
+    return rows.sort((a, b) => b.lastPlayedAt - a.lastPlayedAt);
+  }
+  async putWorld(entry: WorldLibraryEntry, migrationKey?: string): Promise<void> {
+    const db = await this.open(),
+      tx = db.transaction(['library', 'libraryMigrations'], 'readwrite'),
+      done = completed(tx);
+    tx.objectStore('library').put(entry, entry.id);
+    if (migrationKey) tx.objectStore('libraryMigrations').put(true, migrationKey);
+    await done;
+  }
+  async deleteWorld(id: string): Promise<void> {
+    const db = await this.open(),
+      tx = db.transaction(['library', 'slots', 'libraryMigrations'], 'readwrite'),
+      done = completed(tx);
+    tx.objectStore('libraryMigrations').put(true, `deleted:${id}`);
+    tx.objectStore('library').delete(id);
+    tx.objectStore('slots').delete(id);
+    await done;
+  }
+  async legacySlots(): Promise<string[]> {
+    const db = await this.open();
+    return (await result(db.transaction('slots').objectStore('slots').getAllKeys())) as string[];
+  }
+  async wasMigrated(key: string): Promise<boolean> {
+    const db = await this.open();
+    return !!(await result(
+      db.transaction('libraryMigrations').objectStore('libraryMigrations').get(key),
+    ));
   }
   async stageChunk(id: string, key: string, delta: ChunkDelta): Promise<void> {
     const db = await this.open(),
@@ -122,13 +162,20 @@ export class WorldRepository {
   constructor(private readonly factory: IDBFactory = indexedDB) {}
   private open(): Promise<IDBDatabase> {
     return (this.db ??= new Promise((resolve, reject) => {
-      const request = this.factory.open('forestrpg.worlds', 4);
+      const request = this.factory.open('forestrpg.worlds', 5);
       request.onupgradeneeded = () => {
         if (!request.result.objectStoreNames.contains('lineages'))
           request.result
             .createObjectStore('lineages', { keyPath: 'id' })
             .createIndex('parent', 'parentId');
-        for (const name of ['chunks', 'regions', 'checkpoints', 'slots'])
+        for (const name of [
+          'chunks',
+          'regions',
+          'checkpoints',
+          'slots',
+          'library',
+          'libraryMigrations',
+        ])
           if (!request.result.objectStoreNames.contains(name))
             request.result.createObjectStore(name);
       };
@@ -199,20 +246,50 @@ export class WorldRepository {
     state: WorldCheckpoint,
     changes: ReadonlyMap<string, ChunkDelta>,
     slot?: string,
+    entry?: WorldLibraryEntry,
+    migrationKey?: string,
   ): Promise<void> {
     const db = await this.open(),
-      tx = db.transaction(['chunks', 'checkpoints', 'slots'], 'readwrite'),
+      tx = db.transaction(
+        ['chunks', 'checkpoints', 'slots', 'library', 'libraryMigrations'],
+        'readwrite',
+      ),
       done = completed(tx);
+    if (entry && (await result(tx.objectStore('libraryMigrations').get(`deleted:${entry.id}`)))) {
+      // A late background checkpoint must not recreate a deleted library entry.
+      slot = undefined;
+      entry = undefined;
+    }
+    if (migrationKey) tx.objectStore('libraryMigrations').put(true, migrationKey);
     for (const [key, delta] of changes)
       tx.objectStore('chunks').put(delta, [state.descriptor.id, key, state.revision]);
     tx.objectStore('checkpoints').put(state, [state.descriptor.id, state.revision]);
     if (slot)
       tx.objectStore('slots').put({ id: state.descriptor.id, revision: state.revision }, slot);
+    if (entry && slot === entry.id) {
+      tx.objectStore('library').put(
+        { ...entry, lastPlayedAt: Date.now(), level: state.descriptor.level },
+        entry.id,
+      );
+    }
+    // Keep one durable exploration per generator. Installing new terrain must
+    // never discard the preceding landscape or mix its edits into a new baseline.
+    const explorationSlot =
+      slot === 'biome-walk' && state.descriptor.mode === 'biome-walk'
+        ? `walk-v${state.descriptor.generatorVersion}`
+        : undefined;
+    if (explorationSlot)
+      tx.objectStore('slots').put(
+        { id: state.descriptor.id, revision: state.revision },
+        explorationSlot,
+      );
     await done;
     if (slot)
       try {
         if (typeof localStorage !== 'undefined')
           localStorage.setItem(`forestrpg.v3.slot.${slot}`, '1');
+        if (typeof localStorage !== 'undefined' && explorationSlot)
+          localStorage.setItem(`forestrpg.v3.slot.${explorationSlot}`, '1');
       } catch {
         /* Secondary index; IndexedDB remains authoritative. */
       }

@@ -1,9 +1,13 @@
+import type { WorldEnvironment } from '../Biomes';
 import { isHillTerrain } from '../TerrainTopology';
 import { Tile } from '../../types/tiles';
 import type { TileId } from '../../types/tiles';
 import type { PerlinNoise } from '../Noise';
 import type { Rng } from '../Rng';
 import type { GenGrid } from './GenGrid';
+import type { TilePoint } from '../../types/world';
+import { floodFill } from '../pathfinding';
+import { tileProperties } from '../TileMap';
 
 const HILL_NOISE_SCALE = 0.035;
 const HILL_THRESHOLD = 0.48;
@@ -18,7 +22,12 @@ const PRUNE_PASSES = 8;
  * automaton, pruned of tips and 1-tile bars, then autotiled. Interior cells are explicit solid PLATEAU terrain.
  * Waterways and crossing endpoints are protected before deriving edges.
  */
-export function generateHills(grid: GenGrid, rng: Rng, noise: PerlinNoise): void {
+export function generateHills(
+  grid: GenGrid,
+  rng: Rng,
+  noise: PerlinNoise,
+  environment?: WorldEnvironment,
+): void {
   const { width: w, height: h } = grid;
   const offset = rng.nextFloat() * 99999;
   let hill: Uint8Array = new Uint8Array(w * h);
@@ -26,16 +35,19 @@ export function generateHills(grid: GenGrid, rng: Rng, noise: PerlinNoise): void
   for (let y = HILL_MARGIN; y < h - HILL_MARGIN; y++) {
     for (let x = HILL_MARGIN; x < w - HILL_MARGIN; x++) {
       if (
-        noise.noise2(x * HILL_NOISE_SCALE + offset, y * HILL_NOISE_SCALE + offset) > HILL_THRESHOLD
+        environment
+          ? environment.relief[y * w + x]! > 163
+          : noise.noise2(x * HILL_NOISE_SCALE + offset, y * HILL_NOISE_SCALE + offset) >
+            HILL_THRESHOLD
       ) {
         hill[y * w + x] = 1;
       }
     }
   }
 
-  for (let i = 0; i < CA_ITERATIONS; i++) hill = smoothStep(hill, w, h);
+  for (let i = 0; i < (environment ? 2 : CA_ITERATIONS); i++) hill = smoothStep(hill, w, h);
 
-  for (let pass = 0; pass < PRUNE_PASSES; pass++) {
+  for (let pass = 0; pass < (environment ? 4 : PRUNE_PASSES); pass++) {
     const result = pruneStep(hill, w, h);
     hill = result.grid;
     if (!result.changed) break;
@@ -45,7 +57,8 @@ export function generateHills(grid: GenGrid, rng: Rng, noise: PerlinNoise): void
   for (let y = 1; y < h - 1; y++)
     for (let x = 1; x < w - 1; x++) {
       const tile = grid.get(x, y);
-      if (tile === Tile.RIVER) hill[y * w + x] = 0;
+      if (tile === Tile.RIVER || tile === Tile.MUD || tile === Tile.SHALLOW_WATER)
+        hill[y * w + x] = 0;
       if (tile === Tile.RAMP || tile === Tile.LOG)
         for (let dy = -1; dy <= 1; dy++)
           for (let dx = -1; dx <= 1; dx++) hill[(y + dy) * w + x + dx] = 0;
@@ -140,6 +153,27 @@ const STAIR_EDGES: ReadonlyArray<readonly [number, number, number]> = [
   [Tile.HILL_W, -1, 0],
   [Tile.HILL_N, 0, -1],
 ];
+
+/** A clearing cut inside a large hill needs its own entrance, in addition to
+ * the hill's outer slopes. Otherwise fixed geography can trap every retry. */
+export function connectSpawnClearing(grid: GenGrid, spawn: TilePoint): void {
+  const reached = floodFill(grid, spawn, (x, y) => !tileProperties(grid.get(x, y)).solid);
+  if (reached.reduce((sum, cell) => sum + cell, 0) >= 100) return;
+  for (const [edge, dx, dy] of STAIR_EDGES)
+    for (let y = Math.max(2, spawn.y - 5); y <= Math.min(grid.height - 3, spawn.y + 5); y++)
+      for (let x = Math.max(2, spawn.x - 5); x <= Math.min(grid.width - 3, spawn.x + 5); x++) {
+        if (grid.get(x, y) !== edge || grid.get(x - dx, y - dy) !== Tile.PLATEAU) continue;
+        if (
+          !reached[(y + dy) * grid.width + x + dx] ||
+          !reached[(y + dy * 2) * grid.width + x + dx * 2]
+        )
+          continue;
+        if (!isHillTerrain(grid.get(x + dy, y + dx)) || !isHillTerrain(grid.get(x - dy, y - dx)))
+          continue;
+        grid.set(x, y, Tile.STAIRS);
+        return;
+      }
+}
 /** Plateau cells per staircase; every hill with a walkable top gets 1–3. */
 const CELLS_PER_STAIR = 140;
 const MAX_STAIRS = 3;
@@ -169,10 +203,26 @@ export function placeStairs(grid: GenGrid, rng: Rng): void {
     while (queue.length) {
       const i = queue.pop() ?? 0;
       cells.push(i);
-      const x = i % w, y = Math.floor(i / w);
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-        const nx = x + dx, ny = y + dy, ni = ny * w + nx;
-        if (nx < 0 || ny < 0 || nx >= w || ny >= h || component[ni] !== -1 || !isHillTerrain(grid.tiles[ni] ?? 0)) continue;
+      const x = i % w,
+        y = Math.floor(i / w);
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const) {
+        const nx = x + dx,
+          ny = y + dy,
+          ni = ny * w + nx;
+        if (
+          nx < 0 ||
+          ny < 0 ||
+          nx >= w ||
+          ny >= h ||
+          component[ni] !== -1 ||
+          !isHillTerrain(grid.tiles[ni] ?? 0)
+        )
+          continue;
         component[ni] = id;
         queue.push(ni);
       }
@@ -181,12 +231,21 @@ export function placeStairs(grid: GenGrid, rng: Rng): void {
     if (plateau === 0) continue;
     const candidates: Array<{ x: number; y: number; rank: number }> = [];
     for (const i of cells) {
-      const x = i % w, y = Math.floor(i / w);
+      const x = i % w,
+        y = Math.floor(i / w);
       const tile = grid.tiles[i];
       STAIR_EDGES.forEach(([edge, dx, dy], rank) => {
         if (tile !== edge) return;
-        const at = (k: number, side = 0) => grid.inBounds(x + dx * k + dy * side, y + dy * k + dx * side) ? grid.get(x + dx * k + dy * side, y + dy * k + dx * side) : Tile.BORDER;
-        if (at(-1) !== Tile.PLATEAU || !isLowGround(at(1)) || !(isLowGround(at(2)) || at(2) === Tile.RAMP || at(2) === Tile.LOG)) return;
+        const at = (k: number, side = 0) =>
+          grid.inBounds(x + dx * k + dy * side, y + dy * k + dx * side)
+            ? grid.get(x + dx * k + dy * side, y + dy * k + dx * side)
+            : Tile.BORDER;
+        if (
+          at(-1) !== Tile.PLATEAU ||
+          !isLowGround(at(1)) ||
+          !(isLowGround(at(2)) || at(2) === Tile.RAMP || at(2) === Tile.LOG)
+        )
+          return;
         // Cliff (or more hill) on both sides so the steps sit inside the edge.
         if (!isHillTerrain(at(0, 1)) || !isHillTerrain(at(0, -1))) return;
         candidates.push({ x, y, rank });

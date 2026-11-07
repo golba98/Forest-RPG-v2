@@ -1,5 +1,5 @@
+import fluid from './playerFluidMetadata.json';
 import { CHARACTER_FOOT_OFFSET_PX } from '../types/physical';
-import { PLAYER_FLOW_ENABLED, PLAYER_PUNCH_FRAME_MS } from './PlayerPlayback';
 /**
  * Data-only animation metadata for every sprite set, keyed by
  * `RenderEntityView.spriteKey`. Frame specs and timings are taken from the
@@ -141,11 +141,11 @@ function staticItem(alias: string, scale: number): SpriteSetDef {
 /** All remastered player frames have integer bounds and independently drawn directions.
  * The old diagonal filename swaps and SW run mirror belong to the replaced art,
  * not combat direction. The simulation's locked attack facing is unchanged. */
-function playerClip(anim: Parameters<typeof playerSheetAlias>[0], count: number, ms: number, loop: boolean, stridePx?: number): ClipDef {
+function playerClip(anim: Parameters<typeof playerSheetAlias>[0], count: number, _ms: number, loop: boolean, stridePx?: number): ClipDef {
   return {
     source: { kind: 'perDirectionSheets', sheets: playerSheets(anim, count * 64) },
-    frameCount: count, frameDurationMs: ms, loop,
-    ...(anim.startsWith('attack') && PLAYER_FLOW_ENABLED ? { frameDurationsMs: PLAYER_PUNCH_FRAME_MS } : {}),
+    frameCount: count, frameDurationMs: fluid.durations[anim].reduce((a,b)=>a+b,0)/count, loop,
+    frameDurationsMs: fluid.durations[anim],
     ...(stridePx === undefined ? {} : { stridePx }),
   };
 }
@@ -182,14 +182,14 @@ const PLAYER: SpriteSetDef = {
   scale: 1,
   anchor: { kind: 'feet', footOffsetPx: CHARACTER_FOOT_OFFSET_PX, sourceFoot: { x: 32, y: 54 } },
   clips: {
-    idle: playerClip('idle', 6, 200, true),
-    walk: playerClip('walk', 8, 40, true, 64),
-    run: playerClip('run', 8, 1000 / 34, true, 64),
-    jump: playerClip('jump', 8, 62.5, false),
+    idle: playerClip('idle', fluid.counts.idle, 200, true),
+    walk: playerClip('walk', fluid.counts.walk, 320 / 12, true, 64),
+    run: playerClip('run', fluid.counts.run, (8000 / 34) / 12, true, 64),
+    jump: playerClip('jump', fluid.counts.jump, 500 / 12, false),
     // Impact pose starts at 120 ms, matching the unchanged combat strike.
-    attack: playerClip('attack', 9, 40, false),
+    attack: playerClip('attack', fluid.counts.attack, 30, false),
   },
-  attackClips: { 2: playerClip('attack2', 9, 40, false), 3: playerClip('attack3', 9, 40, false) },
+  attackClips: { 2: playerClip('attack2', fluid.counts.attack2, 30, false), 3: playerClip('attack3', fluid.counts.attack3, 30, false) },
 };
 
 export const ANIMATION_DEFS: Readonly<Record<string, SpriteSetDef>> = {

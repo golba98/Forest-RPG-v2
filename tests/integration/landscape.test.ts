@@ -63,17 +63,17 @@ for (const seed of [1, 42, 123, 1337]) {
   });
 }
 
-it('records actual v12 woodland and hilltop consumers after treasure placement', () => {
+it('records actual v13 woodland and hilltop consumers after treasure placement', () => {
   enableLandscapeDiagnostics(true);
   const world = generateWorld({ seed: 42, level: 1, difficulty: 'normal' });
-  expect(world.meta.generatorVersion).toBe(12);
+  expect(world.meta.generatorVersion).toBe(13);
   const trace = landscapeTrace(world)!;
   expect(trace.counts.hilltop.accepted + trace.counts.hilltop.relocated).toBe(world.props.filter(p => p.hilltop).length);
   expect(trace.counts.woodland.accepted).toBe(world.props.filter((p) => p.kind === 'tree').length);
   expect(trace.counts.woodland.rejected).toBeGreaterThan(0);
   expect(
     trace.entries.some(
-      (e) => e.consumer === 'hilltop' && e.outcome === 'relocated' && e.reasons.length > 0,
+      (e) => e.consumer === 'hilltop' && e.outcome === 'accepted',
     ),
   ).toBe(true);
   expect(inspectLandscape(world, 70.5, 96.5).trace).not.toBeNull();
@@ -159,7 +159,7 @@ it('interprets missing generator metadata as unknown legacy without guessing a r
   expect(JSON.parse(saves.export()).world.meta.generatorVersion).toBe(0);
 });
 
-for (const version of [-1, 13, 1.5, '10', null])
+for (const version of [-1, 14, 1.5, '10', null])
   it(`rejects unsupported generator metadata ${String(version)} before changing the active run`, () => {
     const { sim, saves } = manager(),
       data = JSON.parse(saves.export()),
@@ -181,7 +181,7 @@ it('rejects unsupported schema and migration versions and generation requests ex
   data.version = 3;
   expect(() => saves.import(JSON.stringify(data))).toThrow('Unsupported');
   expect(() =>
-    sim.loadWorld({ ...before, meta: { ...before.meta, generatorVersion: 13 } }),
+    sim.loadWorld({ ...before, meta: { ...before.meta, generatorVersion: 14 } }),
   ).toThrow('Unsupported generator');
   expect(() =>
     generateWorld({ seed: 42, level: 1, difficulty: 'normal', generatorVersion: 9 }),

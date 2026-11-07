@@ -1,3 +1,4 @@
+import { biomeGroundTint } from './environmentArt';
 import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import { Tile } from '../types/tiles';
 import { bridgeGeometry } from '../world/BridgeGeometry';
@@ -374,7 +375,7 @@ export class Minimap extends Container {
         let c: Rgb = C.grass;
         if (tile === Tile.STAIRS) c = C.stairs;
         else if (isElevatedTile(tile)) {
-          const m = elevationMask(world.tiles, width, height, x, y);
+          const m = elevationMask(world.tiles, width, height, x, y, world.elevations);
           c = !(m & NB.S)
             ? C.face
             : (m & (NB.N | NB.E | NB.W)) !== (NB.N | NB.E | NB.W)
@@ -384,6 +385,18 @@ export class Minimap extends Container {
         else if (tile === Tile.FOREST || tile === Tile.BORDER) c = C.forest;
         else if (tile === Tile.MUD) c = C.mud;
         else if (tile === Tile.RAMP || tile === Tile.LOG) c = C.bridge;
+        if (
+          world.environment &&
+          (tile === Tile.GRASS || tile === Tile.FLOWERS || tile === Tile.PLATEAU)
+        ) {
+          const tint = biomeGroundTint(world, x, y);
+          c = [
+            Math.round((c[0] * ((tint >> 16) & 255)) / 255),
+            Math.round((c[1] * ((tint >> 8) & 255)) / 255),
+            Math.round((c[2] * (tint & 255)) / 255),
+          ];
+        }
+        if (tile === Tile.SHALLOW_WATER) c = [84, 127, 112];
         if (world.window && !world.window.discovered[i]) c = [0x12, 0x20, 0x19];
         put(i, c);
       }

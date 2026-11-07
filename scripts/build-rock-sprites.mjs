@@ -142,6 +142,7 @@ async function save(cv, name) {
   console.log(`wrote ${path.relative(ROOT, file)}`);
 }
 
+if (!process.argv.includes('--environment')) {
 await save(
   render(
     32,
@@ -166,3 +167,21 @@ await save(
   ),
   'rock_pebble.png',
 );
+
+}
+
+// Additional authored forms share the original palette and contact-footprint contract.
+if (process.argv.includes('--environment')) {
+  const shapes = [
+    [{cx:16,cy:17,rx:12,ry:12,seed:81,moss:.1,crack:true}],
+    [{cx:10,cy:21,rx:7,ry:8,seed:83,moss:.15},{cx:21,cy:20,rx:8,ry:9,seed:84,moss:.1}],
+    [{cx:16,cy:23,rx:12,ry:6,seed:85,moss:.2,crack:true}],
+    [{cx:16,cy:19,rx:11,ry:10,seed:86,moss:.85,crack:true}],
+    [{cx:14,cy:18,rx:9,ry:11,seed:87,moss:0,crack:true},{cx:23,cy:25,rx:5,ry:4,seed:88,moss:0}],
+    [{cx:10,cy:23,rx:7,ry:6,seed:89,moss:.6},{cx:21,cy:24,rx:7,ry:5,seed:90,moss:.6}],
+  ];
+  for (let i=0;i<shapes.length;i++) {
+    const cv=render(32,32,shapes[i],[16,29.5,13,2.2]);
+    await sharp(Buffer.from(cv.px.buffer),{raw:{width:32,height:32,channels:4}}).png().toFile(path.join(ROOT,`public/assets/images/environment/shared/rock-${i}.png`));
+  }
+}

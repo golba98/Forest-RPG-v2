@@ -1,5 +1,5 @@
 import { Tile } from '../../src/types/tiles';
-import { WORLD_GENERATOR_VERSION, type WorldBridge, type WorldData } from '../../src/types/world';
+import { type WorldBridge, type WorldData } from '../../src/types/world';
 import { GenGrid } from '../../src/world/generation/GenGrid';
 
 export function bridgeFixture(
@@ -27,7 +27,7 @@ export function bridgeFixture(
   const world: WorldData = {
     meta: {
       seed: 123,
-      generatorVersion: WORLD_GENERATOR_VERSION,
+      generatorVersion: 12,
       width: 48,
       height: 48,
       isTutorial: false,

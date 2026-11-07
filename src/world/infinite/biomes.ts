@@ -1,3 +1,4 @@
+import { BIOMES } from '../Biomes';
 import type { TileId } from '../../types/tiles';
 import { Tile } from '../../types/tiles';
 import type { PropKind } from '../../types/world';
@@ -113,3 +114,17 @@ export function climateAt(seed: number, x: number, y: number) {
     moisture: valueNoise(seed, x / 1024, y / 1024, 'moisture'),
   };
 }
+
+// V1 is frozen for saved forest worlds. V2 shares the authored five-biome registry.
+for (const b of BIOMES)
+  biomes.register({
+    ...biomes.get('forest', 1),
+    id: b.id,
+    version: 2,
+    objects: {
+      ...biomes.get('forest', 1).objects,
+      treeBaseDensity: b.treeDensity,
+      treeVariation: 0,
+    },
+    transitionWidth: 32,
+  });

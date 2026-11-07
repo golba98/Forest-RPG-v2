@@ -1,8 +1,9 @@
+import type { WorldEnvironment } from '../world/Biomes';
 import type { EnemyType, PickupType } from './entities';
 import type { EncounterSite } from './encounters';
 
 /** Bump whenever generator output for a given seed changes. Stored in saves. */
-export const WORLD_GENERATOR_VERSION = 12;
+export const WORLD_GENERATOR_VERSION = 13;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 export type WorldObjectId = number | string;
@@ -66,6 +67,10 @@ export interface WorldProp {
   readonly tileX: number;
   readonly tileY: number;
   readonly solid: boolean;
+  readonly variant?: number;
+  /** Stable, biome-curated artwork selection; independent of the local view origin. */
+  readonly assetKey?: string;
+  readonly featureKey?: string;
   /** Promoted legacy hill decoration: stable source identity, on the raised surface.
    * Sprite transform, footprint and contact anchor derive from this source hash. */
   readonly hilltop?: { readonly sourceX: number; readonly sourceY: number };
@@ -97,11 +102,13 @@ export interface PickupSpawn {
  * `world:tileChanged` so renderers can rebuild only the affected chunk.
  */
 export interface WorldData {
+  readonly environment?: WorldEnvironment;
   /** A bounded local adapter over independently generated global chunks. Never serialized as a finite map. */
   readonly window?: import('../world/infinite/types').WorldWindow;
   readonly encounterSites?: readonly EncounterSite[];
   readonly meta: WorldMeta;
   readonly tiles: Uint8Array;
+  readonly elevations?: Uint8Array;
   readonly props: readonly WorldProp[];
   /** Older saves and legacy maps have no bridge overlay. */
   readonly bridges?: readonly WorldBridge[];
@@ -113,7 +120,9 @@ export interface WorldData {
 }
 
 export interface WorldGenOptions {
-  /** Defaults to v10. Historical algorithms are load-only, never silently substituted. */
+  readonly mode?: 'adventure' | 'biome-walk';
+  readonly biome?: import('../world/Biomes').BiomeId;
+  /** Defaults to v13. Historical algorithms are load-only, never silently substituted. */
   readonly generatorVersion?: number;
   readonly seed: number;
   readonly level: number;

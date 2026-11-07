@@ -18,6 +18,8 @@ async function ledgeFixture(page: Page): Promise<void> {
     tiles[10 * 24 + 5] = 23;
     delete d.runtime.encounters;
     delete d.runtime.moisture;
+    delete d.world.environment;
+    d.world.meta.generatorVersion = 12;
     d.world = {
       ...d.world,
       encounterSites: [],

@@ -29,12 +29,23 @@ interface HudBounds { readonly x: number; readonly y: number; readonly width: nu
 
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
+  readonly environment?: {
+    readonly ready: boolean;
+    readonly prefetching: boolean;
+    readonly residentChunks: number;
+    readonly residentProps: number;
+    readonly visibleObjects: number;
+    readonly assetLoads: readonly { alias: string; ms: number }[];
+    readonly chunkBuildMs: readonly number[];
+  };
   readonly worldObjects?: readonly { key: string; id?: import('../types/world').WorldObjectId; hilltop: boolean; x: number; y: number; width: number; height: number; depth: number; assetId: string; resident: boolean; visible: boolean }[];
   readonly residency?: Partial<import('../types/render').WorldResidencyStats> & { residentObjects: number; worldObjects: number; renderCpuMs: number };
   readonly atmosphere?: { births: readonly { cloud: import('./chunkMath').WorldRect; shadow: import('./chunkMath').WorldRect; guard: import('./chunkMath').WorldRect }[]; formations: readonly { x: number; y: number; shadowX: number; shadowY: number; age: number }[] };
   readonly playerSlash?: import('./effects/EffectsLayer').PlayerSlashView | null;
   /** Actual displayed texture and transform, rather than the next requested pose. */
   readonly playerSprite?: {
+    readonly playerPose?: import('../animation/PlayerMotion').PlayerPose;
+    readonly playerFace?: import('../animation/PlayerFace').PlayerFaceInfo;
     readonly position: { readonly x: number; readonly y: number };
     readonly anim: AnimState;
     readonly facing: Direction;

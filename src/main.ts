@@ -35,6 +35,7 @@ simulation.onPortalChange = (change) => bus.emit('portal:stateChanged', change);
 simulation.onRoundComplete = (status) => bus.emit('round:completed', status);
 const input = new InputManager();
 const renderer = new PixiRenderer();
+simulation.preparePresentation = (world) => renderer.prepareWorld(world);
 renderer.prepareView = (width, height) => simulation.ensureView(width, height);
 simulation.viewDimensions = () => ({
   width: innerWidth / renderer.getCamera().zoom / 32,
@@ -139,9 +140,13 @@ const game = new Game({
   params,
   worlds: {
     generate: (options) =>
+      options.mode === 'biome-walk' ||
       new URLSearchParams(location.search).get('world') !== 'finite'
         ? simulation.prepareInfinite(options)
-        : generateWorld(options),
+        : Promise.resolve(generateWorld(options)).then(async (world) => {
+            await renderer.prepareWorld(world);
+            return world;
+          }),
     tutorial: generateTutorialWorld,
     release: (world) => sessionFor(world)?.dispose(),
   },
@@ -163,6 +168,7 @@ const game = new Game({
       shell.onboarding.save();
     },
     onFrame() {
+      shell.onFrame();
       const p = simulation.player;
       tutorialBanner.hidden =
         game.currentScene !== 'playing' ||
@@ -228,7 +234,7 @@ try {
   await game.boot();
   applySettings();
   if (params.autostart)
-    game.startNewGame({
+    await game.startNewGame({
       tutorial: params.tutorial ?? false,
       seed: params.seed ?? 123,
       difficulty: params.difficulty ?? 'normal',
