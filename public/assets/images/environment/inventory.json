@@ -1,0 +1,1526 @@
+{
+  "version": 1,
+  "treeSource": "docs/assets/source/environment/trees-generated.png",
+  "trees": [
+    {
+      "id": "tree-0",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-1",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "meadow"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-2",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "highlands"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-3",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "highlands"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-4",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "wetlands"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-5",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "wetlands"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-6",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "autumn"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-7",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "autumn"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-8",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "meadow"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-9",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "autumn"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-10",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "highlands"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-11",
+      "family": "tree",
+      "origin": "generated",
+      "width": 96,
+      "height": 128,
+      "anchor": [
+        48,
+        120
+      ],
+      "collision": [
+        -0.28,
+        -0.35,
+        0.28,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        96,
+        110
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-12",
+      "family": "tree",
+      "origin": "reused-lpc",
+      "width": 64,
+      "height": 64,
+      "anchor": [
+        32,
+        60
+      ],
+      "collision": [
+        -0.18,
+        -0.35,
+        0.18,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        64,
+        54
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "forest"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    },
+    {
+      "id": "tree-13",
+      "family": "tree",
+      "origin": "reused-lpc",
+      "width": 64,
+      "height": 64,
+      "anchor": [
+        32,
+        62
+      ],
+      "collision": [
+        -0.18,
+        -0.35,
+        0.18,
+        0
+      ],
+      "occlusion": [
+        0,
+        0,
+        64,
+        54
+      ],
+      "layer": "actors",
+      "frames": 1,
+      "weight": 1,
+      "biomes": [
+        "forest"
+      ],
+      "dependencies": [],
+      "placement": [
+        "dry-ground",
+        "plateau",
+        "protected-approach-exclusion"
+      ]
+    }
+  ],
+  "packs": {
+    "forest": {
+      "plants": [
+        {
+          "id": "forest-plant-0",
+          "sourceRect": [
+            352,
+            384,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "forest-plant-1",
+          "sourceRect": [
+            0,
+            576,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "forest-plant-2",
+          "sourceRect": [
+            32,
+            576,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "forest-plant-3",
+          "sourceRect": [
+            384,
+            384,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "forest-plant-4",
+          "sourceRect": [
+            416,
+            384,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "forest-plant-5",
+          "sourceRect": [
+            0,
+            320,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "forest-plant-6",
+          "sourceRect": [
+            448,
+            864,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "forest-plant-7",
+          "sourceRect": [
+            416,
+            864,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "forest-plant-8",
+          "sourceRect": [
+            160,
+            832,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "forest-plant-9",
+          "sourceRect": [
+            32,
+            768,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        }
+      ],
+      "groundVariants": 8,
+      "groundSource": "shared/ground.png",
+      "trees": [
+        12,
+        13
+      ],
+      "streamedTrees": [
+        "native:young",
+        "native:tall",
+        "native:broad",
+        "native:compact"
+      ],
+      "dependencies": [
+        "shared/ground.png",
+        "shared/relief.png",
+        "forest/upland.png",
+        "shared/tree-12.png",
+        "shared/tree-13.png",
+        "lpc/trees-pale.png"
+      ],
+      "placement": {
+        "ground": "passable",
+        "trees": "solid trunks; overhead canopy",
+        "water": "existing river rules"
+      },
+      "upland": {
+        "origin": "authored-project-relief",
+        "variants": 3,
+        "cliffMasks": 47,
+        "stepOrientations": 4,
+        "frames": 174,
+        "source": "forest/upland.png"
+      }
+    },
+    "meadow": {
+      "plants": [
+        {
+          "id": "meadow-plant-0",
+          "sourceRect": [
+            352,
+            192,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "meadow-plant-1",
+          "sourceRect": [
+            416,
+            32,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "meadow-plant-2",
+          "sourceRect": [
+            0,
+            96,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "meadow-plant-3",
+          "sourceRect": [
+            32,
+            96,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "meadow-plant-4",
+          "sourceRect": [
+            0,
+            320,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "meadow-plant-5",
+          "sourceRect": [
+            32,
+            320,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "meadow-plant-6",
+          "sourceRect": [
+            64,
+            320,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "meadow-plant-7",
+          "sourceRect": [
+            0,
+            0,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "meadow-plant-8",
+          "sourceRect": [
+            32,
+            0,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "meadow-plant-9",
+          "sourceRect": [
+            416,
+            864,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        }
+      ],
+      "groundVariants": 8,
+      "groundSource": "shared/ground.png",
+      "trees": [
+        1,
+        8
+      ],
+      "streamedTrees": [
+        "tree:1",
+        "tree:8"
+      ],
+      "dependencies": [
+        "shared/ground.png",
+        "shared/relief.png",
+        "meadow/upland.png",
+        "shared/tree-1.png",
+        "shared/tree-8.png"
+      ],
+      "placement": {
+        "ground": "passable",
+        "trees": "solid trunks; overhead canopy",
+        "water": "existing river rules"
+      },
+      "upland": {
+        "origin": "authored-project-relief",
+        "variants": 3,
+        "cliffMasks": 47,
+        "stepOrientations": 4,
+        "frames": 174,
+        "source": "meadow/upland.png"
+      }
+    },
+    "highlands": {
+      "plants": [
+        {
+          "id": "highlands-plant-0",
+          "sourceRect": [
+            0,
+            320,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "highlands-plant-1",
+          "sourceRect": [
+            32,
+            320,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "highlands-plant-2",
+          "sourceRect": [
+            64,
+            320,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "highlands-plant-3",
+          "sourceRect": [
+            416,
+            864,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "highlands-plant-4",
+          "sourceRect": [
+            0,
+            576,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "highlands-plant-5",
+          "sourceRect": [
+            32,
+            768,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        }
+      ],
+      "groundVariants": 8,
+      "groundSource": "shared/ground.png",
+      "trees": [
+        2,
+        3,
+        10
+      ],
+      "streamedTrees": [
+        "tree:2",
+        "tree:3",
+        "tree:10"
+      ],
+      "dependencies": [
+        "shared/ground.png",
+        "shared/relief.png",
+        "highlands/upland.png",
+        "shared/tree-2.png",
+        "shared/tree-3.png",
+        "shared/tree-10.png"
+      ],
+      "placement": {
+        "ground": "passable",
+        "trees": "solid trunks; overhead canopy",
+        "water": "existing river rules"
+      },
+      "upland": {
+        "origin": "authored-project-relief",
+        "variants": 3,
+        "cliffMasks": 47,
+        "stepOrientations": 4,
+        "frames": 174,
+        "source": "highlands/upland.png"
+      }
+    },
+    "wetlands": {
+      "plants": [
+        {
+          "id": "wetlands-plant-0",
+          "sourceRect": [
+            32,
+            416,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "wetlands-plant-1",
+          "sourceRect": [
+            64,
+            416,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "wetlands-plant-2",
+          "sourceRect": [
+            96,
+            416,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "wetlands-plant-3",
+          "sourceRect": [
+            128,
+            416,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "wetlands-plant-4",
+          "sourceRect": [
+            352,
+            384,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "wetlands-plant-5",
+          "sourceRect": [
+            384,
+            384,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "wetlands-plant-6",
+          "sourceRect": [
+            416,
+            384,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "wetlands-plant-7",
+          "sourceRect": [
+            0,
+            480,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "wetlands-plant-8",
+          "sourceRect": [
+            32,
+            480,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "wetlands-plant-9",
+          "sourceRect": [
+            160,
+            832,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        }
+      ],
+      "groundVariants": 8,
+      "groundSource": "shared/ground.png",
+      "trees": [
+        4,
+        5
+      ],
+      "streamedTrees": [
+        "tree:4",
+        "tree:5"
+      ],
+      "dependencies": [
+        "shared/ground.png",
+        "shared/relief.png",
+        "wetlands/upland.png",
+        "shared/tree-4.png",
+        "shared/tree-5.png"
+      ],
+      "placement": {
+        "ground": "passable",
+        "trees": "solid trunks; overhead canopy",
+        "water": "shallow water is walkable"
+      },
+      "upland": {
+        "origin": "authored-project-relief",
+        "variants": 3,
+        "cliffMasks": 47,
+        "stepOrientations": 4,
+        "frames": 174,
+        "source": "wetlands/upland.png"
+      }
+    },
+    "autumn": {
+      "plants": [
+        {
+          "id": "autumn-plant-0",
+          "sourceRect": [
+            0,
+            224,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "autumn-plant-1",
+          "sourceRect": [
+            32,
+            224,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "autumn-plant-2",
+          "sourceRect": [
+            64,
+            224,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "autumn-plant-3",
+          "sourceRect": [
+            96,
+            224,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "autumn-plant-4",
+          "sourceRect": [
+            0,
+            576,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "autumn-plant-5",
+          "sourceRect": [
+            32,
+            576,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "autumn-plant-6",
+          "sourceRect": [
+            64,
+            576,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "autumn-plant-7",
+          "sourceRect": [
+            416,
+            864,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "autumn-plant-8",
+          "sourceRect": [
+            160,
+            832,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        },
+        {
+          "id": "autumn-plant-9",
+          "sourceRect": [
+            32,
+            768,
+            32,
+            32
+          ],
+          "origin": "reused-lpc",
+          "anchor": [
+            16,
+            30
+          ],
+          "collision": null,
+          "layer": "ground",
+          "frames": 1,
+          "weight": 1
+        }
+      ],
+      "groundVariants": 8,
+      "groundSource": "shared/ground.png",
+      "trees": [
+        6,
+        7,
+        9
+      ],
+      "streamedTrees": [
+        "tree:6",
+        "tree:7",
+        "tree:9"
+      ],
+      "dependencies": [
+        "shared/ground.png",
+        "shared/relief.png",
+        "autumn/upland.png",
+        "shared/tree-6.png",
+        "shared/tree-7.png",
+        "shared/tree-9.png"
+      ],
+      "placement": {
+        "ground": "passable",
+        "trees": "solid trunks; overhead canopy",
+        "water": "existing river rules"
+      },
+      "upland": {
+        "origin": "authored-project-relief",
+        "variants": 3,
+        "cliffMasks": 47,
+        "stepOrientations": 4,
+        "frames": 174,
+        "source": "autumn/upland.png"
+      }
+    }
+  },
+  "shared": {
+    "ground": {
+      "origin": "authored-procedural",
+      "variants": 8
+    },
+    "relief": {
+      "origin": "adapted-project",
+      "geometry": "unchanged cliff_tileset masks"
+    },
+    "upland": {
+      "origin": "adapted-project",
+      "frames": 58,
+      "geometry": "unchanged cliff_tileset masks",
+      "surfaces": "sunlit tops, exposed strata, four opaque soil ramps"
+    },
+    "rocks": {
+      "origin": "reused-project",
+      "assets": [
+        "rock_boulder",
+        "rock_pebble"
+      ],
+      "additionalAuthoredVariants": 6
+    }
+  },
+  "note": "Pack selections are not unique artwork counts. LPC crops retain CC BY-SA 3.0; generated trees use LPC as style reference. No runtime recoloring of tree sprites."
+}

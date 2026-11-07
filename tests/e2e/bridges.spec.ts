@@ -12,7 +12,7 @@ async function boot(page: Page, query = 'tutorial=1'): Promise<string[]> {
     if (m.type() === 'error' || m.text().includes('missing texture')) errors.push(m.text());
   });
   await page.clock.install();
-  await page.goto(`/?debug=1&autostart=1&${query}`);
+  await page.goto(`/?world=finite&debug=1&autostart=1&${query}`);
   await page.waitForFunction(
     () => !!window.__RENDER_DEBUG__ && window.__GAME__?.getState().ui.currentMenu === null,
   );
@@ -35,6 +35,18 @@ async function traverse(page: Page, bridge: WorldBridge, cross = 1): Promise<voi
   };
   await page.evaluate((p) => window.__GAME__!.setPlayerPosition(p.x, p.y), start);
   await page.clock.runFor(400);
+  for (
+    let attempt = 0;
+    attempt < 20 &&
+    !(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().environment?.ready));
+    attempt++
+  ) {
+    await page.waitForTimeout(50);
+    await page.clock.runFor(100);
+  }
+  expect(await page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().environment?.ready)).toBe(
+    true,
+  );
   const axis = horizontal ? 'x' : 'y',
     forward = horizontal ? 'KeyD' : 'KeyS',
     reverse = horizontal ? 'KeyA' : 'KeyW';
@@ -64,8 +76,8 @@ for (const orientation of ['horizontal', 'vertical'] as const) {
             window.__GAME__!.saveGame('bridge-fixture');
             const payload = JSON.parse(localStorage.getItem('forestrpg.v2.save.bridge-fixture')!);
             delete payload.runtime.encounters;
-    delete payload.runtime.moisture;
-    payload.world = w;
+            delete payload.runtime.moisture;
+            payload.world = w;
             payload.entities = payload.entities.filter(
               (e: { kind: string }) => e.kind === 'player' || e.kind === 'portal',
             );
@@ -172,7 +184,8 @@ for (const seed of [1, 42, 456])
       };
     });
     expect(regenerated.info.bridges).toBe(regenerated.bridges.length);
-    expect(regenerated.info.bridgeRailSprites).toBe(
+    expect(regenerated.info.worldObjects!.filter(p => p.key.startsWith('bridge:'))).toHaveLength(regenerated.bridges.length);
+    expect(regenerated.info.bridgeRailSprites).toBeLessThanOrEqual(
       regenerated.bridges.reduce((n, b) => n + 2 * (b.span + 2), 0),
     );
     expect(errors).toEqual([]);

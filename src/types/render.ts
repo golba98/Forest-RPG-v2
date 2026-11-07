@@ -15,6 +15,11 @@ export type PortalVisualState = 'locked' | 'reacting' | 'open' | 'transitioning'
  * Coordinates are in tiles; the renderer interpolates prev→current with alpha.
  */
 export interface RenderEntityView {
+  readonly isJumping?: boolean;
+  readonly jumpProgress?: number;
+  readonly isSprinting?: boolean;
+  readonly vx?: number;
+  readonly vy?: number;
   readonly chest?: import('./entities').ChestState;
   readonly requiredForCompletion?: boolean;
   readonly formation?: number;
@@ -93,6 +98,9 @@ export interface EnvironmentView {
 }
 
 export interface RenderSnapshot {
+  readonly round?: import('./gameplay').RoundStatus;
+  readonly travelPrompt?: string | undefined;
+  readonly streamingError?: string;
   readonly moisture?: import('../systems/SurfaceMoisture').MoistureView;
   readonly elapsedMs?: number;
   readonly encounters?: import('./encounters').EncounterPresentation;
@@ -116,6 +124,22 @@ export interface CameraView {
   readonly boundsClamped: boolean;
 }
 
+export interface WorldResidencyStats {
+  readonly renderCpuMs?: number;
+  readonly residentChunks: number;
+  readonly requiredChunks: number;
+  readonly visibleChunks: number;
+  readonly queuedChunks: number;
+  readonly resourceBytes: number;
+  readonly stagingBytes: number;
+  readonly budgetBytes: number;
+  readonly requiredBytes: number;
+  readonly evictions: number;
+  readonly urgentMisses: number;
+  readonly preparationMs: number;
+  readonly maxPreparationMs: number;
+}
+
 export interface RendererStats {
   readonly backend: 'webgl' | 'webgpu' | 'canvas' | 'unknown';
   readonly canvasWidth: number;
@@ -126,6 +150,7 @@ export interface RendererStats {
   readonly renderedEntities: number;
   /** Sprites currently drawn with the missing-art placeholder (should be 0). */
   readonly placeholderSprites?: number;
+  readonly residency?: WorldResidencyStats | undefined;
 }
 
 export interface RendererInitOptions {
@@ -140,6 +165,7 @@ export interface RendererInitOptions {
  * Rendering engine boundary. Implemented in src/rendering; consumed by src/game.
  */
 export interface IRenderer {
+  isReady?(): boolean;
   init(options: RendererInitOptions): Promise<void>;
   /** Loads texture bundles; `onProgress` receives 0..1. */
   loadAssets(onProgress?: (progress: number) => void): Promise<void>;

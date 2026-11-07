@@ -6,6 +6,7 @@ import type { EffectsLayer } from './effects/EffectsLayer';
 
 /** Presentation observes committed balances; it never awards loot. */
 export class LootView {
+  rebase(dx: number, dy: number): void { this.reward.x-=dx;this.reward.y-=dy;this.prompt.x-=dx;this.prompt.y-=dy; }
   readonly container = new Container();
   private readonly prompt = new Text({
     text: 'G · Open',
@@ -44,6 +45,8 @@ export class LootView {
     const p = snapshot.entities.find((e) => e.id === snapshot.playerId) as
       ((typeof snapshot.entities)[number] & PlayerEntity) | undefined;
     if (!p) return;
+    const current=new Set(snapshot.entities.filter(e=>e.chest).map(e=>e.id));
+    for(const id of this.states.keys())if(!current.has(id))this.states.delete(id);
     const balance = p.stats.coins;
     if (this.coins !== null && balance > this.coins) {
       this.reward.text = `+${balance - this.coins}`;

@@ -32,7 +32,7 @@ function hillViewpoint(w: WorldData): { x: number; y: number } {
 }
 
 async function boot(page: Page, query: string): Promise<void> {
-  await page.goto(`/?debug=1&autostart=1&${query}`);
+  await page.goto(`/?world=finite&debug=1&autostart=1&${query}`);
   await page.waitForFunction(() => window.__GAME__?.getState().engine.isRunning === true && window.__GAME__.getState().ui.currentMenu === null);
   // Midday, so lighting does not vary between captures.
   await page.evaluate(() => window.__GAME__!.setDaylightRatio(0.5));

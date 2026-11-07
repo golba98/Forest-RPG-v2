@@ -1,0 +1,23 @@
+{
+  "tool": "image_gen",
+  "source": "docs/assets/source/environment/trees-generated.png",
+  "reference": "public/assets/images/environment/lpc/trees-pale.png",
+  "toolOutput": "01a19efd-25ed-7be1-bafb-5903ea14b2d3/exec-09482dc3-fa91-4c67-b754-4283a65a7e96.png",
+  "requestedSpecies": [
+    "old oak",
+    "birch",
+    "windswept pine",
+    "juniper",
+    "willow",
+    "alder",
+    "copper maple",
+    "golden birch",
+    "rowan",
+    "beech",
+    "fir",
+    "gnarled oak"
+  ],
+  "prompt": "12 distinct top-down RPG trees in 4x3 cells, transparent; LPC scale/style reference; oak, birch, pine, juniper, willow, alder, maple, golden birch, rowan, beech, fir, gnarled oak.",
+  "processing": "Trim individual cells, nearest fit 88x112, transparent 96x128 canvas, root baseline 120. Existing native LPC young trees and plants are cropped without recoloring.",
+  "license": "LPC attribution and CC-BY-SA-3.0 retained for derivatives and reference-derived tree pack."
+}

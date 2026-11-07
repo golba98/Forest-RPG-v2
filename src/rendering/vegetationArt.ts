@@ -1,9 +1,10 @@
+import { environmentVegetation } from './environmentArt';
 import { Tile } from '../types/tiles';
 import type { PropKind, WorldData, WorldProp } from '../types/world';
 
 /** Native source pixels. Full provenance and licence ship alongside the atlases. */
 export interface VegetationFrame {
-  readonly atlas: 'lpc_trees' | 'lpc_plants';
+  readonly atlas: string;
   readonly rect: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
   /** Ground contact, in pixels from the source rectangle's top-left. */
   readonly root: readonly [number, number];
@@ -71,10 +72,21 @@ export function nearRiver(world: WorldData, x: number, y: number): boolean {
 
 /** Selection never consumes simulation RNG or changes saved prop identity/position. */
 export function vegetationFor(prop: WorldProp, world: WorldData): VegetationFrame | null {
-  const hash = (Math.imul(prop.tileX, 17) ^ Math.imul(prop.tileY, 31)) >>> 0;
+  if (prop.assetKey?.startsWith('native:')) {
+    const key = prop.assetKey.slice(7);
+    if (key === 'young' || key === 'tall' || key === 'broad' || key === 'compact')
+      return VEGETATION[key];
+  }
+  const environment = environmentVegetation(prop, world);
+  if (environment) return environment;
+  const hash =
+    (Math.imul(prop.tileX + (world.window?.originX ?? 0), 17) ^
+      Math.imul(prop.tileY + (world.window?.originY ?? 0), 31)) >>>
+    0;
   switch (prop.kind) {
     case 'tree':
-      if (world.meta.generatorVersion < 12) return hash % 2 ? VEGETATION.compact : VEGETATION.young;
+      if ((prop.sourceGeneratorVersion ?? world.meta.generatorVersion) < 12)
+        return hash % 2 ? VEGETATION.compact : VEGETATION.young;
       if (nearRiver(world, prop.tileX, prop.tileY)) return VEGETATION.broad;
       return [VEGETATION.tall, VEGETATION.broad, VEGETATION.young][hash % 3] ?? VEGETATION.young;
     case 'flower_clump':

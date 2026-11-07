@@ -17,9 +17,9 @@ import { inspectLandscape } from '../world/LandscapeInspector';
  */
 export interface DiagnosticsHooks {
   executeCommand?(command: string): string;
-  saveGame?(slot?: string): boolean;
-  loadGame?(slot?: string): boolean;
-  loadLegacySave?(payload: unknown): boolean;
+  saveGame?(slot?: string): boolean | Promise<boolean>;
+  loadGame?(slot?: string): boolean | Promise<boolean>;
+  loadLegacySave?(payload: unknown): boolean | Promise<boolean>;
   getUiState?(): UIState;
 }
 
@@ -157,6 +157,9 @@ export function createDiagnostics(
 
   return {
     getState,
+    planTravelPath:(x,y)=>simulation.planTravelPath?.(x,y)??[],
+    getStreamingDebug: () => simulation.getStreamingDebug?.() ?? null,
+    setGlobalPosition: (x,y) => simulation.setGlobalPosition?.(x,y) ?? Promise.resolve(simulation.setPlayerPosition(x,y)),
     getLandscapeDebug: (x, y, includeAccess) => inspectLandscape(simulation.world, x, y, includeAccess),
     getGameplayDebug: () => simulation.getGameplayDebug?.() ?? null,
     stepSimulation: (fixedDeltaSec) => game.stepOnce(fixedDeltaSec),

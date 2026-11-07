@@ -69,6 +69,9 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      'artifacts/**',
+      'archive/player-character/**',
+      'docs/tmp/**',
       'coverage/**',
       'node_modules/**',
       'playwright-report/**',

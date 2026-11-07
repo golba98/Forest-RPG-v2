@@ -1,5 +1,5 @@
 import { Tile } from '../../src/types/tiles';
-import { WORLD_GENERATOR_VERSION, type WorldData } from '../../src/types/world';
+import { type WorldData } from '../../src/types/world';
 
 /** The standing-at-lip QA plateau, with water at the foot of its south face. */
 export function shorelineFixture(): WorldData {
@@ -10,7 +10,7 @@ export function shorelineFixture(): WorldData {
   return {
     meta: {
       seed: 123,
-      generatorVersion: WORLD_GENERATOR_VERSION,
+      generatorVersion: 12,
       width: 24,
       height: 24,
       isTutorial: false,

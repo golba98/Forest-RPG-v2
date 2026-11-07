@@ -24,7 +24,7 @@ for (const olderManifest of [false, true]) {
     const artResponse = page.waitForResponse((response) =>
       response.url().endsWith('/assets/images/objects/portal_forest.png'),
     );
-    await page.goto('/?debug=1&autostart=1&tutorial=0&seed=42');
+    await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=42');
     await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
     const response = await artResponse;
     expect(response.status()).toBe(200);
@@ -67,7 +67,7 @@ test('a failed portal image is counted as a placeholder instead of passing visua
   page,
 }) => {
   await page.route('**/assets/images/objects/portal_forest.png', (route) => route.abort());
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=42');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=42');
   await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
   await expect
     .poll(() => page.evaluate(() => window.__RENDER_DEBUG__!.getInfo().placeholderSprites))

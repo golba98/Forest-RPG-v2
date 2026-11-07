@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it } from 'vitest';
-import { generateWorld } from '../../src/world/WorldGenerator';
+import { landscapeFixture } from '../fixtures/landscape-world';
 import { prepareHilltopObjects, hasHilltopClearance } from '../../src/world/HilltopObjects';
 import { propDepth, propFootprint } from '../../src/world/ObjectSemantics';
 import { plateauDecoration } from '../../src/world/HilltopDecoration';
@@ -17,7 +17,7 @@ import type { Game } from '../../src/game/Game';
 
 let world: WorldData;
 beforeAll(() => {
-  world = generateWorld({ seed: 42, level: 1, difficulty: 'normal' });
+  world = landscapeFixture();
 });
 const hillRock = (w: WorldData) =>
   w.props.find((p) => p.hilltop?.sourceX === 70 && p.hilltop.sourceY === 96)!;

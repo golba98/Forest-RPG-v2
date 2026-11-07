@@ -29,6 +29,10 @@ export function appliedMigrations(meta: WorldMeta): readonly string[] {
   ];
 }
 export function normalizeWorldCompatibility(world: WorldData): WorldData {
+  if(world.window){
+    if(![13,14,15,16].includes(world.meta.generatorVersion)||world.window.descriptor.generatorVersion!==world.meta.generatorVersion)throw new Error('Unsupported streamed generator version');
+    return world;
+  }
   const version =
     world.meta.generatorVersion === undefined
       ? LEGACY_GENERATOR_VERSION

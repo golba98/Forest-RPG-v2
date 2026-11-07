@@ -11,7 +11,7 @@ for (const seed of [1, 42, 123, 1337]) {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.clock.install();
-    await page.goto(`/?debug=1&autostart=1&tutorial=0&seed=${seed}`);
+    await page.goto(`/?world=finite&debug=1&autostart=1&tutorial=0&seed=${seed}`);
     await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
     await page.clock.pauseAt(await page.evaluate(() => Date.now() + 500));
     const scene = await page.evaluate(() => {
@@ -119,7 +119,7 @@ test('WebGL composes a bank transition across saved mud/grass cells and preserve
     ),
   );
   await page.clock.install();
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=42');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=42');
   await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 500));
   const world = await page.evaluate(() => {
@@ -128,6 +128,8 @@ test('WebGL composes a bank transition across saved mud/grass cells and preserve
     const save = JSON.parse(localStorage.getItem('forestrpg.v2.save.soil-pixels')!);
     delete save.runtime.encounters;
     delete save.runtime.moisture;
+    delete save.world.environment;
+    save.world.meta.generatorVersion = 12;
     const tiles = new Array(32 * 32).fill(1);
     tiles[12 * 32 + 12] = 22;
     for (let x = 0; x < 32; x++) tiles[11 * 32 + x] = 11;

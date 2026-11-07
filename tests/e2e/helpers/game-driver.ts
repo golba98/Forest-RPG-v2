@@ -46,7 +46,7 @@ export class GameDriver {
       }, options.storageItems);
     }
 
-    const params = new URLSearchParams({ debug: '1', autostart: '1' });
+    const params = new URLSearchParams({ world: 'finite', debug: '1', autostart: '1' });
     if (options.seed !== undefined) params.set('seed', options.seed.toString());
     if (options.tutorial !== undefined) params.set('tutorial', options.tutorial ? '1' : '0');
     if (options.difficulty) params.set('difficulty', options.difficulty);
@@ -75,7 +75,8 @@ export class GameDriver {
           typeof window !== 'undefined' &&
           window.__GAME__ !== undefined &&
           typeof window.__GAME__.getState === 'function' &&
-          window.__GAME__.getState().engine.isRunning
+          window.__GAME__.getState().engine.isRunning &&
+          window.__RENDER_DEBUG__?.getInfo().environment?.ready !== false
         );
       },
       undefined,

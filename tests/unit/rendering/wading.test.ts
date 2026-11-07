@@ -13,7 +13,8 @@ it('keeps the waterline on the feet plane for every moving/idle facing', () => {
   for (const facing of ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const)
     for (const anim of ['idle', 'walk', 'run'] as const) {
       const frame = resolveSpriteFrame({ spriteKey: 'player', facing, anim, animTimeMs: 200 });
-      const bottom = pose.spriteY + (1 - frame.anchorY) * frame.frame.h * frame.scale;
+      // Visible feet are at source y=54; the remaining cell is transparent.
+      const bottom = pose.spriteY + (54 - frame.anchorY * frame.frame.h) * frame.scale;
       expect(bottom - pose.waterlineY).toBeCloseTo(12);
       expect(pose.waterlineY).toBeCloseTo(anchorY + PLAYER_FOOTPRINT.offsetY * 32);
     }

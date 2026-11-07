@@ -2,6 +2,7 @@ import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import sharp from 'sharp';
 import { generateWorld } from '../../src/world/WorldGenerator';
 import { Tile, isHillTile, type TileId } from '../../src/types/tiles';
+import { settleEnvironment } from './helpers/environment';
 
 /**
  * Rendering regression checks backed by renderer counters
@@ -13,7 +14,7 @@ async function boot(page: Page, query: string): Promise<string[]> {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`/?debug=1&autostart=1&${query}`);
+  await page.goto(`/?world=finite&debug=1&autostart=1&${query}`);
   await page.waitForFunction(() => window.__RENDER_DEBUG__ !== undefined && window.__GAME__?.getState().ui.currentMenu === null);
   await page.evaluate(() => window.__GAME__!.setDaylightRatio(0.5));
   return errors;
@@ -41,6 +42,7 @@ test('no placeholder textures across scenes, projectiles and regeneration', asyn
   for (let i = 0; i < 5; i++) {
     await page.keyboard.press('KeyP');
     await page.waitForTimeout(250);
+    await page.waitForFunction(() => window.__RENDER_DEBUG__!.getInfo().environment?.ready !== false);
     const now = await info(page);
     expect(now.placeholderSprites).toBe(0);
     expect(now.portalViews).toBe(1);
@@ -141,7 +143,8 @@ test('enemy attack telegraph and death fade render without errors', async ({ pag
 async function controlledBoot(page: Page, query = 'tutorial=1'): Promise<string[]> {
   await page.clock.install();
   const errors = await boot(page, query);
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
+  // Leave room for Firefox protocol scheduling on a busy host.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   return errors;
 }
 
@@ -223,6 +226,10 @@ test('combat feedback freezes while paused and clears on world replacement', asy
   await pressFrame(page, 'KeyQ');
   expect((await info(page)).effects).toBe(1);
   await pressFrame(page, 'KeyP', 48);
+  await expect.poll(async () => {
+    const state = await page.evaluate(() => window.__GAME__!.getState());
+    return !state.world.isTutorial && state.ui.currentMenu === null;
+  }, {timeout: 15000}).toBe(true);
   expect((await info(page)).effects).toBe(0);
   expect((await info(page)).transitionActive).toBe(false);
   await capture(page, testInfo, 'regenerated-without-stale-feedback');
@@ -272,11 +279,12 @@ test('minimap cycles, centers the player, points to the portal and survives resi
     const x = i % generated.meta.width, y = Math.floor(i / generated.meta.width);
     return t === Tile.GRASS && x > 30 && y > 30 && x < 120 && y < 120 &&
       Math.hypot(x - generated.portal.x, y - generated.portal.y) > 60 &&
-      !generated.props.some(p => Math.abs(p.tileX - x) <= 1 && Math.abs(p.tileY - y) <= 1);
+      !generated.props.some(p => p.solid && Math.abs(p.tileX - x) <= 1 && Math.abs(p.tileY - y) <= 1);
   });
   expect(tile).toBeGreaterThanOrEqual(0);
   await page.evaluate(() => window.__GAME__!.executeCommand('/kill all'));
   await teleport(page, tile % generated.meta.width + 0.5, Math.floor(tile / generated.meta.width) + 0.5);
+  await settleEnvironment(page);
   await page.clock.runFor(800);
   expect((await info(page)).minimapMode).toBe('radar');
   const { player, world } = await page.evaluate(() => window.__GAME__!.getState());
@@ -290,6 +298,7 @@ test('minimap cycles, centers the player, points to the portal and survives resi
 
   for (const size of [{ width: 800, height: 600 }, { width: 1280, height: 720 }, { width: 1920, height: 1080 }]) {
     await page.setViewportSize(size);
+    await settleEnvironment(page);
     await page.clock.runFor(80);
     expect((await info(page)).minimapMode).toBe('radar');
     await capture(page, testInfo, `minimap-radar-${size.width}`);

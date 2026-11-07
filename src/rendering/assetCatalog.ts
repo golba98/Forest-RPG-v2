@@ -23,7 +23,15 @@ export const RENDERER_EXTRA_BUNDLE = 'rendering_extras';
 export const PORTAL_ART_ALIAS = 'portal_forest';
 export const PORTAL_ART_SRC = 'assets/images/objects/portal_forest.png';
 
-export const PLAYER_SHEET_ANIMS = ['idle', 'walk', 'run', 'jump', 'attack'] as const;
+export const PLAYER_SHEET_ANIMS = [
+  'idle',
+  'walk',
+  'run',
+  'jump',
+  'attack',
+  'attack2',
+  'attack3',
+] as const;
 export type PlayerSheetAnim = (typeof PLAYER_SHEET_ANIMS)[number];
 
 export const DIRECTIONS: readonly Direction[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
@@ -66,7 +74,9 @@ export const GROUND_PROPS: ReadonlySet<PropKind> = new Set<PropKind>([
   'hole',
 ]);
 
-function buildPlayerAliases(): Readonly<Record<PlayerSheetAnim, Readonly<Record<Direction, string>>>> {
+function buildPlayerAliases(): Readonly<
+  Record<PlayerSheetAnim, Readonly<Record<Direction, string>>>
+> {
   const table = {} as Record<PlayerSheetAnim, Record<Direction, string>>;
   for (const anim of PLAYER_SHEET_ANIMS) {
     const row = {} as Record<Direction, string>;
@@ -110,8 +120,10 @@ export function rendererExtraAssets(): CatalogAsset[] {
   for (const kind of DECOR_KINDS) {
     assets.push({ alias: decorAlias(kind), src: `assets/images/objects/decor/${kind}.png` });
   }
-  for (let i = 1; i <= 4; i++) assets.push({ alias: `cloud_${i}`, src: `assets/images/objects/clouds/cloud_${i}.png` });
-  for (const layer of ['body', 'front', 'ground', 'cleared']) assets.push({ alias: `nest_${layer}`, src: `assets/images/objects/nest/nest_${layer}.png` });
+  for (let i = 1; i <= 4; i++)
+    assets.push({ alias: `cloud_${i}`, src: `assets/images/objects/clouds/cloud_${i}.png` });
+  for (const layer of ['body', 'front', 'ground', 'cleared'])
+    assets.push({ alias: `nest_${layer}`, src: `assets/images/objects/nest/nest_${layer}.png` });
   assets.push(...GROVE_ASSETS);
   assets.push({ alias: HILL_ATLAS_ALIAS, src: HILL_ATLAS_SRC });
   assets.push({ alias: PORTAL_ART_ALIAS, src: PORTAL_ART_SRC });

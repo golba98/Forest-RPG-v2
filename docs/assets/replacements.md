@@ -78,3 +78,70 @@ contributors. Full original contributor lists, source links, licence text and th
 statement ship in the [public attribution folder](../../public/assets/images/environment/lpc/README.md).
 Artwork derivatives must retain that licence; these notices do not change unrelated project-code
 licensing. Source sheets have their original alpha, including translucent contact shadows.
+
+## Coordinated biome library
+
+Generator-13 packs use the existing 32-pixel world scale and native-resolution
+rendering. New trees were generated together with ImageGen, then isolated,
+nearest-sized and anchored; original source and provenance are retained in
+`source/environment/`. See the shipped [pack inventory](../../public/assets/images/environment/inventory.json)
+and [attribution](../../public/assets/images/environment/README.md).
+
+| Family                       | Actual production                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Trees                        | 12 newly generated silhouettes; 2 reused native LPC young trees                                           |
+| Plants                       | 46 biome selections from existing LPC artwork; shared selections are deduplicated in the unique-art count |
+| Rocks                        | 6 newly authored forms using the existing rock art algorithm; original boulder/pebble retained            |
+| Ground                       | 8 authored grain frames plus continuous world-space palette/material rendering                            |
+| Relief                       | Adapted existing complete cliff atlas; 4 natural-slope overlays; unchanged collision geometry             |
+| Water, bridges, logs, stumps | Existing artwork reused; water adjacency includes shallow marsh pools                                     |
+| Transitions and shade        | Runtime world-space ground blending and cached canopy/contact shading, not separate concept-image assets  |
+
+Current streamed tree selections: forest 4 native LPC forms, meadow 2, highlands 3,
+wetlands 2, autumn 3. The ten non-forest species come from the existing generated
+library. Two additional generated forms remain retained for compatibility/source
+review. This streaming milestone authors no new tree or character drawings.
+Plant selections: 10, 10, 6, 10, 10 respectively. Reuse and cross-biome references
+are intentional; these totals must not be summed as unique newly authored sprites.
+The preserved source sheets and metadata allow additional species without replacing
+the engine or producing a fresh art direction for each biome.
+
+The 46 plant selections contain **29 unique native source rectangles**. Relief
+contains 58 frames (including all 47 reduced topology masks, interior variants,
+shadows and four slopes). Source-frame counts are distinct from newly drawn art.
+
+The streamed hill update adds one adapted 58-frame `shared/upland.png` atlas using
+the same topology metadata: brighter upper ground, exposed strata and four fully
+opaque natural ramps. It is reproduced by `prepare-environment-assets.mjs`, with
+no new third-party artwork or character changes. The original `relief.png` remains
+byte-compatible for older landscapes. These are adapted relief frames, not 58 new
+independent illustrations.
+
+| Pack            | Existing generated tree selections | Native LPC tree selections | LPC plant selections |
+| --------------- | ---------------------------------: | -------------------------: | -------------------: |
+| Forest          |                                  0 |                          4 |                   10 |
+| Meadow          |                                  2 |                          0 |                   10 |
+| Rocky highlands |                                  3 |                          0 |                    6 |
+| Wetlands        |                                  2 |                          0 |                   10 |
+| Autumn woodland |                                  3 |                          0 |                   10 |
+
+All packs share the eight ground and 58 relief frames. `inventory.json` distinguishes
+finite `trees` references from `streamedTrees`; forest references the unchanged LPC
+sheet directly. Each other biome has an exclusive interior tree set. Transitional
+placement may select an adjoining biome's species according to its blend weight.
+
+The six additional rocks are shared, with moss/exposure-driven selection. Each
+pack has a real plant atlas and dependencies on the appropriate shared tree PNGs;
+shared files are not duplicated into every folder. The transition library is the
+shared ground/relief atlas plus continuous palette blending and neighboring-biome
+species selection. There is no separately authored transition sprite sheet.
+Trees and plants are static frames; water and existing weather retain their
+existing animation. No tree recolor variants are counted as new artwork.
+
+## Approved player character (2026-11-03)
+
+The user accepted the existing character with the face-continuity and independent eyelid correction. Its exact source frames, native definitions and exported artwork are preserved in `source/player-face-continuity/`. The game uses 56 strips containing 912 slots. No pixels, proportions, palette, animation timing or gameplay behavior changed during approval and archival.
+
+`approval.json` records the accepted source/export/runtime checksums. `node scripts/player-art/face-continuity/pack.mjs` verifies source and output hashes before writing; it cannot silently replace the accepted artwork. [Source documentation](source/player-face-continuity/README.md) describes the files and reproduction command. [Provenance](source/player-face-continuity/provenance.json) retains the existing character's rights, original generation prompts and input hashes; no third-party replacement character was introduced.
+
+Earlier variants, their generators, obsolete split-body/join/stop sheets, comparison tests and local recordings are archived under `archive/player-character/`, preserving repository-relative paths. That archive is intentionally Git-ignored and is not a build, test or runtime dependency. The active approved sources stay outside ignore rules. A separate local recovery bundle is in ignored `artifacts/player-approved/`.

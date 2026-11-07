@@ -1,3 +1,4 @@
+import assets from './environmentAssets.json' with { type: 'json' };
 import { hilltopSpritePlacement } from './HilltopDecoration';
 import { CHARACTER_FOOT_OFFSET_PX } from '../types/physical';
 import type { Bounds } from '../types/gameplay';
@@ -14,8 +15,17 @@ export const OBJECT_FOOTPRINTS: Readonly<Partial<Record<PropKind, Bounds>>> = {
   log_stump: { minX: 0.2, minY: 0.5, maxX: 0.8, maxY: 1 },
 };
 export function propFootprint(prop: WorldProp): Bounds | null {
-  const bounds =
-    OBJECT_FOOTPRINTS[prop.kind] ?? (prop.solid ? { minX: 0, minY: 0, maxX: 1, maxY: 1 } : null);
+  const tree =
+    prop.kind === 'tree' && prop.variant !== undefined ? assets.trees[prop.variant] : undefined;
+  const bounds = tree
+    ? {
+        minX: 0.5 + (tree.collision[0] ?? 0),
+        minY: 1 + (tree.collision[1] ?? 0),
+        maxX: 0.5 + (tree.collision[2] ?? 0),
+        maxY: 1 + (tree.collision[3] ?? 0),
+      }
+    : (OBJECT_FOOTPRINTS[prop.kind] ??
+      (prop.solid ? { minX: 0, minY: 0, maxX: 1, maxY: 1 } : null));
   if (!bounds || !prop.hilltop) return bounds;
   const p = hilltopSpritePlacement(prop.hilltop);
   return {
@@ -32,8 +42,5 @@ export function isSolidProp(prop: WorldProp): boolean {
 /** Actor depth is measured at the character anchor, ten pixels above its feet. */
 export function propDepth(prop: WorldProp): number {
   const base = propFootprint(prop);
-  return (
-    prop.tileY +
-    (base ? base.maxY - CHARACTER_FOOT_OFFSET_PX / 32 : 1)
-  );
+  return prop.tileY + (base ? base.maxY - CHARACTER_FOOT_OFFSET_PX / 32 : 1);
 }

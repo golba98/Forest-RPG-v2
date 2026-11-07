@@ -88,13 +88,13 @@ function set(
 
 /**
  * Chooses the frame for `view`, writing into `out` (allocation-free).
- * Scales follow the legacy draw sizes (player 2×, mantis ≈1.2 tiles, beetle
+ * Scales preserve world sizes (remastered player 1×, mantis ≈1.2 tiles, beetle
  * boss 80 px, ghost ≈1.3 tiles, portal ≈2 tiles).
  */
 export function selectSpriteFrame(view: RenderEntityView, out: SpriteFrameSpec): SpriteFrameSpec {
   switch (view.spriteKey) {
     case 'player':
-      return set(out, PLAYER_SHEET_ALIASES.idle[view.facing], 0, 0, 4, 1, 2, 1);
+      return set(out, PLAYER_SHEET_ALIASES.idle[view.facing], 0, 0, 6, 1, 1, 44 / 64);
     case 'mantis':
       return set(out, 'enemy_mantis_move', 0, rowSEWN(view.facing), 4, 4, 1.25, 1);
     case 'maggot':

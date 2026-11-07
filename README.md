@@ -5,13 +5,15 @@
 ![PixiJS 8](https://img.shields.io/badge/PixiJS-8-e72264)
 ![Vite 7](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)
 
-A pixel-art action RPG for the browser, built with TypeScript, PixiJS, and Vite. Explore procedurally generated forests, battle enemies, and level up your character. Collect coins and defeat each world's non-ghost enemies to unlock the portal to the next world.
+A pixel-art action RPG for the browser, built with TypeScript, PixiJS, and Vite. Explore a continuous procedural world of forests, meadows, highlands, wetlands and autumn woodland, battle enemies, and level up your character. Complete the starting area's coin and enemy objectives to unlock the portal to the next seeded world, or keep exploring farther into the forest.
 
 ![Forest RPG V2 gameplay showing the player exploring a woodland with trees, flowers, and a minimap](docs/images/gameplay.png)
 
 ## Features
 
-- Seeded forests with rivers, bridges, cliffs, and walkable hilltops.
+- Persistent seeded landscapes that stream as you explore in any direction, with rivers, bridges, cliffs, and walkable hilltops.
+- **Developer → Biomes** for peaceful exploration, five biome starting places and travel between them in the same world.
+- A regional minimap that remembers explored terrain and saves that preserve collected treasure and changes to the forest.
 - Day and night, changing weather, and ghosts after dark.
 - Melee combos, spin attacks, magic bolts, and enemies with distinct behaviors.
 - Character upgrades, health and speed potions, and progression between worlds.
@@ -28,7 +30,7 @@ npm ci
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000) to play.
+Open [localhost:3000](http://localhost:3000) to play. Choose **Play** to create or resume a named adventure across all five biomes. The temporary **Developer · Demo** section offers biome exploration and content previews with separate exploration saves.
 
 ## Controls
 
@@ -44,11 +46,11 @@ Open [localhost:3000](http://localhost:3000) to play.
 | Health potion         | 1                      |
 | Speed potion          | 2                      |
 | Character progression | C or I                 |
-| Toggle minimap        | M                      |
+| Cycle regional map    | M                      |
 | Fullscreen            | F                      |
 | Pause                 | Escape                 |
 
-Gameplay controls can be remapped in settings. Save from the pause menu and choose **Continue** from the main menu to resume. Progress is stored in your browser; export a save to keep a separate copy or move it to another browser.
+Gameplay controls can be remapped in settings. Save from the pause menu and choose your world under **Play** to resume. Rename, delete, import and export worlds from the world list. Progress is stored in your browser; export a save to keep a separate copy or move it to another browser.
 
 For build commands, tests, and technical guides, see the [development documentation](docs/development/README.md).
 

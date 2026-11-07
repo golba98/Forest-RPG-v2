@@ -33,7 +33,10 @@ export interface SpriteFrameRef {
   readonly placeholder: boolean;
 }
 
-export type SpriteFrameInput = Pick<RenderEntityView, 'spriteKey' | 'anim' | 'facing' | 'animTimeMs' | 'active'>;
+export type SpriteFrameInput = Pick<
+  RenderEntityView,
+  'spriteKey' | 'anim' | 'facing' | 'animTimeMs' | 'active' | 'attack'
+>;
 
 const PLACEHOLDER_SIZE = 32;
 
@@ -80,7 +83,11 @@ function clipsFor(def: SpriteSetDef, active: boolean | undefined): SpriteSetDef[
   return active === true && def.activeClips ? def.activeClips : def.clips;
 }
 
-function resolveClip(def: SpriteSetDef, anim: AnimState, active: boolean | undefined): ResolvedClip | null {
+function resolveClip(
+  def: SpriteSetDef,
+  anim: AnimState,
+  active: boolean | undefined,
+): ResolvedClip | null {
   const clips = clipsFor(def, active);
   const direct = clips[anim];
   if (direct) return { clip: direct, holdMs: null };
@@ -118,6 +125,16 @@ function frameIndexFor(resolved: ResolvedClip, timeMs: number): FrameIndex {
   const { clip, holdMs } = resolved;
   if (holdMs !== null) return { index: 0, finished: timeMs >= holdMs };
   const count = Math.max(1, clip.frameCount);
+  if (clip.frameDurationsMs) {
+    const duration = clip.frameDurationsMs.reduce((sum, ms) => sum + ms, 0);
+    const elapsed = clip.loop ? timeMs % duration : Math.min(timeMs, duration);
+    let boundary = 0;
+    for (let i = 0; i < count; i++) {
+      boundary += clip.frameDurationsMs[i] ?? clip.frameDurationMs;
+      if (elapsed < boundary) return { index: i, finished: false };
+    }
+    return { index: count - 1, finished: !clip.loop && timeMs >= duration };
+  }
   const raw = Math.floor(timeMs / clip.frameDurationMs);
   if (clip.loop) return { index: raw % count, finished: false };
   return { index: Math.min(raw, count - 1), finished: timeMs >= count * clip.frameDurationMs };
@@ -130,9 +147,13 @@ function frameIndexFor(resolved: ResolvedClip, timeMs: number): FrameIndex {
 export function resolveSpriteFrame(view: SpriteFrameInput): SpriteFrameRef {
   const def = ANIMATION_DEFS[view.spriteKey];
   if (!def) return PLACEHOLDER_REF;
-  const resolved = resolveClip(def, view.anim, view.active);
+  let resolved = resolveClip(def, view.anim, view.active);
   if (!resolved) return PLACEHOLDER_REF;
 
+  if (view.anim === 'attack' && (view.attack?.comboStep === 2 || view.attack?.comboStep === 3)) {
+    const variant = def.attackClips?.[view.attack.comboStep];
+    if (variant) resolved = { clip: variant, holdMs: null };
+  }
   const { clip } = resolved;
   const { index, finished } = frameIndexFor(resolved, sanitizeTime(view.animTimeMs));
   const scale = clip.scale ?? def.scale;
@@ -167,22 +188,35 @@ export function resolveSpriteFrame(view: SpriteFrameInput): SpriteFrameRef {
     }
   }
 
-  const anchorY = def.anchor.kind === 'center' ? 0.5 : 1 - def.anchor.footOffsetPx / (frame.h * scale);
+  const anchorX =
+    def.anchor.kind === 'feet' && def.anchor.sourceFoot ? def.anchor.sourceFoot.x / frame.w : 0.5;
+  const anchorY =
+    def.anchor.kind === 'center'
+      ? 0.5
+      : (def.anchor.sourceFoot?.y ?? frame.h) / frame.h -
+        def.anchor.footOffsetPx / (frame.h * scale);
 
-  return { textureAlias, frame, flipX, anchorX: 0.5, anchorY, scale, finished, placeholder: false };
+  return { textureAlias, frame, flipX, anchorX, anchorY, scale, finished, placeholder: false };
 }
 
 /**
  * Total length of one play-through (one-shot) or one cycle (loop) in ms.
  * Returns 0 for unknown sprite keys.
  */
-export function getAnimationDurationMs(spriteKey: string, anim: AnimState, active?: boolean): number {
+export function getAnimationDurationMs(
+  spriteKey: string,
+  anim: AnimState,
+  active?: boolean,
+): number {
   const def = ANIMATION_DEFS[spriteKey];
   if (!def) return 0;
   const resolved = resolveClip(def, anim, active);
   if (!resolved) return 0;
   if (resolved.holdMs !== null) return resolved.holdMs;
-  return Math.max(1, resolved.clip.frameCount) * resolved.clip.frameDurationMs;
+  return (
+    resolved.clip.frameDurationsMs?.reduce((sum, ms) => sum + ms, 0) ??
+    Math.max(1, resolved.clip.frameCount) * resolved.clip.frameDurationMs
+  );
 }
 
 /** True when the clip for (spriteKey, anim) loops. Unknown keys report false. */
@@ -194,7 +228,9 @@ export function isAnimationLooping(spriteKey: string, anim: AnimState, active?: 
 }
 
 /** One-shot clip has played through. Looping clips and unknown keys never finish. */
-export function isAnimationFinished(view: Pick<SpriteFrameInput, 'spriteKey' | 'anim' | 'animTimeMs' | 'active'>): boolean {
+export function isAnimationFinished(
+  view: Pick<SpriteFrameInput, 'spriteKey' | 'anim' | 'animTimeMs' | 'active' | 'attack'>,
+): boolean {
   const def = ANIMATION_DEFS[view.spriteKey];
   if (!def) return false;
   const resolved = resolveClip(def, view.anim, view.active);

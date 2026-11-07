@@ -41,7 +41,7 @@ for (const [facing, keys, suffix, dx, dy] of cases)
       const view = s.buildRenderSnapshot().entities.find((e) => e.id === s.player.id)!;
       return resolveSpriteFrame(animator.resolve(view, 1000 / 60));
     };
-    // Exercise both orders and more than one complete six-frame run cycle.
+    // Exercise both orders and more than one complete eight-frame run cycle.
     for (const order of [keys, [...keys].reverse()]) {
       s.setPlayerPosition(20.5, 20.5);
       for (const key of order) {
@@ -56,32 +56,40 @@ for (const [facing, keys, suffix, dx, dy] of cases)
         expect(s.player.facing).toBe(facing);
         expect(s.player.anim).toBe('run');
         expect(frame.textureAlias).toBe(`player_run_${suffix}`);
-        expect(frame.flipX).toBe(facing === 'SW');
+        expect(frame.flipX).toBe(false);
         seen.add(frame.frame.x);
       }
-      expect(seen.size).toBe(6);
+      expect(seen.size).toBe(16);
       expect(Math.sign(s.player.x - 20.5)).toBe(dx);
       expect(Math.sign(s.player.y - 20.5)).toBe(dy);
       input.simulateKeyUp('ShiftLeft');
       expect(step().textureAlias).toBe(`player_walk_${suffix}`);
       for (const key of keys) input.simulateKeyUp(key);
+      step();
+      expect(s.player.anim).toBe('idle'); // Movement stops immediately; pixels settle within 80 ms.
+      for (let i = 0; i < 5; i++) step();
       const idle = step();
       expect(idle.textureAlias).toBe(`player_idle_${suffix}`);
       expect(idle.flipX).toBe(false);
     }
   });
 
-it('documents the duplicated source pixels requiring the southwest run correction', async () => {
+it('uses distinct southwest source pixels without a runtime mirror', async () => {
   const root = 'public/assets/images/characters/player/run/run_';
   const sw = await sharp(`${root}southwest.png`).raw().toBuffer();
   const se = await sharp(`${root}southeast.png`).raw().toBuffer();
-  expect(sw.equals(se)).toBe(true);
-  // If the source is replaced with proper SW art, remove its runtime flip too.
-  for (let frame = 0; frame < 6; frame++) {
-    const view = { spriteKey: 'player', anim: 'run' as const, animTimeMs: frame * 112.5 };
+  expect(sw.equals(se)).toBe(false);
+  // Independently drawn left-facing art keeps its own lighting and frame order.
+  for (let frame = 0; frame < 8; frame++) {
+    const view = {
+      spriteKey: 'player',
+      anim: 'run' as const,
+      animTimeMs: (frame * 1000) / 34 + 0.001,
+    };
     const left = resolveSpriteFrame({ ...view, facing: 'SW' });
     const right = resolveSpriteFrame({ ...view, facing: 'SE' });
     expect(left.frame).toEqual(right.frame);
-    expect(left.flipX).not.toBe(right.flipX);
+    expect(left.flipX).toBe(false);
+    expect(right.flipX).toBe(false);
   }
 });

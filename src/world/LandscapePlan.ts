@@ -6,7 +6,7 @@ import { canOccupy, hasClearPath, type CollisionWorld } from '../systems/Collisi
 import { surfaceAt } from '../systems/SurfaceState';
 import { boundsOverlap, bridgeAtTile, bridgeGeometry, bridgeReservations } from './BridgeGeometry';
 import { siteBounds } from './EncounterPlacement';
-import { elevationMask, isRaisedSurface, stairsDirection } from './ElevationTopology';
+import { elevationAt, elevationMask, isRaisedSurface, stairsDirection } from './ElevationTopology';
 import { cachedHillBounds } from './HillCollisionGeometry';
 import { LandscapeRegions } from './LandscapeRegions';
 import { channelTerrain } from './RiverTopology';
@@ -99,10 +99,17 @@ export class LandscapePlan {
       : Tile.BORDER;
   }
   isRaisedAt(x: number, y: number): boolean {
-    return isRaisedSurface(this.tileAt(x, y));
+    return elevationAt(this.source, x, y) > 0;
   }
   elevationMaskAt(x: number, y: number): number {
-    return elevationMask(this.source.tiles, this.source.meta.width, this.source.meta.height, x, y);
+    return elevationMask(
+      this.source.tiles,
+      this.source.meta.width,
+      this.source.meta.height,
+      x,
+      y,
+      this.source.elevations,
+    );
   }
   plateauAt(x: number, y: number) {
     this.plateauRegions ??= new LandscapeRegions(this.source, 'plateau', isRaisedSurface);
@@ -128,17 +135,18 @@ export class LandscapePlan {
     return {
       ...support,
       tile,
-      elevation: Number(isRaisedSurface(tile)),
+      elevation: elevationAt(this.source, tx, ty),
       plateau: this.plateauAt(tx, ty),
       water: this.waterAt(tx, ty),
-      cliffBounds: isRaisedSurface(tile)
-        ? cachedHillBounds(tile, mask).map((b) => ({
-            minX: tx + b.minX,
-            maxX: tx + b.maxX,
-            minY: ty + b.minY,
-            maxY: ty + b.maxY,
-          }))
-        : [],
+      cliffBounds:
+        elevationAt(this.source, tx, ty) > 0
+          ? cachedHillBounds(tile, mask).map((b) => ({
+              minX: tx + b.minX,
+              maxX: tx + b.maxX,
+              minY: ty + b.minY,
+              maxY: ty + b.maxY,
+            }))
+          : [],
       stairDirection: tile === Tile.STAIRS ? stairsDirection(mask) : null,
       bridgeDecks: bridge ? [{ id: bridge.id, bounds: bridgeGeometry(bridge).deck }] : [],
     };
@@ -163,7 +171,10 @@ export class LandscapePlan {
     return this.stairs.some((p) => Math.abs(p.x - at.x) <= 2 && Math.abs(p.y - at.y) <= 2);
   }
   /** Legacy woodland protection only; random density/spacing remains owned by woodland. */
-  woodlandRejection(at: TilePoint, area: Bounds = { minX: at.x - 1, minY: at.y - 1, maxX: at.x + 2, maxY: at.y + 1 }): string | null {
+  woodlandRejection(
+    at: TilePoint,
+    area: Bounds = { minX: at.x - 1, minY: at.y - 1, maxX: at.x + 2, maxY: at.y + 1 },
+  ): string | null {
     const conflict = this.conflicts(area, ['encounter', 'bridge'])[0];
     if (conflict) return conflict.id;
     if (this.protectedStairAt(at)) return 'stair-approach';

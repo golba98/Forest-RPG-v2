@@ -1,10 +1,12 @@
+import type { WorldEnvironment } from '../world/Biomes';
 import type { EnemyType, PickupType } from './entities';
 import type { EncounterSite } from './encounters';
 
 /** Bump whenever generator output for a given seed changes. Stored in saves. */
-export const WORLD_GENERATOR_VERSION = 12;
+export const WORLD_GENERATOR_VERSION = 13;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
+export type WorldObjectId = number | string;
 
 /** Continuous world position in tile units; distinguish actor anchors from foot contact at call sites. */
 export interface WorldPosition {
@@ -34,7 +36,7 @@ export interface WorldMeta {
 
 /** Origin is the north/west bank end; span counts water tiles, excluding both bank ends. */
 export interface WorldBridge {
-  readonly id: number;
+  readonly id: WorldObjectId;
   readonly x: number;
   readonly y: number;
   readonly orientation: 'horizontal' | 'vertical';
@@ -58,17 +60,24 @@ export type PropKind =
 
 /** Static world object anchored to a tile; semantics define physical footprints. */
 export interface WorldProp {
-  readonly id: number;
+  readonly id: WorldObjectId;
   readonly kind: PropKind;
+  /** Rendering provenance of a preserved finite-region object. */
+  readonly sourceGeneratorVersion?: number;
   readonly tileX: number;
   readonly tileY: number;
   readonly solid: boolean;
+  readonly variant?: number;
+  /** Stable, biome-curated artwork selection; independent of the local view origin. */
+  readonly assetKey?: string;
+  readonly featureKey?: string;
   /** Promoted legacy hill decoration: stable source identity, on the raised surface.
    * Sprite transform, footprint and contact anchor derive from this source hash. */
   readonly hilltop?: { readonly sourceX: number; readonly sourceY: number };
 }
 
 export interface EnemySpawn {
+  readonly id?: string;
   readonly type: EnemyType;
   readonly x: number;
   readonly y: number;
@@ -93,9 +102,13 @@ export interface PickupSpawn {
  * `world:tileChanged` so renderers can rebuild only the affected chunk.
  */
 export interface WorldData {
+  readonly environment?: WorldEnvironment;
+  /** A bounded local adapter over independently generated global chunks. Never serialized as a finite map. */
+  readonly window?: import('../world/infinite/types').WorldWindow;
   readonly encounterSites?: readonly EncounterSite[];
   readonly meta: WorldMeta;
   readonly tiles: Uint8Array;
+  readonly elevations?: Uint8Array;
   readonly props: readonly WorldProp[];
   /** Older saves and legacy maps have no bridge overlay. */
   readonly bridges?: readonly WorldBridge[];
@@ -107,7 +120,9 @@ export interface WorldData {
 }
 
 export interface WorldGenOptions {
-  /** Defaults to v10. Historical algorithms are load-only, never silently substituted. */
+  readonly mode?: 'adventure' | 'biome-walk';
+  readonly biome?: import('../world/Biomes').BiomeId;
+  /** Defaults to v13. Historical algorithms are load-only, never silently substituted. */
   readonly generatorVersion?: number;
   readonly seed: number;
   readonly level: number;

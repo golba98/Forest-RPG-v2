@@ -8,12 +8,14 @@ import type { ISimulation } from '../types/simulation';
 import type { Difficulty, WorldData, WorldGenOptions } from '../types/world';
 import { IntentMapper } from './IntentMapper';
 import { randomSeed, type LaunchParams } from './LaunchParams';
+import type { PlayerEntity } from '../types/entities';
 
 export type SceneState =
   'loading' | 'menu' | 'playing' | 'paused' | 'gameover' | 'victory' | 'error';
 
 export interface WorldFactory {
-  generate(options: WorldGenOptions): WorldData;
+  generate(options: WorldGenOptions): WorldData | Promise<WorldData>;
+  release?(world: WorldData): void;
   tutorial(): WorldData;
 }
 
@@ -59,6 +61,9 @@ const SYSTEM_ACTIONS: readonly InputAction[] = ['toggleTerminal', 'characterMenu
  * headless simulation and the renderer, and owns the scene state machine.
  */
 export class Game {
+  private generation = 0;
+  private pendingProgress:
+    Pick<PlayerEntity, 'stats' | 'inventory' | 'speedBuffMs' | 'hauntedIntroComplete'> | undefined;
   private readonly deps: GameDeps;
   private readonly loop: GameLoop;
   private readonly intents = new IntentMapper();
@@ -131,13 +136,54 @@ export class Game {
     for (const dispose of this.disposers.splice(0)) dispose();
     this.deps.input.detach();
     this.deps.renderer.destroy();
+    this.deps.simulation.destroy?.();
   }
 
   // ---------------------------------------------------------------------------
   // Game flow
   // ---------------------------------------------------------------------------
 
-  public startNewGame(options: NewGameOptions = {}): void {
+  public async startBiomeWalk(biome: import('../world/Biomes').BiomeId): Promise<void> {
+    const generation = ++this.generation;
+    this.setScene('loading');
+    this.deps.shell?.onLoadingProgress?.(0.1, 'Preparing biome');
+    try {
+      const world = await this.deps.worlds.generate({
+        seed: 42,
+        level: 1,
+        difficulty: 'normal',
+        mode: 'biome-walk',
+        biome,
+      });
+      if (generation !== this.generation) {
+        this.deps.worlds.release?.(world);
+        return;
+      }
+      this.loadWorld(world, 'new', generation);
+    } catch (error) {
+      if (generation === this.generation) this.setScene('menu');
+      throw error;
+    }
+  }
+
+  public async changeBiome(biome: import('../world/Biomes').BiomeId): Promise<void> {
+    if (!this.deps.simulation.travelToBiome) throw new Error('Biome travel unavailable');
+    this.pause();
+    this.setScene('loading');
+    this.deps.shell?.onLoadingProgress?.(0.1, 'Preparing biome');
+    try {
+      await this.deps.simulation.travelToBiome(biome);
+      this.deps.renderer.setWorld(this.deps.simulation.world);
+      if (this.loop.isPaused) this.loop.resume();
+      this.setScene('playing');
+    } catch (error) {
+      this.setScene('paused');
+      throw error;
+    }
+  }
+
+  public startNewGame(options: NewGameOptions = {}): void | Promise<void> {
+    const generation = ++this.generation;
     if (options.difficulty) this.difficulty = options.difficulty;
     const world = options.tutorial
       ? this.deps.worlds.tutorial()
@@ -146,12 +192,37 @@ export class Game {
           level: options.level ?? 1,
           difficulty: this.difficulty,
         });
-    this.loadWorld(world, 'new');
+    if (world instanceof Promise) {
+      this.setScene('loading');
+      this.deps.shell?.onLoadingProgress?.(0.1, 'Preparing forest');
+      return world
+        .then((ready) => {
+          if (generation !== this.generation) {
+            this.deps.worlds.release?.(ready);
+            return;
+          }
+          this.loadWorld(ready, 'new', generation);
+        })
+        .catch((error: unknown) => {
+          if (generation !== this.generation) return;
+          this.setScene('error');
+          this.deps.shell?.onLoadingFailed?.(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        });
+    } else this.loadWorld(world, 'new', generation);
   }
 
   /** Loads an already-built world (new game, next level, or restored save). */
-  public loadWorld(world: WorldData, mode: 'new' | 'loaded' = 'loaded'): void {
+  public loadWorld(world: WorldData, mode: 'new' | 'loaded' = 'loaded', generation?: number): void {
+    if (generation === undefined) this.generation++;
+    if (mode === 'loaded') this.pendingProgress = undefined;
+    this.difficulty = world.meta.difficulty;
     this.deps.simulation.loadWorld(world);
+    if (mode === 'new' && this.pendingProgress) {
+      Object.assign(this.deps.simulation.player, this.pendingProgress);
+      this.pendingProgress = undefined;
+    }
     this.deps.renderer.setWorld(this.deps.simulation.world);
     this.intents.reset();
     if (this.loop.isPaused) this.loop.resume();
@@ -167,11 +238,8 @@ export class Game {
     const speedBuffMs = old.speedBuffMs;
     const hauntedIntroComplete = old.hauntedIntroComplete ?? false;
     const level = this.deps.simulation.world.meta.level + 1;
+    this.pendingProgress = { stats, inventory, speedBuffMs, hauntedIntroComplete };
     this.startNewGame({ level, difficulty: this.difficulty, seed: randomSeed() });
-    Object.assign(this.deps.simulation.player.stats, stats);
-    Object.assign(this.deps.simulation.player.inventory, inventory);
-    this.deps.simulation.player.speedBuffMs = speedBuffMs;
-    this.deps.simulation.player.hauntedIntroComplete = hauntedIntroComplete;
   }
 
   /** P key: a fresh procedural world at the current level. */
@@ -205,6 +273,7 @@ export class Game {
   }
 
   public returnToMenu(): void {
+    this.generation++;
     if (!this.loop.isPaused) this.loop.pause();
     this.setScene('menu');
   }
@@ -232,7 +301,9 @@ export class Game {
   // ---------------------------------------------------------------------------
 
   public get currentScene(): SceneState {
-    return this.scene;
+    return this.scene === 'playing' && this.deps.renderer.isReady?.() === false
+      ? 'loading'
+      : this.scene;
   }
 
   public get currentDifficulty(): Difficulty {
@@ -258,9 +329,11 @@ export class Game {
   // ---------------------------------------------------------------------------
 
   private fixedUpdate(dtSec: number): void {
+    if (this.deps.renderer.isReady?.() === false) return;
     if (this.scene !== 'playing') return;
-    const intent = this.intents.nextIntent(this.deps.input);
     const sim = this.deps.simulation;
+    if (sim.isWaitingForWorld?.()) return;
+    const intent = this.intents.nextIntent(this.deps.input);
     sim.step(dtSec * this.timeScale, intent);
     if (sim.player.stats.health <= 0) {
       this.endRun('gameover');

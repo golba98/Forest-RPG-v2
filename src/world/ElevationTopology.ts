@@ -16,6 +16,20 @@ export function isRaisedSurface(tile: number): boolean {
   return isHillTile(tile as TileId) || tile === Tile.PLATEAU || tile === Tile.STAIRS;
 }
 
+export interface ElevationSource {
+  readonly tiles: ArrayLike<number>;
+  readonly elevations?: Uint8Array;
+  readonly meta: { readonly width: number; readonly height: number };
+}
+/** Integer ground-contact height; legacy worlds retain their original binary topology. */
+export function elevationAt(world: ElevationSource, x: number, y: number): number {
+  x = Math.floor(x);
+  y = Math.floor(y);
+  if (x < 0 || y < 0 || x >= world.meta.width || y >= world.meta.height) return 0;
+  const i = y * world.meta.width + x;
+  return world.elevations?.[i] ?? Number(isRaisedSurface(world.tiles[i] ?? 0));
+}
+
 /** Out-of-bounds is low ground; always use final saved cells rather than legacy edge IDs. */
 export function elevationMask(
   tiles: ArrayLike<number>,
@@ -23,6 +37,7 @@ export function elevationMask(
   height: number,
   x: number,
   y: number,
+  elevations?: Uint8Array,
 ): number {
   let mask = 0;
   OFFSETS.forEach(([dx, dy], i) => {
@@ -33,7 +48,9 @@ export function elevationMask(
       ny >= 0 &&
       nx < width &&
       ny < height &&
-      isRaisedSurface(tiles[ny * width + nx] ?? 0)
+      (elevations
+        ? (elevations[ny * width + nx] ?? 0) >= Math.max(1, elevations[y * width + x] ?? 0)
+        : isRaisedSurface(tiles[ny * width + nx] ?? 0))
     )
       mask |= 1 << i;
   });

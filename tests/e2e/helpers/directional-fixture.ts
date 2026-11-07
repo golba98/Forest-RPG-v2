@@ -11,7 +11,7 @@ type FixtureSave = {
   elapsedMs: number;
 };
 
-export async function boot(page: Page, enemyOffsets: readonly (readonly [number, number])[] = [], settings: Partial<Settings> = {}, live = false) {
+export async function boot(page: Page, enemyOffsets: readonly (readonly [number, number])[] = [], settings: Partial<Settings> = {}, live = false, query: Record<string, string> = {}) {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(settings => localStorage.setItem('forestrpg.v2.settings', JSON.stringify({
@@ -19,7 +19,7 @@ export async function boot(page: Page, enemyOffsets: readonly (readonly [number,
   })), settings);
   // The clock must own the RAF scheduled during boot, not just later timers.
   if (!live) await page.clock.install();
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=42');
+  await page.goto('/?' + new URLSearchParams({world:'finite',debug:'1',autostart:'1',tutorial:'0',seed:'42',...query}));
   await page.waitForFunction(() => !!window.__GAME__ && !!window.__RENDER_DEBUG__);
   // Leave ample headroom for the cross-process call on a busy test host. The
   // fixture is loaded afterward, so advancing boot time cannot affect the case.
@@ -34,8 +34,9 @@ export async function boot(page: Page, enemyOffsets: readonly (readonly [number,
     const baseEnemy = data.entities.find((e): e is EnemyEntity => e.kind === 'enemy')!;
     delete data.runtime.encounters;
     delete data.runtime.moisture;
+    const { environment: _environment, ...legacyWorld } = data.world;
     data.world = {
-      ...data.world, meta: { ...data.world.meta, width: 40, height: 40, isTutorial: false },
+      ...legacyWorld, meta: { ...data.world.meta, generatorVersion: 12, width: 40, height: 40, isTutorial: false },
       tiles: Array<number>(1600).fill(1), props: [], bridges: [], encounterSites: [],
       enemySpawns: [], pickupSpawns: [], spawn: { x: 20, y: 20 }, portal: { x: 38, y: 38 },
     };

@@ -16,3 +16,7 @@ Do not create sibling copies, alternate project folders, or Git worktrees, inclu
 ## Validation
 
 Run typecheck, lint, relevant tests, and the production build for code changes. Include browser checks for gameplay or rendering changes. For documentation changes, check formatting, commands, and relative links. Preserve gameplay, assets, and unrelated working changes during cleanup.
+
+## Silent automated browsers
+
+All automated browser tests, captures, and profiling runs must stay silent on the user's speakers and headphones, including headed runs and ad hoc agent scripts. Use Chromium `--mute-audio` and Firefox `firefoxUserPrefs: { 'media.volume_scale': '0.0' }` (or the equivalent Selenium preference). Keep browser-specific launch options when overriding shared configuration. Tests that need to measure real audio must run through an isolated null sink and must never fall back to a physical output. Do not remove these protections or enable audible test playback without an explicit user request.

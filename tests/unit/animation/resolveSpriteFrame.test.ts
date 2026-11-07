@@ -23,95 +23,77 @@ const ALL_DIRS: readonly Direction[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'N
 const ALL_ANIMS: readonly AnimState[] = ['idle', 'walk', 'run', 'jump', 'attack', 'hurt', 'death'];
 
 describe('resolveSpriteFrame — player', () => {
-  it.each([
-    ['N', 'north', 92], ['NE', 'northwest', 96],
-    ['E', 'east', 97], ['SE', 'southwest', 113],
-    ['S', 'south', 121], ['SW', 'southeast', 113],
-    ['W', 'west', 97], ['NW', 'northeast', 96],
-  ] as const)('uses visually verified %s punch artwork for every frame', (facing, suffix, height) => {
-    for (let i = 0; i < 4; i++) {
-      const ref = resolveSpriteFrame(view({ anim: 'attack', facing, animTimeMs: i * 80 }));
-      expect(ref.textureAlias).toBe(`player_attack_${suffix}`);
-      expect(ref.flipX).toBe(false);
-      expect(ref.scale).toBeCloseTo(0.34);
-      expect(ref.frame).toEqual({
-        x: Math.floor(i * 446 / 4), y: 0,
-        w: Math.floor((i + 1) * 446 / 4) - Math.floor(i * 446 / 4), h: height,
-      });
-    }
+  const suffixes = [
+    'north',
+    'northeast',
+    'east',
+    'southeast',
+    'south',
+    'southwest',
+    'west',
+    'northwest',
+  ];
+  it('uses independently named directions and all three timed punch variants', () => {
+    ALL_DIRS.forEach((facing, d) => {
+      for (const comboStep of [1, 2, 3])
+        for (let frame = 0; frame < 18; frame++) {
+          const ref = resolveSpriteFrame(
+            view({
+              anim: 'attack',
+              facing,
+              animTimeMs: frame * 20,
+              attack: { swingId: 1, comboStep, direction: facing, elapsedMs: frame * 20 },
+            }),
+          );
+          expect(ref.textureAlias).toBe(
+            `player_attack${comboStep === 1 ? '' : comboStep}_${suffixes[d]}`,
+          );
+          expect(ref.flipX).toBe(false);
+          expect(ref.scale).toBe(1);
+          expect(ref.frame).toEqual({ x: frame * 64, y: 0, w: 64, h: 64 });
+        }
+    });
   });
-
-  it('slices idle_south into 4 × 20 px frames at 150 ms', () => {
-    const f0 = resolveSpriteFrame(view({ animTimeMs: 0 }));
-    expect(f0.textureAlias).toBe('player_idle_south');
-    expect(f0.frame).toEqual({ x: 0, y: 0, w: 20, h: 23 });
-    expect(resolveSpriteFrame(view({ animTimeMs: 149.9 })).frame.x).toBe(0);
-    expect(resolveSpriteFrame(view({ animTimeMs: 150 })).frame.x).toBe(20);
-    expect(resolveSpriteFrame(view({ animTimeMs: 450 })).frame.x).toBe(60);
+  it('slices idle into twelve frames and wraps at 1200 ms', () => {
+    expect(resolveSpriteFrame(view()).frame).toEqual({ x: 0, y: 0, w: 64, h: 64 });
+    expect(resolveSpriteFrame(view({ animTimeMs: 199.9 })).frame.x).toBe(64);
+    expect(resolveSpriteFrame(view({ animTimeMs: 200 })).frame.x).toBe(128);
+    expect(resolveSpriteFrame(view({ animTimeMs: 1000 })).frame.x).toBe(640);
+    expect(resolveSpriteFrame(view({ animTimeMs: 1200 })).frame.x).toBe(0);
   });
-
-  it('wraps looping clips', () => {
-    expect(resolveSpriteFrame(view({ animTimeMs: 600 })).frame.x).toBe(0);
-    expect(resolveSpriteFrame(view({ animTimeMs: 600 * 10 + 300 })).frame.x).toBe(40);
-    expect(resolveSpriteFrame(view({ animTimeMs: 1e9 })).finished).toBe(false);
+  it('covers every walk and run frame without direction mirroring', () => {
+    for (const facing of ALL_DIRS)
+      for (const anim of ['walk', 'run'] as const) {
+        const step = anim === 'walk' ? 320 / 16 : 8000 / 34 / 16;
+        for (let frame = 0; frame < 16; frame++) {
+          const ref = resolveSpriteFrame(view({ anim, facing, animTimeMs: frame * step + 0.001 }));
+          expect(ref.textureAlias).toBe(playerSheetAlias(anim, facing));
+          expect(ref.frame.x).toBe(frame * 64);
+          expect(ref.flipX).toBe(false);
+        }
+      }
   });
-
-  it('uses a distinct texture per facing direction without mirroring', () => {
-    for (const dir of ALL_DIRS) {
-      const ref = resolveSpriteFrame(view({ facing: dir, anim: 'walk' }));
-      expect(ref.textureAlias).toBe(playerSheetAlias('walk', dir));
-      expect(ref.flipX).toBe(false);
-    }
-  });
-
-  it('run sheets have 6 frames at 112.5 ms', () => {
-    const ref = resolveSpriteFrame(view({ anim: 'run', facing: 'E', animTimeMs: 112.5 * 5 }));
-    expect(ref.textureAlias).toBe('player_run_east');
-    expect(ref.frame).toEqual({ x: 100, y: 0, w: 20, h: 22 });
-    expect(resolveSpriteFrame(view({ anim: 'run', animTimeMs: 112.5 * 6 })).frame.x).toBe(0);
-  });
-
-  it('clamps one-shot jump to its last frame and flags finished', () => {
+  it('keeps the 500 ms jump and clamps its final pose', () => {
     expect(getAnimationDurationMs('player', 'jump')).toBe(500);
-    const mid = resolveSpriteFrame(view({ anim: 'jump', animTimeMs: 499 }));
-    expect(mid.frame.x).toBe(80);
-    expect(mid.finished).toBe(false);
-    const end = resolveSpriteFrame(view({ anim: 'jump', animTimeMs: 500 }));
-    expect(end.frame.x).toBe(80);
-    expect(end.finished).toBe(true);
-    expect(resolveSpriteFrame(view({ anim: 'jump', animTimeMs: 10_000 })).frame.x).toBe(80);
+    expect(resolveSpriteFrame(view({ anim: 'jump', animTimeMs: 499 })).frame.x).toBe(960);
+    expect(isAnimationFinished(view({ anim: 'jump', animTimeMs: 499 }))).toBe(false);
+    expect(isAnimationFinished(view({ anim: 'jump', animTimeMs: 500 }))).toBe(true);
+    expect(resolveSpriteFrame(view({ anim: 'jump', animTimeMs: 10000 })).frame.x).toBe(960);
   });
-
-  it('slices the 446 px attack sheet into integer frames covering the whole width', () => {
-    const xs: number[] = [];
-    let total = 0;
-    for (let i = 0; i < 4; i++) {
-      const ref = resolveSpriteFrame(view({ anim: 'attack', facing: 'S', animTimeMs: i * 80 }));
-      expect(Number.isInteger(ref.frame.x)).toBe(true);
-      expect(Number.isInteger(ref.frame.w)).toBe(true);
-      expect(ref.frame.h).toBe(121);
-      xs.push(ref.frame.x);
-      total += ref.frame.w;
-    }
-    expect(xs).toEqual([0, 111, 223, 334]);
-    expect(total).toBe(446);
+  it('matches the existing 120 ms strike and 360 ms attack duration', () => {
+    expect(getAnimationDurationMs('player', 'attack')).toBe(360);
+    expect(resolveSpriteFrame(view({ anim: 'attack', animTimeMs: 119.9 })).frame.x).toBe(320);
+    expect(resolveSpriteFrame(view({ anim: 'attack', animTimeMs: 120 })).frame.x).toBe(384);
+    expect(isAnimationFinished(view({ anim: 'attack', animTimeMs: 359 }))).toBe(false);
+    expect(isAnimationFinished(view({ anim: 'attack', animTimeMs: 360 }))).toBe(true);
   });
-
-  it('attack uses the hi-res attack scale and finishes after 320 ms', () => {
-    const ref = resolveSpriteFrame(view({ anim: 'attack', facing: 'W', animTimeMs: 0 }));
-    expect(ref.textureAlias).toBe('player_attack_west');
-    expect(ref.scale).toBeCloseTo(0.34, 5);
-    expect(getAnimationDurationMs('player', 'attack')).toBe(320);
-    expect(isAnimationFinished(view({ anim: 'attack', animTimeMs: 319 }))).toBe(false);
-    expect(isAnimationFinished(view({ anim: 'attack', animTimeMs: 320 }))).toBe(true);
-  });
-
-  it('anchors characters by their feet below the entity point', () => {
-    const ref = resolveSpriteFrame(view());
-    expect(ref.anchorX).toBe(0.5);
-    // Sprite bottom = 10 world px below the anchor point.
-    const drawnHeight = ref.frame.h * ref.scale;
-    expect((1 - ref.anchorY) * drawnHeight).toBeCloseTo(10, 5);
+  it('places the source foot point exactly 10 world pixels below the entity', () => {
+    for (const facing of ALL_DIRS)
+      for (const anim of ALL_ANIMS) {
+        const ref = resolveSpriteFrame(view({ facing, anim }));
+        expect(32 - ref.anchorX * 64).toBe(0);
+        expect((54 - ref.anchorY * 64) * ref.scale).toBe(10);
+      }
   });
 });
 
@@ -127,7 +109,9 @@ describe('resolveSpriteFrame — fallbacks', () => {
 
   it('death holds a frame and finishes after 500 ms', () => {
     expect(getAnimationDurationMs('mantis', 'death')).toBe(500);
-    expect(resolveSpriteFrame(view({ spriteKey: 'mantis', anim: 'death', animTimeMs: 499 })).finished).toBe(false);
+    expect(
+      resolveSpriteFrame(view({ spriteKey: 'mantis', anim: 'death', animTimeMs: 499 })).finished,
+    ).toBe(false);
     const done = resolveSpriteFrame(view({ spriteKey: 'mantis', anim: 'death', animTimeMs: 500 }));
     expect(done.finished).toBe(true);
     expect(done.textureAlias).toBe('enemy_mantis_move');
@@ -176,17 +160,25 @@ describe('resolveSpriteFrame — enemy direction rows', () => {
     resolveSpriteFrame(view({ spriteKey, facing, anim: 'walk' })).frame.y / 32;
 
   it('mantis rows are S, E, W, N', () => {
-    expect([rowOf('mantis', 'S'), rowOf('mantis', 'E'), rowOf('mantis', 'W'), rowOf('mantis', 'N')]).toEqual([0, 1, 2, 3]);
+    expect([
+      rowOf('mantis', 'S'),
+      rowOf('mantis', 'E'),
+      rowOf('mantis', 'W'),
+      rowOf('mantis', 'N'),
+    ]).toEqual([0, 1, 2, 3]);
   });
 
   it('maggot and beetle rows are S, W, E, N', () => {
     for (const key of ['maggot', 'beetle']) {
-      expect([rowOf(key, 'S'), rowOf(key, 'W'), rowOf(key, 'E'), rowOf(key, 'N')]).toEqual([0, 1, 2, 3]);
+      expect([rowOf(key, 'S'), rowOf(key, 'W'), rowOf(key, 'E'), rowOf(key, 'N')]).toEqual([
+        0, 1, 2, 3,
+      ]);
     }
   });
 
   it('ghost rows are S, N, E, W with 78 × 64 frames', () => {
-    const ghostRow = (facing: Direction) => resolveSpriteFrame(view({ spriteKey: 'ghost', facing })).frame.y / 64;
+    const ghostRow = (facing: Direction) =>
+      resolveSpriteFrame(view({ spriteKey: 'ghost', facing })).frame.y / 64;
     expect([ghostRow('S'), ghostRow('N'), ghostRow('E'), ghostRow('W')]).toEqual([0, 1, 2, 3]);
     const ref = resolveSpriteFrame(view({ spriteKey: 'ghost', animTimeMs: 240 }));
     expect(ref.frame).toEqual({ x: 156, y: 0, w: 78, h: 64 });
@@ -206,14 +198,18 @@ describe('resolveSpriteFrame — enemy direction rows', () => {
     expect(getAnimationDurationMs('maggot', 'attack')).toBe(840);
     expect(getAnimationDurationMs('beetle', 'attack')).toBe(600);
     expect(getAnimationDurationMs('ghost', 'attack')).toBe(420);
-    const last = resolveSpriteFrame(view({ spriteKey: 'mantis', anim: 'attack', facing: 'E', animTimeMs: 5000 }));
+    const last = resolveSpriteFrame(
+      view({ spriteKey: 'mantis', anim: 'attack', facing: 'E', animTimeMs: 5000 }),
+    );
     expect(last.frame).toEqual({ x: 192, y: 32, w: 32, h: 32 });
     expect(last.finished).toBe(true);
   });
 
   it('beetle stands still on frame 0 while idle', () => {
     expect(resolveSpriteFrame(view({ spriteKey: 'beetle', animTimeMs: 777 })).frame.x).toBe(0);
-    expect(resolveSpriteFrame(view({ spriteKey: 'beetle', anim: 'walk', animTimeMs: 300 })).frame.x).toBe(64);
+    expect(
+      resolveSpriteFrame(view({ spriteKey: 'beetle', anim: 'walk', animTimeMs: 300 })).frame.x,
+    ).toBe(64);
   });
 });
 
@@ -227,7 +223,9 @@ describe('resolveSpriteFrame — props', () => {
 
   it('portal switches texture on the active flag', () => {
     expect(resolveSpriteFrame(view({ spriteKey: 'portal' })).textureAlias).toBe('portal_inactive');
-    expect(resolveSpriteFrame(view({ spriteKey: 'portal', active: false })).textureAlias).toBe('portal_inactive');
+    expect(resolveSpriteFrame(view({ spriteKey: 'portal', active: false })).textureAlias).toBe(
+      'portal_inactive',
+    );
     const active = resolveSpriteFrame(view({ spriteKey: 'portal', active: true, animTimeMs: 750 }));
     expect(active.textureAlias).toBe('portal_active');
     expect(active.frame).toEqual({ x: 1280, y: 0, w: 256, h: 256 });
@@ -270,13 +268,15 @@ describe('AnimationDefs integrity', () => {
   const manifestAliases = new Set(manifest.bundles.flatMap((b) => b.assets.map((a) => a.alias)));
 
   it('every non-player alias exists in the asset manifest', () => {
-    const missing = listReferencedAliases().filter((a) => !a.startsWith('player_') && !manifestAliases.has(a));
+    const missing = listReferencedAliases().filter(
+      (a) => !a.startsWith('player_') && !manifestAliases.has(a),
+    );
     expect(missing).toEqual([]);
   });
 
-  it('references 40 player sheets with mirrored southwest run frames', () => {
+  it('references all 56 remastered directional sheets', () => {
     const aliases = listReferencedAliases().filter((a) => a.startsWith('player_'));
-    expect(aliases).toHaveLength(40);
+    expect(aliases).toHaveLength(56);
     expect(aliases).toContain('player_run_southeast');
     expect(aliases).toContain('player_run_southwest');
   });
@@ -305,7 +305,8 @@ describe('AnimationDefs integrity', () => {
           if (!clip) continue;
           const src = clip.source;
           if (src.kind === 'perDirectionSheets') {
-            for (const s of Object.values(src.sheets)) declared.set(s.alias, { w: s.sheetWidth, h: s.sheetHeight });
+            for (const s of Object.values(src.sheets))
+              declared.set(s.alias, { w: s.sheetWidth, h: s.sheetHeight });
           } else {
             declared.set(src.sheet.alias, { w: src.sheet.sheetWidth, h: src.sheet.sheetHeight });
           }
@@ -338,12 +339,17 @@ describe('AnimationDefs integrity', () => {
   });
 });
 
-it('mirrors all six duplicated southwest run frames without reversing their order', () => {
-  for (let frame = 0; frame < 6; frame++) {
-    const ref = resolveSpriteFrame({ spriteKey: 'player', anim: 'run', facing: 'SW', animTimeMs: frame * 112.5 });
+it('selects independently redrawn southwest run frames in order', () => {
+  for (let frame = 0; frame < 16; frame++) {
+    const ref = resolveSpriteFrame({
+      spriteKey: 'player',
+      anim: 'run',
+      facing: 'SW',
+      animTimeMs: (frame * 8000) / 34 / 16 + 0.001,
+    });
     expect(ref.textureAlias).toBe('player_run_southwest');
-    expect(ref.flipX).toBe(true);
-    expect(ref.frame.x).toBe(frame * 20);
-    expect(ref.frame.w).toBe(20);
+    expect(ref.flipX).toBe(false);
+    expect(ref.frame.x).toBe(frame * 64);
+    expect(ref.frame.w).toBe(64);
   }
 });

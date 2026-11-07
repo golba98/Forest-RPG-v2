@@ -1,9 +1,10 @@
+import { propFootprint } from '../../src/world/ObjectSemantics';
 import { expect, test, type Page } from '@playwright/test';
 import { PLAYER_FOOTPRINT } from '../../src/systems/EntityFootprint';
 
 /** Save import sets up a deterministic world; movement/combat use actual browser input. */
 async function fixture(page: Page, combat = false): Promise<void> {
-  await page.goto('/?debug=1&autostart=1&tutorial=0&seed=123');
+  await page.goto('/?world=finite&debug=1&autostart=1&tutorial=0&seed=123');
   await page.waitForFunction(() => !!window.__GAME__);
   await page.evaluate(
     ({ combat }) => {
@@ -30,13 +31,35 @@ async function fixture(page: Page, combat = false): Promise<void> {
       // A 5×5 hill: cliff edges (HILL_*) around a walkable top (PLATEAU).
       for (let y = 8; y <= 12; y++)
         for (let x = 10; x <= 14; x++) {
-          const n = y === 8, so = y === 12, w = x === 10, e = x === 14;
-          tiles[y * 24 + x] = n && w ? 20 : n && e ? 14 : so && w ? 18 : so && e ? 16 : n ? 13 : so ? 17 : w ? 19 : e ? 15 : 21;
+          const n = y === 8,
+            so = y === 12,
+            w = x === 10,
+            e = x === 14;
+          tiles[y * 24 + x] =
+            n && w
+              ? 20
+              : n && e
+                ? 14
+                : so && w
+                  ? 18
+                  : so && e
+                    ? 16
+                    : n
+                      ? 13
+                      : so
+                        ? 17
+                        : w
+                          ? 19
+                          : e
+                            ? 15
+                            : 21;
         }
       for (let x = 1; x < 23; x++) tiles[15 * 24 + x] = 11;
       tiles[15 * 24 + 5] = 7;
       delete data.runtime.encounters;
-    delete data.runtime.moisture;
+      delete data.runtime.moisture;
+      delete data.world.environment;
+      data.world.meta.generatorVersion = 12;
       data.world = {
         ...data.world,
         encounterSites: [],
@@ -109,6 +132,7 @@ test('tree approaches, diagonal rocks, every sprint cliff-edge diagonal, and bri
   page,
 }, info) => {
   await fixture(page);
+  const trunk = propFootprint({ id: 1, kind: 'tree', tileX: 4, tileY: 4, solid: true })!;
   for (const [x, y, key] of [
     [3.3, 4.75, 'KeyD'],
     [5.7, 4.75, 'KeyA'],
@@ -119,7 +143,12 @@ test('tree approaches, diagonal rocks, every sprint cliff-edge diagonal, and bri
     await hold(page, [key], 350);
     const state = await page.evaluate(() => window.__GAME__!.getState());
     expect(
-      intersects(state.player.x, state.player.y, { minX: 4.25, minY: 4.55, maxX: 4.75, maxY: 5 }),
+      intersects(state.player.x, state.player.y, {
+        minX: 4 + trunk.minX,
+        minY: 4 + trunk.minY,
+        maxX: 4 + trunk.maxX,
+        maxY: 4 + trunk.maxY,
+      }),
     ).toBe(false);
   }
   await position(page, 9.6, 5.6);
@@ -183,6 +212,7 @@ test('multiple enemies navigate around a physical tree without stacking', async 
   page,
 }, info) => {
   await fixture(page, true);
+  const trunk = propFootprint({ id: 1, kind: 'tree', tileX: 4, tileY: 4, solid: true })!;
   await position(page, 2.5, 6.5);
   await page.evaluate(() => window.__GAME__!.spawnEnemy('mantis', 6.5, 4.5));
   const initial = await page.evaluate(() =>
@@ -196,7 +226,14 @@ test('multiple enemies navigate around a physical tree without stacking', async 
   expect(after.every((e) => e.x < initial[0]!.x)).toBe(true);
   expect(Math.hypot(after[0]!.x - after[1]!.x, after[0]!.y - after[1]!.y)).toBeGreaterThan(0.1);
   for (const e of after)
-    expect(intersects(e.x, e.y, { minX: 4.25, minY: 4.55, maxX: 4.75, maxY: 5 })).toBe(false);
+    expect(
+      intersects(e.x, e.y, {
+        minX: 4 + trunk.minX,
+        minY: 4 + trunk.minY,
+        maxX: 4 + trunk.maxX,
+        maxY: 4 + trunk.maxY,
+      }),
+    ).toBe(false);
   await page.screenshot({ path: info.outputPath('enemy-navigation.png') });
 });
 
@@ -204,13 +241,20 @@ test('seed regeneration replaces collision diagnostics and preserves lower terra
   page,
 }) => {
   for (const seed of [1, 123, 456, 999, 20261028]) {
-    await page.goto(`/?debug=1&autostart=1&tutorial=0&seed=${seed}`);
+    await page.goto(`/?world=finite&debug=1&autostart=1&tutorial=0&seed=${seed}`);
     await page.waitForFunction(() => !!window.__GAME__);
     const state = await page.evaluate(() => window.__GAME__!.getState());
     expect(state.world.seed).toBe(seed);
     expect(await page.evaluate(() => window.__GAME__!.getGameplayDebug()!.seed)).toBe(seed);
     expect(state.world.activeEnemiesCount).toBe(12);
-    expect(await page.evaluate(() => window.__GAME__!.getGameplayDebug()!.encounters!.bosses.filter(b => b.phase === 'dormant').length)).toBe(1);
+    expect(
+      await page.evaluate(
+        () =>
+          window
+            .__GAME__!.getGameplayDebug()!
+            .encounters!.bosses.filter((b) => b.phase === 'dormant').length,
+      ),
+    ).toBe(1);
     await page.evaluate(() => {
       window.__GAME__!.saveGame('seed');
       window.__GAME__!.loadGame('seed');

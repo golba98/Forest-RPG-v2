@@ -14,10 +14,11 @@ interface Rect {
 
 interface Drifter {
   readonly sprite: Sprite;
-  /** Offset within the wrapping view-sized tile (world px). */
+  /** Stable world-pixel orbit/drift origin. */
   ox: number;
   oy: number;
   readonly phase: number;
+  initialized: boolean;
 }
 
 /**
@@ -29,6 +30,9 @@ interface Drifter {
  * scroll with the ground) and stars only appear in the void behind the world.
  */
 export class AmbientLayer {
+  rebase(dx: number, dy: number): void {
+    for (const item of [...this.leafItems,...this.flyItems]) { item.ox -= dx; item.oy -= dy; }
+  }
   /** World-space falling leaves; insert above actors. */
   readonly leaves = new Container();
   /** World-space fireflies; insert above the darkness overlay with the world transform. */
@@ -38,6 +42,7 @@ export class AmbientLayer {
   private readonly leafItems: Drifter[] = [];
   private readonly flyItems: Drifter[] = [];
   private time = 0;
+  private sequence = 0;
 
   constructor(textures: EffectTextures) {
     for (let i = 0; i < LEAF_COUNT; i++) {
@@ -46,7 +51,7 @@ export class AmbientLayer {
       sprite.tint = LEAF_TINTS[i % LEAF_TINTS.length] ?? 0xffffff;
       sprite.alpha = 0.85;
       this.leaves.addChild(sprite);
-      this.leafItems.push({ sprite, ox: (i * 197) % 1000, oy: (i * 113) % 1000, phase: i * 1.7 });
+      this.leafItems.push({ sprite, ox: (i * 197) % 1000, oy: (i * 113) % 1000, phase: i * 1.7, initialized: false });
     }
     for (let i = 0; i < FIREFLY_COUNT; i++) {
       const glow = new Sprite(textures.glow);
@@ -55,24 +60,44 @@ export class AmbientLayer {
       glow.tint = 0xf3e589;
       glow.blendMode = 'add';
       this.fireflies.addChild(glow);
-      this.flyItems.push({ sprite: glow, ox: (i * 251) % 1000, oy: (i * 173) % 1000, phase: i * 2.3 });
+      this.flyItems.push({ sprite: glow, ox: (i * 251) % 1000, oy: (i * 173) % 1000, phase: i * 2.3, initialized: false });
     }
   }
 
   /**
-   * `view` is the visible world rectangle. Particles wrap inside it so the
-   * count stays constant regardless of world size.
+   * `view` is the visible world rectangle. Particles keep their world anchors so the
+   * count stays constant regardless of world size; recycling occurs beyond it.
    */
   update(dtMs: number, view: Rect, opts: { paused: boolean; leaves: boolean; fireflies: boolean; darkness: number; worldWidth: number; worldHeight: number }): void {
     if (!opts.paused) this.time += dtMs;
     const t = this.time;
-    const wrap = (v: number, size: number) => ((v % size) + size) % size;
+    const initialize = (item: Drifter, moving: boolean) => {
+      if (item.initialized) return;
+      const i = this.sequence++;
+      item.ox = view.x + ((i * 0.61803398875) % 1) * view.width;
+      item.oy = view.y + ((i * 0.38196601125) % 1) * view.height;
+      if (moving) { item.ox -= t * 0.022; item.oy -= t * 0.035; }
+      item.initialized = true;
+    };
+    const recycle = (item: Drifter, x: number, y: number, moving: boolean) => {
+      const margin = 96; // Includes the largest orbit and glow, beyond every screen edge.
+      if (x >= view.x - margin && x <= view.x + view.width + margin && y >= view.y - margin && y <= view.y + view.height + margin) return;
+      const i = this.sequence++;
+      const left = view.x - margin, top = view.y - margin;
+      const width = view.width + margin * 2, height = view.height + margin * 2;
+      const edge = i % 4, along = (i * 0.61803398875) % 1;
+      item.ox = edge === 0 ? left : edge === 1 ? left + width : left + along * width;
+      item.oy = edge === 2 ? top : edge === 3 ? top + height : top + along * height;
+      if (moving) { item.ox -= t * 0.022; item.oy -= t * 0.035; }
+    };
 
     this.leaves.visible = opts.leaves;
     if (opts.leaves) {
       for (const item of this.leafItems) {
-        const x = wrap(item.ox * (view.width / 1000) + t * 0.022 + Math.sin(t / 700 + item.phase) * 10 - view.x, view.width) + view.x;
-        const y = wrap(item.oy * (view.height / 1000) + t * 0.035 - view.y, view.height) + view.y;
+        initialize(item, true);
+        const x = item.ox + t * 0.022 + Math.sin(t / 700 + item.phase) * 10;
+        const y = item.oy + t * 0.035;
+        recycle(item, x, y, true);
         item.sprite.position.set(Math.round(x), Math.round(y));
         item.sprite.visible = x >= 0 && y >= 0 && x < opts.worldWidth && y < opts.worldHeight;
         item.sprite.rotation = Math.sin(t / 380 + item.phase) * 0.9;
@@ -83,13 +108,20 @@ export class AmbientLayer {
     this.fireflies.visible = showFlies;
     if (showFlies) {
       for (const item of this.flyItems) {
-        const x = wrap(item.ox * (view.width / 1000) + Math.sin(t / 1300 + item.phase) * 40 - view.x, view.width) + view.x;
-        const y = wrap(item.oy * (view.height / 1000) + Math.cos(t / 1100 + item.phase) * 28 - view.y, view.height) + view.y;
+        initialize(item, false);
+        const x = item.ox + Math.sin(t / 1300 + item.phase) * 40;
+        const y = item.oy + Math.cos(t / 1100 + item.phase) * 28;
+        recycle(item, x, y, false);
         item.sprite.position.set(x, y);
         item.sprite.visible = x >= 0 && y >= 0 && x < opts.worldWidth && y < opts.worldHeight;
         item.sprite.alpha = Math.min(1, opts.darkness * 1.2) * (0.35 + 0.35 * Math.sin(t / 420 + item.phase));
       }
     }
+  }
+
+  reset(): void {
+    this.time = 0; this.sequence = 0;
+    for (const item of [...this.leafItems, ...this.flyItems]) item.initialized = false;
   }
 
   /** Rebuilds the starfield for a new screen size. */

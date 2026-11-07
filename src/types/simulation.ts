@@ -7,6 +7,25 @@ import type { WorldData } from './world';
  * GameLoop.onFixedUpdate in src/game. Never imports PixiJS or the DOM.
  */
 export interface ISimulation {
+  travelToBiome?(biome: import('../world/Biomes').BiomeId): Promise<void>;
+  isWaitingForWorld?(): boolean;
+  getWorldWaitReason?(): string | null;
+  destroy?(): void;
+  planTravelPath?(x: number, y: number): { x: number; y: number }[];
+  getStreamingDebug?(): {
+    readonly worldId?: string;
+    readonly generatorVersion?: number;
+    readonly mode?: string;
+    readonly biome?: number;
+    readonly origin: { x: number; y: number };
+    readonly globalPosition: { x: number; y: number };
+    readonly residentChunks: number;
+    readonly queuedChunks: number;
+    readonly transitions: number;
+    readonly error: string | null;
+    readonly preparing: boolean;
+  } | null;
+  setGlobalPosition?(x: number, y: number): Promise<void>;
   readonly world: WorldData;
   readonly player: PlayerEntity;
   /** Increments every time `loadWorld` replaces the world. */
