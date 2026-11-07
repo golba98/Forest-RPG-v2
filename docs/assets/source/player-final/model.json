@@ -1,0 +1,67 @@
+{
+  "palette": [
+    "2f2522",
+    "5b5146",
+    "817566",
+    "a79d89",
+    "b9b3a1",
+    "d2c9b7",
+    "e7d5c6",
+    "e9e2d4",
+    "faf3e8",
+    "fffaf2",
+    "d19da7",
+    "e5b6bc"
+  ],
+  "scale": 0.06896551724137931,
+  "heads": [
+    {
+      "direction": "south",
+      "source": "../player-rework/frames/south/idle-0.png",
+      "width": 21,
+      "height": 21
+    },
+    {
+      "direction": "southeast",
+      "source": "generated/turnaround.png",
+      "width": 21,
+      "height": 20
+    },
+    {
+      "direction": "east",
+      "source": "../player-rework/frames/east/idle-0.png",
+      "width": 22,
+      "height": 20
+    },
+    {
+      "direction": "northeast",
+      "source": "../player-rework/frames/northeast/idle-0.png",
+      "width": 21,
+      "height": 21
+    },
+    {
+      "direction": "north",
+      "source": "generated/turnaround.png",
+      "width": 21,
+      "height": 20
+    },
+    {
+      "direction": "northwest",
+      "source": "generated/turnaround.png",
+      "width": 21,
+      "height": 20
+    },
+    {
+      "direction": "west",
+      "source": "generated/turnaround.png",
+      "width": 22,
+      "height": 20
+    },
+    {
+      "direction": "southwest",
+      "source": "generated/turnaround.png",
+      "width": 22,
+      "height": 20
+    }
+  ]
+}
