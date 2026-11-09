@@ -9,6 +9,43 @@ and limitations; frozen diagnostic routes are not active-play stress tests.
 
 These measurements are local observations, not guarantees for other hardware. Run `npm run benchmark` for seeded 150×150 generation and `node scripts/qa/profile-browser.mjs` against a running production preview for browser cadence and regeneration heap. The browser script uses Chrome's debugging protocol and requires an installed Google Chrome.
 
+## Structural cleanup, 2026-11-09
+
+The integration baseline and cleaned build used the same seed-42, 1280×720,
+60-second diagnostic streaming route with Chromium/ANGLE. Browser tests and other
+profiles were stopped during each measurement. Simulation was frozen; this checks
+rendering/residency behavior, not active combat performance or sustained keyboard
+exploration. Deliberate GC windows are excluded from RAF samples.
+
+| Measurement                           |                    Before |                     After |
+| ------------------------------------- | ------------------------: | ------------------------: |
+| RAF p95 / p99                         |            16.7 / 16.8 ms |            16.7 / 16.8 ms |
+| Maximum RAF interval                  |                   16.8 ms |                   33.4 ms |
+| Post-GC JS heap, start → end          | 17,998,168 → 21,125,880 B | 18,318,044 → 21,076,256 B |
+| Generated / evicted / resident chunks |             144 / 80 / 64 |             144 / 80 / 64 |
+| Window transitions                    |                        10 |                        10 |
+| Long tasks / browser errors           |                     0 / 0 |                     0 / 0 |
+| Main bundle, raw / gzip               |      1,447.32 / 222.48 kB |      1,448.50 / 223.28 kB |
+
+The renderer, persistence and streaming refactors preserve the observed p95/p99
+and residency; the after sample includes a 33.4 ms maximum frame interval. These
+single local samples do not establish a speedup or a memory reduction. JS heap excludes worker, GPU and driver allocations. Pixi remains
+603.09 kB raw / 176.20 kB gzip; the generation worker remains 41.89 kB raw.
+
+Removing fourteen verified unused manifest registrations avoids 145,612 bytes of
+image preload payload across boot/world/entity bundles. All files remain retained
+for source/reproduction purposes, so production asset directory size is unchanged.
+This is an asset-loading reduction, not a JavaScript bundle reduction.
+
+Raw before/after results and deterministic screenshot comparisons are retained
+locally under ignored `artifacts/codebase-cleanup/` and
+`test-results/codebase-cleanup/`. Reproduce the focused route against a production
+preview with:
+
+```sh
+FOREST_BENCH_URL=http://localhost:4175 FOREST_PROFILE_MS=60000 FOREST_PROFILE_OUTPUT=artifacts/cleanup-profile node scripts/qa/profile-infinite-world.mjs
+```
+
 ## Nested terraces, 2026-11-03
 
 The same seed-42 diagnostic route, 1280×720 production build and Chromium/ANGLE
