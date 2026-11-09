@@ -1,5 +1,5 @@
 /**
- * scripts/build-rock-sprites.mjs
+ * scripts/assets/build-rock-sprites.mjs
  *
  * Generates the project-owned rock decor sprites:
  *   public/assets/images/objects/decor/rock_boulder.png  (32×32)
@@ -10,14 +10,14 @@
  * selective outline, moss on the top faces, a crack, and a soft contact shadow
  * on a transparent background. Sizes match DECOR_SIZE in visualManifest.ts.
  *
- * Usage: node scripts/build-rock-sprites.mjs
+ * Usage: node scripts/assets/build-rock-sprites.mjs
  */
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT_DIR = path.join(ROOT, 'public/assets/images/objects/decor');
 
 const C = {
@@ -138,50 +138,62 @@ function render(w, h, stones, shadow) {
 
 async function save(cv, name) {
   const file = path.join(OUT_DIR, name);
-  await sharp(Buffer.from(cv.px.buffer), { raw: { width: cv.w, height: cv.h, channels: 4 } }).png().toFile(file);
+  await sharp(Buffer.from(cv.px.buffer), { raw: { width: cv.w, height: cv.h, channels: 4 } })
+    .png()
+    .toFile(file);
   console.log(`wrote ${path.relative(ROOT, file)}`);
 }
 
 if (!process.argv.includes('--environment')) {
-await save(
-  render(
-    32,
-    32,
-    [
-      { cx: 14.5, cy: 18, rx: 11.5, ry: 10.5, seed: 11, moss: 0.2, crack: true },
-      { cx: 25, cy: 25.5, rx: 5, ry: 4, seed: 23, moss: 0.1 },
-    ],
-    [16, 29.5, 14, 2.6],
-  ),
-  'rock_boulder.png',
-);
-await save(
-  render(
-    16,
-    17,
-    [
-      { cx: 6.5, cy: 10, rx: 5, ry: 4.2, seed: 5, moss: 0.15 },
-      { cx: 12, cy: 13, rx: 3, ry: 2.4, seed: 9 },
-    ],
-    [8.5, 14.6, 7, 1.8],
-  ),
-  'rock_pebble.png',
-);
-
+  await save(
+    render(
+      32,
+      32,
+      [
+        { cx: 14.5, cy: 18, rx: 11.5, ry: 10.5, seed: 11, moss: 0.2, crack: true },
+        { cx: 25, cy: 25.5, rx: 5, ry: 4, seed: 23, moss: 0.1 },
+      ],
+      [16, 29.5, 14, 2.6],
+    ),
+    'rock_boulder.png',
+  );
+  await save(
+    render(
+      16,
+      17,
+      [
+        { cx: 6.5, cy: 10, rx: 5, ry: 4.2, seed: 5, moss: 0.15 },
+        { cx: 12, cy: 13, rx: 3, ry: 2.4, seed: 9 },
+      ],
+      [8.5, 14.6, 7, 1.8],
+    ),
+    'rock_pebble.png',
+  );
 }
 
 // Additional authored forms share the original palette and contact-footprint contract.
 if (process.argv.includes('--environment')) {
   const shapes = [
-    [{cx:16,cy:17,rx:12,ry:12,seed:81,moss:.1,crack:true}],
-    [{cx:10,cy:21,rx:7,ry:8,seed:83,moss:.15},{cx:21,cy:20,rx:8,ry:9,seed:84,moss:.1}],
-    [{cx:16,cy:23,rx:12,ry:6,seed:85,moss:.2,crack:true}],
-    [{cx:16,cy:19,rx:11,ry:10,seed:86,moss:.85,crack:true}],
-    [{cx:14,cy:18,rx:9,ry:11,seed:87,moss:0,crack:true},{cx:23,cy:25,rx:5,ry:4,seed:88,moss:0}],
-    [{cx:10,cy:23,rx:7,ry:6,seed:89,moss:.6},{cx:21,cy:24,rx:7,ry:5,seed:90,moss:.6}],
+    [{ cx: 16, cy: 17, rx: 12, ry: 12, seed: 81, moss: 0.1, crack: true }],
+    [
+      { cx: 10, cy: 21, rx: 7, ry: 8, seed: 83, moss: 0.15 },
+      { cx: 21, cy: 20, rx: 8, ry: 9, seed: 84, moss: 0.1 },
+    ],
+    [{ cx: 16, cy: 23, rx: 12, ry: 6, seed: 85, moss: 0.2, crack: true }],
+    [{ cx: 16, cy: 19, rx: 11, ry: 10, seed: 86, moss: 0.85, crack: true }],
+    [
+      { cx: 14, cy: 18, rx: 9, ry: 11, seed: 87, moss: 0, crack: true },
+      { cx: 23, cy: 25, rx: 5, ry: 4, seed: 88, moss: 0 },
+    ],
+    [
+      { cx: 10, cy: 23, rx: 7, ry: 6, seed: 89, moss: 0.6 },
+      { cx: 21, cy: 24, rx: 7, ry: 5, seed: 90, moss: 0.6 },
+    ],
   ];
-  for (let i=0;i<shapes.length;i++) {
-    const cv=render(32,32,shapes[i],[16,29.5,13,2.2]);
-    await sharp(Buffer.from(cv.px.buffer),{raw:{width:32,height:32,channels:4}}).png().toFile(path.join(ROOT,`public/assets/images/environment/shared/rock-${i}.png`));
+  for (let i = 0; i < shapes.length; i++) {
+    const cv = render(32, 32, shapes[i], [16, 29.5, 13, 2.2]);
+    await sharp(Buffer.from(cv.px.buffer), { raw: { width: 32, height: 32, channels: 4 } })
+      .png()
+      .toFile(path.join(ROOT, `public/assets/images/environment/shared/rock-${i}.png`));
   }
 }

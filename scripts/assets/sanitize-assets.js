@@ -1,24 +1,21 @@
 /**
- * scripts/sanitize-assets.js
+ * scripts/assets/sanitize-assets.js
  *
  * Automated Asset Sanitization and Migration Pipeline for Forest RPG V2.
  *
  * Reads legacy assets from:
  *   /home/k9-vortex/Development/1-JavaScript/3-Game Development/assets (STRICTLY READ-ONLY)
  * Sanitizes and writes to:
- *   /home/k9-vortex/Development/2-TypeScript/18-Forest RPG v2/public/assets
+ *   artifacts/asset-preparation/legacy (or an explicit staging directory)
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { stagingDirectory } from './output-directory.mjs';
 
 // Workspace paths
 const LEGACY_ROOT = '/home/k9-vortex/Development/1-JavaScript/3-Game Development/assets';
-const TARGET_ROOT = path.resolve(__dirname, '../public/assets');
+const TARGET_ROOT = stagingDirectory(process.argv[2], 'artifacts/asset-preparation/legacy');
 
 // Ensure sharp is available
 let sharp;
@@ -67,14 +64,38 @@ function ensureDirectories() {
 // 2. Quirk 1: Hill Tiles Chroma Screen Sanitization
 // ---------------------------------------------------------------------------
 const HILL_FILES = [
-  { src: '1-Background/2-Game/1-Forest/1-hill_east.png', dst: 'images/terrain/hills/hill_east.png' },
-  { src: '1-Background/2-Game/1-Forest/1-hill_north.png', dst: 'images/terrain/hills/hill_north.png' },
-  { src: '1-Background/2-Game/1-Forest/1-hill_northeast.png', dst: 'images/terrain/hills/hill_northeast.png' },
-  { src: '1-Background/2-Game/1-Forest/1-hill_northwest.png', dst: 'images/terrain/hills/hill_northwest.png' },
-  { src: '1-Background/2-Game/1-Forest/1-hill_south.png', dst: 'images/terrain/hills/hill_south.png' },
-  { src: '1-Background/2-Game/1-Forest/1-hill_southeast.png', dst: 'images/terrain/hills/hill_southeast.png' },
-  { src: '1-Background/2-Game/1-Forest/1-hill_southwest.png', dst: 'images/terrain/hills/hill_southwest.png' },
-  { src: '1-Background/2-Game/1-Forest/1-hill_west.png', dst: 'images/terrain/hills/hill_west.png' },
+  {
+    src: '1-Background/2-Game/1-Forest/1-hill_east.png',
+    dst: 'images/terrain/hills/hill_east.png',
+  },
+  {
+    src: '1-Background/2-Game/1-Forest/1-hill_north.png',
+    dst: 'images/terrain/hills/hill_north.png',
+  },
+  {
+    src: '1-Background/2-Game/1-Forest/1-hill_northeast.png',
+    dst: 'images/terrain/hills/hill_northeast.png',
+  },
+  {
+    src: '1-Background/2-Game/1-Forest/1-hill_northwest.png',
+    dst: 'images/terrain/hills/hill_northwest.png',
+  },
+  {
+    src: '1-Background/2-Game/1-Forest/1-hill_south.png',
+    dst: 'images/terrain/hills/hill_south.png',
+  },
+  {
+    src: '1-Background/2-Game/1-Forest/1-hill_southeast.png',
+    dst: 'images/terrain/hills/hill_southeast.png',
+  },
+  {
+    src: '1-Background/2-Game/1-Forest/1-hill_southwest.png',
+    dst: 'images/terrain/hills/hill_southwest.png',
+  },
+  {
+    src: '1-Background/2-Game/1-Forest/1-hill_west.png',
+    dst: 'images/terrain/hills/hill_west.png',
+  },
 ];
 
 async function sanitizeHills() {
@@ -98,9 +119,11 @@ async function sanitizeHills() {
       // White: r > 240 && g > 240 && b > 240
       // Green: g > 100 && r < 80 && b < 80
       // Green fringe: g > r + 35 && g > b + 35 && g > 90
-      if ((r > 240 && g > 240 && b > 240) ||
-          (g > 100 && r < 80 && b < 80) ||
-          (g > r + 35 && g > b + 35 && g > 90)) {
+      if (
+        (r > 240 && g > 240 && b > 240) ||
+        (g > 100 && r < 80 && b < 80) ||
+        (g > r + 35 && g > b + 35 && g > 90)
+      ) {
         if (info.channels === 4) {
           data[i + 3] = 0;
         }
@@ -118,7 +141,9 @@ async function sanitizeHills() {
       .png()
       .toFile(dstPath);
 
-    console.log(`  ✓ ${path.basename(hill.dst)} (${info.width}x${info.height}): ${cleared} chroma pixels cleared`);
+    console.log(
+      `  ✓ ${path.basename(hill.dst)} (${info.width}x${info.height}): ${cleared} chroma pixels cleared`,
+    );
   }
 }
 
@@ -311,7 +336,9 @@ async function generateItemSprites() {
     }
 
     // Flask bulb body
-    const cx = 15.5, cy = 21.0, r = 7.8;
+    const cx = 15.5,
+      cy = 21.0,
+      r = 7.8;
     for (let y = 12; y <= 28; y++) {
       for (let x = 7; x <= 24; x++) {
         const d = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
@@ -349,7 +376,12 @@ async function generateItemSprites() {
     .toFile(path.join(itemsDir, 'potion_health.png'));
   console.log('  ✓ potion_health.png (32x32) generated');
 
-  const speedBuf = renderPotion([0, 180, 240], [100, 230, 255], [0, 100, 180], [200, 250, 255, 240]);
+  const speedBuf = renderPotion(
+    [0, 180, 240],
+    [100, 230, 255],
+    [0, 100, 180],
+    [200, 250, 255, 240],
+  );
   await sharp(speedBuf, { raw: { width: 32, height: 32, channels: 4 } })
     .png()
     .toFile(path.join(itemsDir, 'potion_speed.png'));
@@ -440,29 +472,68 @@ async function copyRemainingAssets() {
   // Audio
   const musicSrc = path.join(LEGACY_ROOT, '8-Music');
   const sfxSrc = path.join(LEGACY_ROOT, '9-Sounds');
-  fs.copyFileSync(path.join(musicSrc, 'game_music.wav'), path.join(TARGET_ROOT, 'audio/music/game_music.wav'));
-  fs.copyFileSync(path.join(musicSrc, 'menu_music.wav'), path.join(TARGET_ROOT, 'audio/music/menu_music.wav'));
-  fs.copyFileSync(path.join(sfxSrc, 'Button_Press.mp3'), path.join(TARGET_ROOT, 'audio/sfx/button_press.mp3'));
-  fs.copyFileSync(path.join(sfxSrc, 'Button_Press.mp3'), path.join(TARGET_ROOT, 'audio/sfx/button_press.wav'));
+  fs.copyFileSync(
+    path.join(musicSrc, 'game_music.wav'),
+    path.join(TARGET_ROOT, 'audio/music/game_music.wav'),
+  );
+  fs.copyFileSync(
+    path.join(musicSrc, 'menu_music.wav'),
+    path.join(TARGET_ROOT, 'audio/music/menu_music.wav'),
+  );
+  fs.copyFileSync(
+    path.join(sfxSrc, 'Button_Press.mp3'),
+    path.join(TARGET_ROOT, 'audio/sfx/button_press.mp3'),
+  );
+  fs.copyFileSync(
+    path.join(sfxSrc, 'Button_Press.mp3'),
+    path.join(TARGET_ROOT, 'audio/sfx/button_press.wav'),
+  );
 
   // Fonts & GUI
-  fs.copyFileSync(path.join(LEGACY_ROOT, '3-GUI/font.ttf'), path.join(TARGET_ROOT, 'fonts/pixel_font.ttf'));
-  fs.copyFileSync(path.join(LEGACY_ROOT, '3-GUI/Button_BG.png'), path.join(TARGET_ROOT, 'images/ui/button_bg.png'));
-  fs.copyFileSync(path.join(LEGACY_ROOT, '3-GUI/Heart.png'), path.join(TARGET_ROOT, 'images/ui/heart.png'));
-  fs.copyFileSync(path.join(LEGACY_ROOT, '6-Icons/forest-rpg-icon.svg'), path.join(TARGET_ROOT, 'images/ui/icon.svg'));
+  fs.copyFileSync(
+    path.join(LEGACY_ROOT, '3-GUI/font.ttf'),
+    path.join(TARGET_ROOT, 'fonts/pixel_font.ttf'),
+  );
+  fs.copyFileSync(
+    path.join(LEGACY_ROOT, '3-GUI/Button_BG.png'),
+    path.join(TARGET_ROOT, 'images/ui/button_bg.png'),
+  );
+  fs.copyFileSync(
+    path.join(LEGACY_ROOT, '3-GUI/Heart.png'),
+    path.join(TARGET_ROOT, 'images/ui/heart.png'),
+  );
+  fs.copyFileSync(
+    path.join(LEGACY_ROOT, '6-Icons/forest-rpg-icon.svg'),
+    path.join(TARGET_ROOT, 'images/ui/icon.svg'),
+  );
 
   // Backgrounds & Video
-  fs.copyFileSync(path.join(LEGACY_ROOT, '1-Background/1-Menu/Background.png'), path.join(TARGET_ROOT, 'images/background/menu_bg.png'));
-  fs.copyFileSync(path.join(LEGACY_ROOT, '1-Background/1-Menu/Settings_Background.png'), path.join(TARGET_ROOT, 'images/background/settings_bg.png'));
+  fs.copyFileSync(
+    path.join(LEGACY_ROOT, '1-Background/1-Menu/Background.png'),
+    path.join(TARGET_ROOT, 'images/background/menu_bg.png'),
+  );
+  fs.copyFileSync(
+    path.join(LEGACY_ROOT, '1-Background/1-Menu/Settings_Background.png'),
+    path.join(TARGET_ROOT, 'images/background/settings_bg.png'),
+  );
   const videoSrc = path.join(LEGACY_ROOT, '1-Background/1-Menu/Menu_Vid.mp4');
   if (fs.existsSync(videoSrc)) {
     fs.copyFileSync(videoSrc, path.join(TARGET_ROOT, 'video/menu_vid.mp4'));
   }
 
   // Terrain
-  fs.copyFileSync(path.join(LEGACY_ROOT, '1-Background/2-Game/1-Forest/water_1.png'), path.join(TARGET_ROOT, 'images/terrain/water.png'));
-  fs.copyFileSync(path.join(LEGACY_ROOT, '1-Background/2-Game/1-Forest/tree_1.png'), path.join(TARGET_ROOT, 'images/terrain/tree.png'));
-  fs.copyFileSync(path.join(LEGACY_ROOT, '1-Background/2-Game/1-Forest/bridge_1.png'), path.join(TARGET_ROOT, 'images/terrain/bridge_hd.png'));
+  fs.copyFileSync(
+    path.join(LEGACY_ROOT, '1-Background/2-Game/1-Forest/water_1.png'),
+    path.join(TARGET_ROOT, 'images/terrain/water.png'),
+  );
+  fs.copyFileSync(
+    path.join(LEGACY_ROOT, '1-Background/2-Game/1-Forest/tree_1.png'),
+    path.join(TARGET_ROOT, 'images/terrain/tree.png'),
+  );
+  fs.copyFileSync(
+    path.join(LEGACY_ROOT, '1-Background/2-Game/1-Forest/bridge_1.png'),
+    path.join(TARGET_ROOT, 'images/terrain/bridge_hd.png'),
+  );
   // Downscale bridge to 64x64 plank tile
   await sharp(path.join(LEGACY_ROOT, '1-Background/2-Game/1-Forest/bridge_1.png'))
     .resize(64, 64)
@@ -470,19 +541,28 @@ async function copyRemainingAssets() {
     .toFile(path.join(TARGET_ROOT, 'images/terrain/bridge.png'));
 
   // Characters - Player Idle, Walk, Run, Jump
-  const dirs = ['east', 'north', 'northeast', 'northwest', 'south', 'southeast', 'southwest', 'west'];
+  const dirs = [
+    'east',
+    'north',
+    'northeast',
+    'northwest',
+    'south',
+    'southeast',
+    'southwest',
+    'west',
+  ];
   for (const d of dirs) {
     fs.copyFileSync(
       path.join(LEGACY_ROOT, `2-Characters/1-Idle/idle_sheet_${d}.png`),
-      path.join(TARGET_ROOT, `images/characters/player/idle/idle_${d}.png`)
+      path.join(TARGET_ROOT, `images/characters/player/idle/idle_${d}.png`),
     );
     fs.copyFileSync(
       path.join(LEGACY_ROOT, `2-Characters/2-Walking/walk_sheet_${d}.png`),
-      path.join(TARGET_ROOT, `images/characters/player/walk/walk_${d}.png`)
+      path.join(TARGET_ROOT, `images/characters/player/walk/walk_${d}.png`),
     );
     fs.copyFileSync(
       path.join(LEGACY_ROOT, `2-Characters/4-Jumping/jump_sheet_${d}.png`),
-      path.join(TARGET_ROOT, `images/characters/player/jump/jump_${d}.png`)
+      path.join(TARGET_ROOT, `images/characters/player/jump/jump_${d}.png`),
     );
   }
 
@@ -500,7 +580,7 @@ async function copyRemainingAssets() {
   for (const r of runMaps) {
     fs.copyFileSync(
       path.join(LEGACY_ROOT, '2-Characters/3-Running', r.src),
-      path.join(TARGET_ROOT, 'images/characters/player/run', r.dst)
+      path.join(TARGET_ROOT, 'images/characters/player/run', r.dst),
     );
   }
 
@@ -520,7 +600,7 @@ async function copyRemainingAssets() {
   for (const e of enemyCopies) {
     fs.copyFileSync(
       path.join(LEGACY_ROOT, '2-Characters/5-Enemies', e.src),
-      path.join(TARGET_ROOT, 'images/characters/enemies', e.dst)
+      path.join(TARGET_ROOT, 'images/characters/enemies', e.dst),
     );
   }
 
@@ -528,16 +608,16 @@ async function copyRemainingAssets() {
   for (let i = 1; i <= 4; i++) {
     fs.copyFileSync(
       path.join(LEGACY_ROOT, `5-Objects/cloud_${i}.png`),
-      path.join(TARGET_ROOT, `images/objects/clouds/cloud_${i}.png`)
+      path.join(TARGET_ROOT, `images/objects/clouds/cloud_${i}.png`),
     );
   }
   fs.copyFileSync(
     path.join(LEGACY_ROOT, '5-Objects/2-Portal/portal_active_sheet.png'),
-    path.join(TARGET_ROOT, 'images/objects/portal_active.png')
+    path.join(TARGET_ROOT, 'images/objects/portal_active.png'),
   );
   fs.copyFileSync(
     path.join(LEGACY_ROOT, '5-Objects/2-Portal/portal_inactive_sheet.png'),
-    path.join(TARGET_ROOT, 'images/objects/portal_inactive.png')
+    path.join(TARGET_ROOT, 'images/objects/portal_inactive.png'),
   );
 
   const decorMaps = [
@@ -556,7 +636,7 @@ async function copyRemainingAssets() {
   for (const d of decorMaps) {
     fs.copyFileSync(
       path.join(LEGACY_ROOT, '5-Objects/1-More', d.src),
-      path.join(TARGET_ROOT, 'images/objects/decor', d.dst)
+      path.join(TARGET_ROOT, 'images/objects/decor', d.dst),
     );
   }
 
@@ -604,9 +684,15 @@ function generateManifest() {
         name: 'entities',
         assets: [
           { alias: 'enemy_mantis_move', src: 'assets/images/characters/enemies/mantis_move.png' },
-          { alias: 'enemy_mantis_attack', src: 'assets/images/characters/enemies/mantis_attack.png' },
+          {
+            alias: 'enemy_mantis_attack',
+            src: 'assets/images/characters/enemies/mantis_attack.png',
+          },
           { alias: 'enemy_beetle_move', src: 'assets/images/characters/enemies/beetle_move.png' },
-          { alias: 'enemy_beetle_attack', src: 'assets/images/characters/enemies/beetle_attack.png' },
+          {
+            alias: 'enemy_beetle_attack',
+            src: 'assets/images/characters/enemies/beetle_attack.png',
+          },
           { alias: 'enemy_maggot_walk', src: 'assets/images/characters/enemies/maggot_walk.png' },
           { alias: 'enemy_maggot_spit', src: 'assets/images/characters/enemies/maggot_spit.png' },
           { alias: 'enemy_ghost_move', src: 'assets/images/characters/enemies/ghost_move.png' },

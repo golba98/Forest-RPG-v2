@@ -5,11 +5,21 @@
 ```sh
 npm run typecheck
 npm run lint
+npm run test:tooling
+npm run check:unused
+npm run check:cycles
+npm run format:check:changed
 npm test -- --maxWorkers=2
 npm run build
 ```
 
-Vitest runs unit and integration tests. Limiting workers reduces resource contention during world-generation sweeps. Benchmarks run separately with `npm run benchmark`.
+Vitest runs unit and integration tests. Limiting workers reduces resource contention during world-generation sweeps. Benchmarks run separately with `npm run benchmark`; use Vitest `bench()` declarations, since ordinary `it()` declarations are not measured in benchmark mode. Input and vector timing assertions remain inside their benchmarks.
+
+TypeScript also rejects unused locals and parameters. Knip checks files, exports, dependencies and runtime cycles, including explicit tooling entrypoints. Its narrow retained-evidence exceptions are documented in [architecture](architecture.md#ownership-and-module-boundaries); do not use static analysis as proof that dynamically selected artwork is disposable.
+
+`format:check:changed` compares the branch and working files with the integration merge base (`origin/main`, or `CHECK_BASE_SHA` in CI), includes untracked eligible files, and respects `.prettierignore` and approved-character hashes. Use `format:changed` to apply it. Repository-wide `format:check` still exposes historical formatting debt; approved runtime/data files are deliberately excluded from formatting. No test changes approval hashes or artwork.
+
+The retired DI, quadtree, AABB and interpolation scaffolds had no application consumers. Their dedicated tests were retired with them; active loop/event/input stress assertions remain in `tests/integration/engine-stress.test.ts` and `input-stress.test.ts`. Tooling tests cover production-path and symlink rejection, temporary output support, formatter selection and performance statistics.
 
 ## Browser tests
 
@@ -73,8 +83,8 @@ With a production preview running, capture repeatable scenery/cloud videos and
 screenshots, then profile without recording overhead:
 
 ```sh
-FOREST_BENCH_URL=http://localhost:4173 node scripts/capture-world-visibility.mjs
-FOREST_BENCH_URL=http://localhost:4173 node scripts/profile-world-visibility.mjs
+FOREST_BENCH_URL=http://localhost:4173 node scripts/qa/capture-world-visibility.mjs
+FOREST_BENCH_URL=http://localhost:4173 node scripts/qa/profile-world-visibility.mjs
 ```
 
 Both default to ignored `artifacts/world-rendering-persistence/after/`;
@@ -92,7 +102,7 @@ Visual captures use `VISUAL_PHASE=before|after` to label output filenames. Grove
 
 ```sh
 VISUAL_PHASE=after npx playwright test tests/e2e/visual-capture.spec.ts --project=chromium
-node scripts/directional-gallery.mjs test-results artifacts/directional-gallery chromium
+node scripts/qa/directional-gallery.mjs test-results artifacts/directional-gallery chromium
 ```
 
 Standalone capture scripts default to ignored `artifacts/`. `capture-surface-weather.mjs` supports `FOREST_EVIDENCE_DIR` as an output override, `FOREST_BASELINE_SAVE` for an exported baseline scene, and `BEFORE_URL`/`AFTER_URL` for comparison servers. Start the production preview before running it. Gallery output can be overridden with its second positional argument.
@@ -207,7 +217,7 @@ the existing input, movement and collision systems.
 For extended real-time profiling, run a production preview on port 4175 and then:
 
 ```sh
-FOREST_BENCH_URL=http://localhost:4175 node scripts/profile-infinite-world.mjs
+FOREST_BENCH_URL=http://localhost:4175 node scripts/qa/profile-infinite-world.mjs
 ```
 
 The default is thirty minutes. `FOREST_PROFILE_MS` and `FOREST_PROFILE_OUTPUT`
@@ -220,7 +230,7 @@ measurement limitations in [performance](performance.md).
 
 ## Five-biome streaming and Biome Walk
 
-`biome-walk.spec.ts` uses the real Play menu in Chromium and Firefox. It checks
+`biome-walk.spec.ts` uses Developer → Biomes in Chromium and Firefox. It checks
 all five safe landings in one world, movement, adventure-save isolation, signed
 runtime travel through ±10,000 and ±1 billion coordinates, revisit identity and
 distant save/reload. Its keyboard route crosses the old x=150 edge in both
@@ -295,7 +305,7 @@ older worlds cannot silently change. Soil tests check that highland material rea
 the summit rim without painting the cliff face. Asset checks require opaque ramp
 openings and illuminated plateau artwork.
 
-`biome-hills.spec.ts` enters each biome through the Play menu, walks up and down a
+`biome-hills.spec.ts` enters each biome through Developer → Biomes, walks up and down a
 real slope with keyboard input, verifies the raised surface and adjacent blocking
 cliff, and captures the landing and summit. A separate case imports a synthetic
 version-14 exploration with a saved mud edit, creates the new landscape, resumes

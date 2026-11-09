@@ -2,11 +2,11 @@
 # Regenerates the compressed V2 media from the original university project.
 # The legacy directory is only READ; all outputs are written inside this project.
 #
-# Usage: scripts/transcode-media.sh [legacy-project-root]
+# Usage: scripts/assets/transcode-media.sh [legacy-project-root]
 set -euo pipefail
 
 LEGACY_ROOT="${1:-/home/k9-vortex/Development/1-JavaScript/3-Game Development}"
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT="$PROJECT_ROOT/public/assets"
 
 case "$OUT" in

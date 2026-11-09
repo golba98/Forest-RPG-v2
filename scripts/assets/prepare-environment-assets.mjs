@@ -340,7 +340,14 @@ for (const [id, pack] of Object.entries(packs)) {
     ...species[id].map((n) => `shared/tree-${n}.png`),
     ...(id === 'forest' ? ['lpc/trees-pale.png'] : []),
   ];
-  pack.upland = { origin: 'authored-project-relief', variants: 3, cliffMasks: 47, stepOrientations: 4, frames: 174, source: `${id}/upland.png` };
+  pack.upland = {
+    origin: 'authored-project-relief',
+    variants: 3,
+    cliffMasks: 47,
+    stepOrientations: 4,
+    frames: 174,
+    source: `${id}/upland.png`,
+  };
   pack.placement = {
     ground: 'passable',
     trees: 'solid trunks; overhead canopy',
@@ -356,7 +363,27 @@ for (const f of frames) {
 }
 await writeFile(
   'src/world/environmentAssets.json',
-  JSON.stringify({ trees: frames, upland: {"width": 360, "height": 648, "variantStride": 216, "variants": 3, "framesPerVariant": 58, "tileSize": 32, "anchor": [0, 0], "layer": "terrain", "origin": "authored-project-relief", "geometry": "HillCollisionGeometry", "frames": "rendering/generated/cliff_tileset.json", "biomes": ["forest", "meadow", "highlands", "wetlands", "autumn"]} }, null, 2) + '\n',
+  JSON.stringify(
+    {
+      trees: frames,
+      upland: {
+        width: 360,
+        height: 648,
+        variantStride: 216,
+        variants: 3,
+        framesPerVariant: 58,
+        tileSize: 32,
+        anchor: [0, 0],
+        layer: 'terrain',
+        origin: 'authored-project-relief',
+        geometry: 'HillCollisionGeometry',
+        frames: 'rendering/generated/cliff_tileset.json',
+        biomes: ['forest', 'meadow', 'highlands', 'wetlands', 'autumn'],
+      },
+    },
+    null,
+    2,
+  ) + '\n',
 );
 const manifest = {
   version: 1,

@@ -121,7 +121,7 @@ Each of `environment/{forest,meadow,highlands,wetlands,autumn}/upland.png` conta
 three native 32px variants for 47 topology masks and four stair orientations, plus
 reused interior/shadow frames (174 frames per pack). The new authored rock and tread
 patterns share their silhouettes and five material skins; counts are not claims of
-870 unique designs. Rebuild with `node scripts/build-upland-art.mjs`, or the existing
+870 unique designs. Rebuild with `node scripts/assets/build-upland-art.mjs`, or the existing
 `prepare-environment-assets.mjs` pipeline. The original shared atlas remains as the
 reproducible source of plateau pixels; v13/v14 art and character sources are unchanged
 by this terrain authoring step. Frame dimensions, variation stride and dependencies

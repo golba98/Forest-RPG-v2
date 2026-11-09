@@ -17,6 +17,16 @@ Do not create sibling copies, alternate project folders, or Git worktrees, inclu
 
 Run typecheck, lint, relevant tests, and the production build for code changes. Include browser checks for gameplay or rendering changes. For documentation changes, check formatting, commands, and relative links. Preserve gameplay, assets, and unrelated working changes during cleanup.
 
+## Module ownership
+
+- Keep the existing architecture: `Game` composes lifecycle; `Simulation` owns authoritative gameplay state. Headless world, systems and persistence code must not import presentation code.
+- `StreamingCoordinator` owns asynchronous session preparation and publication; `Simulation` owns window installation, entities and clocks. Preserve cancellation epochs, player identity, save context and failure handling.
+- `PixiRenderer` owns camera, terrain and frame composition; `rendering/entities/EntityLayer` owns actor, portal, wading and shadow presentation. `animation/PlayerSheets` is the canonical player sheet naming contract. Keep approved compositor and player files byte-identical unless explicitly approved.
+- `SaveManager` coordinates persistence; `persistence/codecs` validates and decodes finite saves. Retain legacy adapters, generator versions, archive bounds and migrations. Finite/tutorial generation and streamed generation have different contracts; neither is a duplicate to discard.
+- Use direct module imports. Do not restore unused DI, spatial-index or interpolation scaffolding without a demonstrated application consumer.
+- Run `npm run test:tooling`, `npm run check:unused`, `npm run check:cycles` and `npm run format:check:changed` alongside the required checks. Investigate dynamic consumers before deleting a resource or adding a Knip exception. Format changed eligible files with `npm run format:changed`; never blanket-format approved player files or regenerate baselines to satisfy a check.
+- Asset production tools live in `scripts/assets/`; historical player experiments live in `scripts/player-art/` and stage output under ignored `artifacts/`. Promotion of staged art into shipped files requires separate review. Retain source artwork and development evidence. Captures and diagnostic profiles belong in `scripts/qa/`; extended performance tooling stays in `scripts/performance/`.
+
 ## Git and critical gameplay protection
 
 - Follow the [safe integration workflow](docs/development/safe-integration.md). Inspect status, branches, stashes and worktrees before editing. Fetch and verify current `origin/main`; never assume local `main` contains completed local or remote work.

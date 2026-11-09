@@ -319,7 +319,7 @@ that older session continues using its original world.
 ### Current streamed gallery
 
 These are actual generator-16, seed-42 Biome Walk captures at 1280×720 using real runtime assets. Each landing shows accessible high ground. Menu previews are crops of these captures, reproduced by
-`node scripts/prepare-environment-assets.mjs`.
+`node scripts/assets/prepare-environment-assets.mjs`.
 
 | Forest                                                                            | Meadow                                                                            | Rocky Highlands                                                                            |
 | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |

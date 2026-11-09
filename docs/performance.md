@@ -7,7 +7,7 @@ and engine assessment. Use the [profiling guide](performance/README.md) to repro
 those measurements. The focused measurements below retain their original methods
 and limitations; frozen diagnostic routes are not active-play stress tests.
 
-These measurements are local observations, not guarantees for other hardware. Run `npm run benchmark` for seeded 150×150 generation and `node scripts/profile-browser.mjs` against a running production preview for browser cadence and regeneration heap. The browser script uses Chrome's debugging protocol and requires an installed Google Chrome.
+These measurements are local observations, not guarantees for other hardware. Run `npm run benchmark` for seeded 150×150 generation and `node scripts/qa/profile-browser.mjs` against a running production preview for browser cadence and regeneration heap. The browser script uses Chrome's debugging protocol and requires an installed Google Chrome.
 
 ## Nested terraces, 2026-11-03
 
@@ -61,7 +61,7 @@ Raw results live in `artifacts/terraces/profile/`; the diagnostic pre-fix sample
 is retained in `artifacts/terraces/profile-before-fix/`. Reproduce with:
 
 ```sh
-FOREST_BENCH_URL=http://localhost:4174 FOREST_PROFILE_MS=300000 FOREST_PROFILE_OUTPUT=artifacts/terraces/profile node scripts/profile-infinite-world.mjs
+FOREST_BENCH_URL=http://localhost:4174 FOREST_PROFILE_MS=300000 FOREST_PROFILE_OUTPUT=artifacts/terraces/profile node scripts/qa/profile-infinite-world.mjs
 ```
 
 ## Biome hills, 2026-11-03
@@ -99,7 +99,7 @@ fetch/decode but do not separate them or measure GPU upload. Raw results are in
 `artifacts/biome-hills/profile/result.json`. Reproduce against a production preview:
 
 ```sh
-FOREST_BENCH_URL=http://localhost:4174 FOREST_PROFILE_MS=60000 FOREST_PROFILE_OUTPUT=artifacts/biome-hills/profile node scripts/profile-infinite-world.mjs
+FOREST_BENCH_URL=http://localhost:4174 FOREST_PROFILE_MS=60000 FOREST_PROFILE_OUTPUT=artifacts/biome-hills/profile node scripts/qa/profile-infinite-world.mjs
 ```
 
 ## Five-biome infinite world, 2026-11-03
@@ -109,7 +109,7 @@ then the final five-biome streaming generator 14. It does **not** compare a fini
 150×150 map with a streamed map. The earlier finite-biome p95 of approximately
 16.8 ms is historical context; its camera route and retained world differ.
 
-Both 60-second samples use `scripts/profile-infinite-world.mjs`, seed 42,
+Both 60-second samples use `scripts/qa/profile-infinite-world.mjs`, seed 42,
 1280×720, Chromium 156.0.8078.4, ANGLE/OpenGL, Node 22.23.1, Linux, an Intel
 i7-13700 and NVIDIA RTX 4080. The final short profile ran after the test suites
 finished. This remains a shared workstation, not an isolated hardware lab.
@@ -181,7 +181,7 @@ Raw results are in `artifacts/infinite-walk-baseline/`,
 Reproduce with a production preview on port 4176:
 
 ```sh
-FOREST_BENCH_URL=http://localhost:4176 FOREST_PROFILE_MS=60000 FOREST_PROFILE_OUTPUT=artifacts/infinite-biomes-after node scripts/profile-infinite-world.mjs
+FOREST_BENCH_URL=http://localhost:4176 FOREST_PROFILE_MS=60000 FOREST_PROFILE_OUTPUT=artifacts/infinite-biomes-after node scripts/qa/profile-infinite-world.mjs
 ```
 
 Omit `FOREST_PROFILE_MS` for the thirty-minute route. The profiler stores at most
@@ -247,7 +247,7 @@ entire finite map.
 Raw JSON is retained locally under `artifacts/environment-before/`,
 `artifacts/environment-after-generation.json`, and
 `artifacts/environment-after-browser.json`. Reproduce using the profiler commands
-below and `FOREST_BENCH_URL=http://127.0.0.1:4174 node scripts/profile-browser.mjs`
+below and `FOREST_BENCH_URL=http://127.0.0.1:4174 node scripts/qa/profile-browser.mjs`
 with a production preview on that port. Browser profile samples should run after
 prefetch settles and without concurrent test suites.
 
@@ -307,7 +307,7 @@ should not be treated as precise allocation counts or uninstrumented timings.
 Reproduce with a running production preview:
 
 ```sh
-FOREST_BENCH_URL=http://localhost:4173 node scripts/profile-world-visibility.mjs
+FOREST_BENCH_URL=http://localhost:4173 node scripts/qa/profile-world-visibility.mjs
 ```
 
 The default ten-minute route freezes simulation time and moves diagnostic player
@@ -360,7 +360,7 @@ no full-map planning rebuild each frame. Debug traces retain at most 256 entries
 per consumer plus complete counters; required-access diagnostic replay runs
 only on request. This does not measure GPU cost or maximum-map diagnostic heap.
 
-Reproduce with `TMPDIR=/dev/shm node scripts/profile-landscape.mjs --output /tmp/landscape-after.json`.
+Reproduce with `TMPDIR=/dev/shm node scripts/qa/profile-landscape.mjs --output /tmp/landscape-after.json`.
 The temp-directory override avoids the current environment's default-temp quota
 error. Original samples are in `tests/fixtures/landscape/baseline.json`; the
 historical comparisons remain in Git history. Save new measurements under ignored
@@ -425,7 +425,7 @@ Reproduce the serial benchmark and thirty-minute production profile:
 
 ```sh
 npm run benchmark -- tests/benchmarks/infinite.bench.ts --maxWorkers=1
-FOREST_BENCH_URL=http://localhost:4175 node scripts/profile-infinite-world.mjs
+FOREST_BENCH_URL=http://localhost:4175 node scripts/qa/profile-infinite-world.mjs
 ```
 
 The profiler freezes simulation time and uses diagnostic movement. Forced-GC

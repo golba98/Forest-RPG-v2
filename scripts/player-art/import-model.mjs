@@ -1,7 +1,9 @@
+import { stagingDirectory } from '../assets/output-directory.mjs';
 // One uniform reduction of the reference-guided model sheet; no per-pose fit.
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
-const root = 'docs/assets/source/player-final';
+const inputRoot = 'docs/assets/source/player-final';
+const root = stagingDirectory(process.argv[2], 'artifacts/player-final/model');
 export const palette = [
   '2f2522',
   '5b5146',
@@ -17,7 +19,7 @@ export const palette = [
   'e5b6bc',
 ];
 const colors = palette.map((s) => [0, 2, 4].map((i) => parseInt(s.slice(i, i + 2), 16)));
-const { data, info } = await sharp(`${root}/generated/turnaround.png`)
+const { data, info } = await sharp(`${inputRoot}/generated/turnaround.png`)
   .ensureAlpha()
   .raw()
   .toBuffer({ resolveWithObject: true });
@@ -114,8 +116,8 @@ for (let n = 0; n < 8; n++) {
   audit.push({
     direction,
     source: ['south', 'east', 'northeast'].includes(direction)
-      ? `../player-rework/frames/${direction}/idle-0.png`
-      : 'generated/turnaround.png',
+      ? `docs/assets/source/player-rework/frames/${direction}/idle-0.png`
+      : `${inputRoot}/generated/turnaround.png`,
     width: crop.width,
     height: crop.height,
   });

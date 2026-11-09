@@ -1,5 +1,5 @@
 /**
- * scripts/build-hill-tileset.mjs
+ * scripts/assets/build-hill-tileset.mjs
  *
  * Generates the project-owned hill/cliff autotile atlas:
  *   public/assets/images/terrain/hills/cliff_tileset.png   (served texture)
@@ -15,7 +15,7 @@
  * The mask reduction and frame order must match src/rendering/hillAutotile.ts
  * (tests/unit/rendering/hillAutotile.test.ts checks the generated JSON).
  *
- * Usage: node scripts/build-hill-tileset.mjs
+ * Usage: node scripts/assets/build-hill-tileset.mjs
  */
 
 import fs from 'node:fs';
@@ -23,7 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT_DIR = path.join(ROOT, 'public/assets/images/terrain/hills');
 const JSON_OUT = path.join(ROOT, 'src/rendering/generated/cliff_tileset.json');
 
@@ -33,7 +33,14 @@ const PITCH = T + GUTTER * 2;
 const COLUMNS = 10;
 const INTERIOR_VARIANTS = 6;
 
-const N = 1, NE = 2, E = 4, SE = 8, S = 16, SW = 32, W = 64, NW = 128;
+const N = 1,
+  NE = 2,
+  E = 4,
+  SE = 8,
+  S = 16,
+  SW = 32,
+  W = 64,
+  NW = 128;
 
 /** Diagonals only matter when both adjacent cardinals are elevated. */
 function reduceMask(m) {
@@ -45,7 +52,9 @@ function reduceMask(m) {
   return r;
 }
 
-const MASKS = [...new Set(Array.from({ length: 256 }, (_, m) => reduceMask(m)))].sort((a, b) => a - b);
+const MASKS = [...new Set(Array.from({ length: 256 }, (_, m) => reduceMask(m)))].sort(
+  (a, b) => a - b,
+);
 
 // Palette: rock from hill_north.png, plateau grass lifted from grass.png.
 const C = {
@@ -70,7 +79,10 @@ const FACE_TOP = 12; // first row of the south cliff face
 const ROUND = 6; // outer corner radius
 
 function hash(x, y, seed) {
-  let h = Math.imul(x + 0x9e37, 0x27d4eb2d) ^ Math.imul(y + 0x85eb, 0x165667b1) ^ Math.imul(seed + 1, 0x2545f491);
+  let h =
+    Math.imul(x + 0x9e37, 0x27d4eb2d) ^
+    Math.imul(y + 0x85eb, 0x165667b1) ^
+    Math.imul(seed + 1, 0x2545f491);
   h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
   return ((h ^ (h >>> 16)) >>> 0) / 0xffffffff;
@@ -78,13 +90,17 @@ function hash(x, y, seed) {
 
 /** Region of pixel (x, y) in a tile with reduced mask m. */
 function region(x, y, m) {
-  const n = m & N, e = m & E, s = m & S, w = m & W;
+  const n = m & N,
+    e = m & E,
+    s = m & S,
+    w = m & W;
   // Outer-corner rounding (transparent; grass shows through).
   const outside = (cx, cy) => (x - cx) ** 2 + (y - cy) ** 2 > ROUND * ROUND;
   if (!n && !w && x < ROUND && y < ROUND && outside(ROUND, ROUND)) return 'none';
   if (!n && !e && x > T - 1 - ROUND && y < ROUND && outside(T - 1 - ROUND, ROUND)) return 'none';
   if (!s && !w && x < ROUND && y > T - 1 - ROUND && outside(ROUND, T - 1 - ROUND)) return 'none';
-  if (!s && !e && x > T - 1 - ROUND && y > T - 1 - ROUND && outside(T - 1 - ROUND, T - 1 - ROUND)) return 'none';
+  if (!s && !e && x > T - 1 - ROUND && y > T - 1 - ROUND && outside(T - 1 - ROUND, T - 1 - ROUND))
+    return 'none';
 
   if (!s && y >= FACE_TOP) return 'face';
   if (!n && y < RIM_N) return 'rimN';
@@ -99,7 +115,8 @@ function region(x, y, m) {
 }
 
 function facePixel(x, y, m, kind) {
-  const e = m & E, w = m & W;
+  const e = m & E,
+    w = m & W;
   if (y === FACE_TOP) return C.hi;
   if (y === FACE_TOP + 1) return C.warm;
   if (y >= T - 2) return y === T - 1 ? C.base : C.outline;
@@ -139,7 +156,10 @@ function rimPixel(x, y, kind) {
 
 // Plateau top = the ground grass texture remapped to a sunlit palette, so the
 // raised surface keeps the same leaf pattern but reads as a different level.
-const grass = await sharp(path.join(ROOT, 'public/assets/images/terrain/grass.png')).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+const grass = await sharp(path.join(ROOT, 'public/assets/images/terrain/grass.png'))
+  .ensureAlpha()
+  .raw()
+  .toBuffer({ resolveWithObject: true });
 const GRASS_REMAP = new Map([
   ['4a6331', C.topDark],
   ['6b8439', C.top],
@@ -175,13 +195,25 @@ function drawTile(m, seed) {
       else if (kind.startsWith('face')) c = facePixel(x, y, m, kind);
       else c = rimPixel(x, y, kind);
       // Silhouette outline against rounded-off pixels.
-      const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-      if (nb.some(([dx, dy]) => {
-        const nx = x + dx, ny = y + dy;
-        return nx >= 0 && ny >= 0 && nx < T && ny < T && regions[ny * T + nx] === 'none';
-      })) c = C.outline;
+      const nb = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ];
+      if (
+        nb.some(([dx, dy]) => {
+          const nx = x + dx,
+            ny = y + dy;
+          return nx >= 0 && ny >= 0 && nx < T && ny < T && regions[ny * T + nx] === 'none';
+        })
+      )
+        c = C.outline;
       const i = (y * T + x) * 4;
-      px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; px[i + 3] = 255;
+      px[i] = c[0];
+      px[i + 1] = c[1];
+      px[i + 2] = c[2];
+      px[i + 3] = 255;
     }
   }
   return px;
@@ -195,25 +227,44 @@ function paintDetail(px, seed) {
   const set = (x, y, c) => {
     if (x < 0 || y < 0 || x >= T || y >= T) return;
     const i = (y * T + x) * 4;
-    px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; px[i + 3] = 255;
+    px[i] = c[0];
+    px[i + 1] = c[1];
+    px[i + 2] = c[2];
+    px[i + 3] = 255;
   };
   const r = (k) => hash(seed, k, 17);
   const tufts = 2 + Math.floor(r(1) * 3);
   for (let t = 0; t < tufts; t++) {
-    const x = 3 + Math.floor(r(10 + t) * 26), y = 6 + Math.floor(r(20 + t) * 22);
+    const x = 3 + Math.floor(r(10 + t) * 26),
+      y = 6 + Math.floor(r(20 + t) * 22);
     // Three-blade tuft: dark base, lit tips.
-    set(x, y, C.topDark); set(x - 1, y, C.topDark); set(x + 1, y, C.topDark);
-    set(x - 1, y - 1, C.topLight); set(x + 1, y - 1, C.topLight); set(x, y - 2, C.topSpeck); set(x, y - 1, C.top);
+    set(x, y, C.topDark);
+    set(x - 1, y, C.topDark);
+    set(x + 1, y, C.topDark);
+    set(x - 1, y - 1, C.topLight);
+    set(x + 1, y - 1, C.topLight);
+    set(x, y - 2, C.topSpeck);
+    set(x, y - 1, C.top);
   }
   if (r(2) > 0.45) {
-    const x = 4 + Math.floor(r(30) * 24), y = 8 + Math.floor(r(31) * 20);
-    set(x, y, [0x8a, 0x86, 0x78]); set(x + 1, y, [0x6e, 0x6a, 0x5e]); set(x, y - 1, [0xb4, 0xb0, 0xa0]); set(x + 1, y - 1, [0x8a, 0x86, 0x78]);
-    set(x, y + 1, C.topDark); set(x + 1, y + 1, C.topDark);
+    const x = 4 + Math.floor(r(30) * 24),
+      y = 8 + Math.floor(r(31) * 20);
+    set(x, y, [0x8a, 0x86, 0x78]);
+    set(x + 1, y, [0x6e, 0x6a, 0x5e]);
+    set(x, y - 1, [0xb4, 0xb0, 0xa0]);
+    set(x + 1, y - 1, [0x8a, 0x86, 0x78]);
+    set(x, y + 1, C.topDark);
+    set(x + 1, y + 1, C.topDark);
   }
   if (r(3) > 0.55) {
-    const x = 4 + Math.floor(r(40) * 24), y = 8 + Math.floor(r(41) * 20);
+    const x = 4 + Math.floor(r(40) * 24),
+      y = 8 + Math.floor(r(41) * 20);
     const petal = r(42) > 0.5 ? [0xf0, 0xd8, 0x5a] : [0xe8, 0x9c, 0xc4];
-    set(x, y, petal); set(x - 1, y, petal); set(x + 1, y, petal); set(x, y - 1, petal); set(x, y + 1, C.topDark);
+    set(x, y, petal);
+    set(x - 1, y, petal);
+    set(x + 1, y, petal);
+    set(x, y - 1, petal);
+    set(x, y + 1, C.topDark);
   }
 }
 
@@ -225,48 +276,65 @@ function paintDetail(px, seed) {
 function drawStairs(dir) {
   const px = new Uint8ClampedArray(T * T * 4);
   const vertical = dir === 's' || dir === 'n';
-  const lo = 2, hi = 29; // across the stair (full tile minus the cliff cheeks)
-  const start = dir === 's' ? 9 : 0, end = dir === 's' ? 31 : dir === 'n' ? 14 : dir === 'w' ? 14 : 31;
+  const lo = 2,
+    hi = 29; // across the stair (full tile minus the cliff cheeks)
+  const start = dir === 's' ? 9 : 0,
+    end = dir === 's' ? 31 : dir === 'n' ? 14 : dir === 'w' ? 14 : 31;
   const from = dir === 'e' ? 17 : start;
   const to = dir === 'e' ? 31 : end;
   const steps = 4;
-  for (let a = from; a <= to; a++) for (let b = lo; b <= hi; b++) {
-    const x = vertical ? b : a, y = vertical ? a : b;
-    // Distance down the flight: 0 at the plateau, 1 at the ground.
-    const along = dir === 's' || dir === 'e' ? (a - from) / (to - from) : (to - a) / (to - from);
-    const k = along * steps;
-    const inStep = k - Math.floor(k);
-    let c;
-    // Worn pale stone, distinct from the orange cliff rock so the way up is easy to spot.
-    if (b === lo || b === hi) c = C.outline;
-    else if (b === lo + 1 || b === hi - 1) c = C.mid;
-    else if (inStep < 0.22) c = STONE.nosing; // lit nosing
-    else if (inStep > 0.76) c = STONE.riser; // riser shadow
-    else c = hash(x, y, 23) > 0.88 ? STONE.riser : STONE.tread;
-    if (along > 0.92 && b > lo + 1 && b < hi - 1) c = STONE.riser; // last step meets the ground
-    const i = (y * T + x) * 4;
-    px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; px[i + 3] = 255;
-  }
+  for (let a = from; a <= to; a++)
+    for (let b = lo; b <= hi; b++) {
+      const x = vertical ? b : a,
+        y = vertical ? a : b;
+      // Distance down the flight: 0 at the plateau, 1 at the ground.
+      const along = dir === 's' || dir === 'e' ? (a - from) / (to - from) : (to - a) / (to - from);
+      const k = along * steps;
+      const inStep = k - Math.floor(k);
+      let c;
+      // Worn pale stone, distinct from the orange cliff rock so the way up is easy to spot.
+      if (b === lo || b === hi) c = C.outline;
+      else if (b === lo + 1 || b === hi - 1) c = C.mid;
+      else if (inStep < 0.22)
+        c = STONE.nosing; // lit nosing
+      else if (inStep > 0.76)
+        c = STONE.riser; // riser shadow
+      else c = hash(x, y, 23) > 0.88 ? STONE.riser : STONE.tread;
+      if (along > 0.92 && b > lo + 1 && b < hi - 1) c = STONE.riser; // last step meets the ground
+      const i = (y * T + x) * 4;
+      px[i] = c[0];
+      px[i + 1] = c[1];
+      px[i + 2] = c[2];
+      px[i + 3] = 255;
+    }
   return px;
 }
 
 function drawShadowEast() {
   const px = new Uint8ClampedArray(T * T * 4);
   const alpha = [0.34, 0.24, 0.15, 0.08, 0.03];
-  for (let y = 0; y < T; y++) for (let x = 0; x < alpha.length; x++) {
-    const i = (y * T + x) * 4;
-    px[i] = 12; px[i + 1] = 22; px[i + 2] = 10; px[i + 3] = Math.round(alpha[x] * 255);
-  }
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < alpha.length; x++) {
+      const i = (y * T + x) * 4;
+      px[i] = 12;
+      px[i + 1] = 22;
+      px[i + 2] = 10;
+      px[i + 3] = Math.round(alpha[x] * 255);
+    }
   return px;
 }
 
 function drawShadow() {
   const px = new Uint8ClampedArray(T * T * 4);
   const alpha = [0.42, 0.32, 0.22, 0.14, 0.08, 0.04];
-  for (let y = 0; y < alpha.length; y++) for (let x = 0; x < T; x++) {
-    const i = (y * T + x) * 4;
-    px[i] = 12; px[i + 1] = 22; px[i + 2] = 10; px[i + 3] = Math.round(alpha[y] * 255);
-  }
+  for (let y = 0; y < alpha.length; y++)
+    for (let x = 0; x < T; x++) {
+      const i = (y * T + x) * 4;
+      px[i] = 12;
+      px[i + 1] = 22;
+      px[i + 2] = 10;
+      px[i + 3] = Math.round(alpha[y] * 255);
+    }
   return px;
 }
 
@@ -285,17 +353,29 @@ const rows = Math.ceil(frames.length / COLUMNS);
 const W_PX = COLUMNS * PITCH;
 const H_PX = rows * PITCH;
 const atlas = new Uint8ClampedArray(W_PX * H_PX * 4);
-const json = { tileSize: T, pitch: PITCH, gutter: GUTTER, columns: COLUMNS, masks: MASKS, frames: {} };
+const json = {
+  tileSize: T,
+  pitch: PITCH,
+  gutter: GUTTER,
+  columns: COLUMNS,
+  masks: MASKS,
+  frames: {},
+};
 
 frames.forEach((frame, index) => {
-  const col = index % COLUMNS, row = Math.floor(index / COLUMNS);
-  const ox = col * PITCH + GUTTER, oy = row * PITCH + GUTTER;
+  const col = index % COLUMNS,
+    row = Math.floor(index / COLUMNS);
+  const ox = col * PITCH + GUTTER,
+    oy = row * PITCH + GUTTER;
   // Copy with edge extrusion into the gutter.
-  for (let y = -GUTTER; y < T + GUTTER; y++) for (let x = -GUTTER; x < T + GUTTER; x++) {
-    const sx = Math.min(T - 1, Math.max(0, x)), sy = Math.min(T - 1, Math.max(0, y));
-    const si = (sy * T + sx) * 4, di = ((oy + y) * W_PX + ox + x) * 4;
-    for (let k = 0; k < 4; k++) atlas[di + k] = frame.px[si + k];
-  }
+  for (let y = -GUTTER; y < T + GUTTER; y++)
+    for (let x = -GUTTER; x < T + GUTTER; x++) {
+      const sx = Math.min(T - 1, Math.max(0, x)),
+        sy = Math.min(T - 1, Math.max(0, y));
+      const si = (sy * T + sx) * 4,
+        di = ((oy + y) * W_PX + ox + x) * 4;
+      for (let k = 0; k < 4; k++) atlas[di + k] = frame.px[si + k];
+    }
   json.frames[frame.key] = { x: ox, y: oy, w: T, h: T };
 });
 
@@ -305,4 +385,6 @@ await sharp(Buffer.from(atlas.buffer), { raw: { width: W_PX, height: H_PX, chann
   .toFile(path.join(OUT_DIR, 'cliff_tileset.png'));
 fs.mkdirSync(path.dirname(JSON_OUT), { recursive: true });
 fs.writeFileSync(JSON_OUT, `${JSON.stringify(json, null, 2)}\n`);
-console.log(`[build-hill-tileset] ${frames.length} frames (${MASKS.length} masks) → ${W_PX}x${H_PX}`);
+console.log(
+  `[build-hill-tileset] ${frames.length} frames (${MASKS.length} masks) → ${W_PX}x${H_PX}`,
+);

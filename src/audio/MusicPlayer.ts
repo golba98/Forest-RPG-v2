@@ -18,7 +18,7 @@ export class MusicPlayer implements IMusicPlayer {
 
   private trackUrls: Record<MusicTrackKey, string> = MusicPlayer.buildTrackUrls('ogg');
 
-  /** Music ships as OGG Vorbis with an MP3 fallback (see scripts/transcode-media.sh). */
+  /** Music ships as OGG Vorbis with an MP3 fallback (see scripts/assets/transcode-media.sh). */
   private static buildTrackUrls(ext: 'ogg' | 'mp3'): Record<MusicTrackKey, string> {
     return {
       menu: `/assets/audio/music/menu_music.${ext}`,
@@ -78,7 +78,8 @@ export class MusicPlayer implements IMusicPlayer {
     this.currentTrackKey = track;
     this.activeChannel = nextChannelKey;
 
-    const isInstant = typeof durationSec !== 'number' || !Number.isFinite(durationSec) || durationSec <= 0;
+    const isInstant =
+      typeof durationSec !== 'number' || !Number.isFinite(durationSec) || durationSec <= 0;
 
     if (track === 'silence') {
       if (isInstant || typeof requestAnimationFrame === 'undefined') {
@@ -122,7 +123,9 @@ export class MusicPlayer implements IMusicPlayer {
       outgoing.volume = Number.isFinite(outVol) ? Math.max(0, Math.min(1, outVol)) : 0;
 
       const inVol = finalInVol * progress;
-      incoming.volume = Number.isFinite(inVol) ? Math.max(0, Math.min(finalInVol, inVol)) : finalInVol;
+      incoming.volume = Number.isFinite(inVol)
+        ? Math.max(0, Math.min(finalInVol, inVol))
+        : finalInVol;
 
       if (progress < 1.0 && typeof requestAnimationFrame !== 'undefined') {
         this.crossfadeAnimationId = requestAnimationFrame(step);
@@ -210,9 +213,10 @@ export class MusicPlayer implements IMusicPlayer {
     }
     active.volume = duckedVol;
 
-    const validDurationMs = typeof durationSec === 'number' && Number.isFinite(durationSec) && durationSec > 0
-      ? durationSec * 1000
-      : 0;
+    const validDurationMs =
+      typeof durationSec === 'number' && Number.isFinite(durationSec) && durationSec > 0
+        ? durationSec * 1000
+        : 0;
 
     this.duckTimeoutId = setTimeout(() => {
       if (!this.isMuted && active) {

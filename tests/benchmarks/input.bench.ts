@@ -1,8 +1,8 @@
 import { InputManager } from '@/core/input/InputManager';
-import { describe, expect, it } from 'vitest';
+import { bench, describe, expect } from 'vitest';
 
 describe('InputManager benchmark', () => {
-  it('benchmarks 500,000 InputManager clearFrameState iterations', () => {
+  bench('benchmarks 500,000 InputManager clearFrameState iterations', () => {
     const input = new InputManager();
     const start = performance.now();
 
@@ -14,7 +14,7 @@ describe('InputManager benchmark', () => {
     }
 
     const duration = performance.now() - start;
-    // 500,000 simulated frame clears must complete in < 400ms
+    // 500,000 simulated frame clears must complete in < 600ms
     expect(duration).toBeLessThan(600);
   });
 });

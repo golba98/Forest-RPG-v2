@@ -6,7 +6,13 @@ const output = process.env.FOREST_PROFILE_OUTPUT ?? 'artifacts/infinite-world/pr
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
-  args: ['--mute-audio', '--use-gl=angle', '--use-angle=gl', '--ignore-gpu-blocklist', '--no-sandbox'],
+  args: [
+    '--mute-audio',
+    '--use-gl=angle',
+    '--use-angle=gl',
+    '--ignore-gpu-blocklist',
+    '--no-sandbox',
+  ],
 });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }),

@@ -1,15 +1,24 @@
+import { stagingDirectory } from '../assets/output-directory.mjs';
 // Stable model animation: fixed native heads, shaded pixel limbs and small
 // integer translations. No per-frame resampling, tween blur or image filters.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
-import { directions, counts, poseFor } from './player-art/poses.mjs';
+import { directions, counts, poseFor } from './poses.mjs';
 const source = 'docs/assets/source/player-final';
-const output = process.argv[2] ?? 'artifacts/player-final/archived-sheets';
+const output = stagingDirectory(process.argv[2], 'artifacts/player-final/archived-sheets');
+const generatedSource = stagingDirectory(undefined, 'artifacts/player-final/source');
 const model = JSON.parse(await fs.readFile(`${source}/model.json`, 'utf8'));
 const rgb = model.palette.map((c) => [0, 2, 4].map((i) => parseInt(c.slice(i, i + 2), 16)));
-const audit = { cell: 64, foot: [32, 54], palette: model.palette, heads: model.heads, frames: [] };
+const audit = {
+  sourceRoot: source,
+  cell: 64,
+  foot: [32, 54],
+  palette: model.palette,
+  heads: model.heads,
+  frames: [],
+};
 const gallery = [];
 function set(pixels, x, y, color) {
   x = Math.round(x);
@@ -149,8 +158,8 @@ for (const [direction, [dx, dy]] of Object.entries(directions)) {
         .png()
         .toBuffer();
       const frameFile = `frames/${direction}/${clip}-${f}.png`;
-      await fs.mkdir(path.dirname(`${source}/${frameFile}`), { recursive: true });
-      await fs.writeFile(`${source}/${frameFile}`, input);
+      await fs.mkdir(path.dirname(`${generatedSource}/${frameFile}`), { recursive: true });
+      await fs.writeFile(`${generatedSource}/${frameFile}`, input);
       layers.push({ input, left: f * 64, top: 0 });
       gallery.push({ input, left: f * 64, top: row * 64 });
       audit.frames.push({
@@ -171,7 +180,7 @@ for (const [direction, [dx, dy]] of Object.entries(directions)) {
     row++;
   }
 }
-await fs.writeFile(`${source}/manifest.json`, JSON.stringify(audit, null, 2) + '\n');
+await fs.writeFile(`${generatedSource}/manifest.json`, JSON.stringify(audit, null, 2) + '\n');
 await fs.mkdir('artifacts/player-final', { recursive: true });
 await sharp({ create: { width: 576, height: row * 64, channels: 4, background: '#445846' } })
   .composite(gallery)

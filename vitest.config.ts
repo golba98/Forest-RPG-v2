@@ -15,24 +15,17 @@ export default defineConfig({
     // runs lightning-fast in pure Node without heavy DOM overhead.
     // DOM-specific test files can override per-file via: // @vitest-environment happy-dom
     environment: 'node',
-    include: [
-      'tests/unit/**/*.{test,spec}.ts',
-      'tests/integration/**/*.{test,spec}.ts',
-    ],
+    include: ['tests/unit/**/*.{test,spec}.ts', 'tests/integration/**/*.{test,spec}.ts'],
     benchmark: {
       include: ['tests/benchmarks/**/*.{bench,benchmark,test}.ts'],
-      reporters: ['default', 'verbose'],
+      reporters: ['default'],
     },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'text-summary', 'json', 'html'],
       reportsDirectory: './coverage',
       include: ['src/**/*.ts'],
-      exclude: [
-        'src/**/*.d.ts',
-        'src/main.ts',
-        'src/types/**',
-      ],
+      exclude: ['src/**/*.d.ts', 'src/main.ts', 'src/types/**'],
       thresholds: {
         lines: 80,
         functions: 80,

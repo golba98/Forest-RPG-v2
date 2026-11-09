@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { bench, describe, expect } from 'vitest';
 import { Vector2 } from '@/core/math/Vector2';
 
 describe('Smoke Benchmark Suite', () => {
-  it('executes 100,000 Vector2 operations within 50ms', () => {
+  bench('executes 100,000 Vector2 operations within 100ms', () => {
     const start = performance.now();
     let current = new Vector2(0, 0);
     const step = new Vector2(1, 1);

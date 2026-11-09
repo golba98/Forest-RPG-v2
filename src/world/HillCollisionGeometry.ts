@@ -24,7 +24,7 @@ export function hillCollisionBounds(tile: number, mask: number): Bounds[] {
     if (tile === Tile.STAIRS) {
       const dir = stairsDirection(mask);
       // The overlay cuts a flight through the face, retaining two-pixel cheeks.
-      // Match scripts/build-hill-tileset.mjs drawStairs, not a full-cell exemption.
+      // Match scripts/assets/build-hill-tileset.mjs drawStairs, not a full-cell exemption.
       if (
         dir === 'n' || dir === 's'
           ? x >= HILL_SURFACE.stairCheek && x < t - HILL_SURFACE.stairCheek
