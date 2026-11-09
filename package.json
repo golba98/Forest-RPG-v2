@@ -31,7 +31,10 @@
     "profile:record": "node scripts/performance/record.mjs",
     "profile:report-data": "node scripts/performance/report-data.mjs",
     "profile:cold": "node scripts/performance/cold.mjs",
-    "profile:platform": "node scripts/performance/platform.mjs"
+    "profile:platform": "node scripts/performance/platform.mjs",
+    "check:player": "node scripts/regression/approved-player.mjs",
+    "test:workflow": "node --test scripts/regression/critical-diff.test.mjs",
+    "test:critical": "playwright test --config playwright.critical.config.ts"
   },
   "dependencies": {
     "pixi.js": "^8.6.6"

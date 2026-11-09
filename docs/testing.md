@@ -13,6 +13,10 @@ Vitest runs unit and integration tests. Limiting workers reduces resource conten
 
 ## Browser tests
 
+The mandatory gameplay suite uses `npm run test:critical` after a production build. It covers the approved player, all directions and blink states, world-library isolation, biome exploration, streaming compatibility, terrain, bridges and save/reload. `npm run check:player` checks the 989 approved character files; `npm run test:workflow` checks PR diff protection. See the [safe integration guide](development/safe-integration.md) for hosted enforcement and deliberate baseline changes.
+
+Player appearance snapshots live in `tests/fixtures/player-appearance/` and are shared across operating systems by browser. Before comparing a screenshot, the test checks every opaque character pixel against approved native source PNGs and requires the approved frame geometry. Baseline updates require explicit human approval; normal runs never update snapshots. The CI browser configuration uses software WebGL and Xvfb.
+
 Install matching browser binaries once, then build before running Playwright:
 
 ```sh

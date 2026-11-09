@@ -1,5 +1,6 @@
 import { environmentAssets, ENV_GROUND, ENV_RELIEF } from './environmentArt';
 import { Assets, Rectangle, Texture, TextureSource } from 'pixi.js';
+import { assertPlayerAssets, requiredPlayerSheets } from './PlayerAssets';
 import {
   MANIFEST_BUNDLES,
   MANIFEST_URL,
@@ -74,6 +75,15 @@ export class TextureStore {
       // Degrade to placeholders rather than blocking the game on asset errors.
       console.error('[TextureStore] asset loading failed; using placeholders', error);
     }
+    // Optional scenery can degrade visibly; the canonical playable character cannot.
+    // A rejected optional bundle can settle before other requests. Await every
+    // required sheet before deciding that the player is unavailable.
+    await Promise.allSettled(
+      requiredPlayerSheets().map(({ alias }) =>
+        this.has(alias) ? Promise.resolve() : Assets.load(alias),
+      ),
+    );
+    assertPlayerAssets((alias) => (this.has(alias) ? Assets.cache.get<Texture>(alias) : undefined));
     this.loaded = true;
     onProgress?.(1);
   }

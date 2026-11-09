@@ -7,6 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
+  snapshotPathTemplate: '{testDir}/../fixtures/player-appearance/{projectName}/{arg}{ext}',
   timeout: 30000,
   expect: {
     timeout: 5000,
@@ -14,7 +15,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  ...(process.env.CI ? { workers: 1 } : {}),
   reporter: [
     ['list'],
     ['html', { open: 'never', outputFolder: 'playwright-report' }],
@@ -28,7 +29,8 @@ export default defineConfig({
     launchOptions: {
       args: [
         '--use-gl=angle',
-        '--use-angle=gl',
+        process.env.CI ? '--use-angle=swiftshader' : '--use-angle=gl',
+        ...(process.env.CI ? ['--enable-unsafe-swiftshader'] : []),
         '--enable-webgl',
         '--ignore-gpu-blocklist',
         '--enable-gpu-rasterization',
@@ -45,7 +47,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         // Fall back to system Google Chrome if channel specified
-        channel: (process.env.PLAYWRIGHT_CHANNEL as string | undefined) || undefined,
+        ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
       },
     },
   ],

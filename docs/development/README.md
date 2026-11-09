@@ -28,10 +28,15 @@ The development server runs at [localhost:3000](http://localhost:3000).
 | `npm run build`         | Typecheck and build the static site in `dist/` |
 | `npm run preview`       | Serve `dist/` at localhost:4173                |
 | `npm run test:e2e`      | Run Playwright browser tests                   |
+| `npm run test:critical` | Run mandatory character, world and save checks |
+| `npm run check:player`  | Verify all approved character files            |
+| `npm run test:workflow` | Verify PR diff protection                      |
 | `npm run benchmark`     | Run Vitest benchmarks                          |
 | `npm run format:check`  | Check formatting with Prettier                 |
 
 Before submitting code changes, run typecheck, lint, relevant tests, and the production build. Use browser checks for gameplay and rendering changes. Check formatting and relative links for documentation changes.
+
+Follow the [safe integration workflow](safe-integration.md) before switching branches or preparing a PR. The canonical player is protected by `npm run check:player`; run `npm run test:workflow` and `npm run test:critical` before integrating gameplay work. A feature-branch PR merge does not establish that its content reached `main`.
 
 ### Browser tests
 

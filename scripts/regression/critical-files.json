@@ -1,0 +1,36 @@
+{
+  "requiredPaths": [
+    "src/main.ts",
+    "src/rendering/PixiRenderer.ts",
+    "src/rendering/PlayerCompositor.ts",
+    "src/animation/PlayerMotion.ts",
+    "src/animation/PlayerBlink.ts",
+    "src/animation/PlayerNativePresenter.ts",
+    "src/ui/GameShell.ts",
+    "src/ui/WorldLibraryMenu.ts",
+    "src/ui/BiomeWalk.ts",
+    "src/persistence/SaveManager.ts",
+    "src/persistence/WorldLibrary.ts",
+    "src/persistence/WorldRepository.ts",
+    "src/world/Biomes.ts",
+    "src/world/environmentAssets.json",
+    "src/world/infinite/InfiniteSession.ts",
+    "src/world/infinite/ForestGenerator.ts",
+    "docs/assets/source/player-face-continuity/approval.json",
+    "tests/e2e/world-library.spec.ts",
+    "tests/e2e/biome-walk.spec.ts",
+    "tests/e2e/player-appearance.spec.ts",
+    "tests/e2e/player-blink.spec.ts",
+    "playwright.critical.config.ts"
+  ],
+  "criticalPrefixes": ["src/world/infinite/", "public/assets/images/environment/"],
+  "approvalPrefixes": [
+    ".github/",
+    "scripts/regression/",
+    "docs/assets/source/player-face-continuity/",
+    "public/assets/images/characters/player/",
+    "tests/fixtures/player-appearance/",
+    "tests/e2e/player-appearance.spec.ts",
+    "playwright.critical.config.ts"
+  ]
+}

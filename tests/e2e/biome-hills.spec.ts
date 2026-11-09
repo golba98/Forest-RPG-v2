@@ -177,8 +177,9 @@ for (const legacyVersion of [14, 15] as const)
     for (let i = 0; i < body.length; i++) hash = Math.imul(hash ^ body.charCodeAt(i), 16777619);
     const archive = body + JSON.stringify({ end: 1, checksum: hash >>> 0 }) + '\n';
     await page.getByTestId('main-menu-button').click();
-    const choosing = page.waitForEvent('filechooser');
-    await page.getByTestId('import-button').click();
+    await page.getByTestId('developer-button').click();
+    const choosing = page.waitForEvent('filechooser', { timeout: 10000 });
+    await page.getByRole('button', { name: 'Import exploration save', exact: true }).click();
     await (
       await choosing
     ).setFiles({
