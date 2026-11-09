@@ -1,10 +1,8 @@
 import { isSolidProp } from '../world/ObjectSemantics';
 import { isTileId, LegacyTileMarker } from '../types/tiles';
 import type { EnemySpawn, PickupSpawn, PropKind, WorldData, WorldProp } from '../types/world';
+import { finite as number, object as record } from './codecs/validation';
 
-const record = (v: unknown): v is Record<string, unknown> =>
-  v !== null && typeof v === 'object' && !Array.isArray(v);
-const number = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const position = (
   v: unknown,
   w: number,
