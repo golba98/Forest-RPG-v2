@@ -4,7 +4,7 @@ import { createWriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { createGzip } from 'node:zlib';
 import { finished } from 'node:stream/promises';
-export function decodeBatch(buffer) {
+function decodeBatch(buffer) {
   const headerLength = buffer.readUInt32LE(0),
     header = JSON.parse(buffer.toString('utf8', 4, 4 + headerLength));
   if (header.version !== 1) throw new Error('Unsupported telemetry packet');

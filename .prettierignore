@@ -11,3 +11,15 @@ artifacts
 archive/player-character
 docs/tmp
 *.tsbuildinfo
+
+# Approved character bytes require explicit human approval, including formatting.
+docs/assets/source/player-face-continuity/
+src/animation/PlayerMotion.ts
+src/animation/PlayerBlink.ts
+src/animation/PlayerFace.ts
+src/animation/PlayerNativePresenter.ts
+src/animation/playerPixelMath.ts
+src/animation/playerNativePixels.json
+src/animation/playerFaceMetadata.json
+src/animation/playerFluidMetadata.json
+src/rendering/PlayerCompositor.ts

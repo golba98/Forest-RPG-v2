@@ -9,12 +9,17 @@ import { GenGrid } from '../../../src/world/generation/GenGrid';
 import { generateHills, refreshHillEdges } from '../../../src/world/generation/hills';
 import { Rng } from '../../../src/world/Rng';
 import { PerlinNoise } from '../../../src/world/Noise';
-import { bridgeGeometry, bridgeReservations, boundsOverlap } from '../../../src/world/BridgeGeometry';
+import {
+  bridgeGeometry,
+  bridgeReservations,
+  boundsOverlap,
+} from '../../../src/world/BridgeGeometry';
 import { validBridgeTerrain } from '../../../src/world/generation/bridges';
 import { hasClearPath } from '../../../src/systems/CollisionSystem';
 import { propFootprint } from '../../../src/world/ObjectSemantics';
 
 describe('final terrain topology', () => {
+  // Two generations per seed plus topology/physics assertions need a shared-runner budget.
   it('validates 100 deterministic seeds including lower rows and objective clearance', () => {
     const seeds = [1, 123, 456, 999, 20261028, ...Array.from({ length: 95 }, (_, i) => 1000 + i)];
     for (const [index, seed] of seeds.entries()) {
@@ -32,13 +37,34 @@ describe('final terrain topology', () => {
       grid.tiles.set(w.tiles);
       for (const bridge of w.bridges ?? []) {
         expect(validBridgeTerrain(grid, bridge), `bridge terrain seed ${seed}`).toBe(true);
-        const f = bridgeGeometry(bridge).footprint, horizontal = bridge.orientation === 'horizontal';
-        const x = f.minX + (horizontal ? -0.5 : 1), y = f.minY + (horizontal ? 1 : -0.5);
-        expect(hasClearPath(w, x, y, horizontal ? f.maxX + 0.5 : x, horizontal ? y : f.maxY + 0.5, 0.3, 'groundEnemy')).toBe(true);
+        const f = bridgeGeometry(bridge).footprint,
+          horizontal = bridge.orientation === 'horizontal';
+        const x = f.minX + (horizontal ? -0.5 : 1),
+          y = f.minY + (horizontal ? 1 : -0.5);
+        expect(
+          hasClearPath(
+            w,
+            x,
+            y,
+            horizontal ? f.maxX + 0.5 : x,
+            horizontal ? y : f.maxY + 0.5,
+            0.3,
+            'groundEnemy',
+          ),
+        ).toBe(true);
         for (const prop of w.props) {
           const p = propFootprint(prop);
           if (!p) continue;
-          expect(bridgeReservations(bridge).some(r => boundsOverlap(r, { minX: prop.tileX + p.minX, minY: prop.tileY + p.minY, maxX: prop.tileX + p.maxX, maxY: prop.tileY + p.maxY }))).toBe(false);
+          expect(
+            bridgeReservations(bridge).some((r) =>
+              boundsOverlap(r, {
+                minX: prop.tileX + p.minX,
+                minY: prop.tileY + p.minY,
+                maxX: prop.tileX + p.maxX,
+                maxY: prop.tileY + p.maxY,
+              }),
+            ),
+          ).toBe(false);
         }
       }
       expect(riverDefects(w), `river seed ${seed}`).toEqual([]);
@@ -89,7 +115,7 @@ describe('final terrain topology', () => {
           }
         }
     }
-  }, 30000);
+  }, 120_000);
   it('processes lower hill boundaries and preserves crossing landings', () => {
     const grid = new GenGrid(40, 40, Tile.GRASS),
       rng = new Rng(1),

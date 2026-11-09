@@ -1,19 +1,17 @@
-import { worldLibraryMenu } from './WorldLibraryMenu';
-import { developerMenu } from './DeveloperMenu';
-import { biomeChoices, BiomeWalkHud } from './BiomeWalk';
+import type { InputManager } from '../core/input/InputManager';
+import type { Game, SceneState, GameShell as Shell } from '../game/Game';
+import { OnboardingStore } from '../persistence/OnboardingStore';
+import type { SaveManager } from '../persistence/SaveManager';
+import type { SettingsStore } from '../persistence/SettingsStore';
+import type { Simulation } from '../simulation/Simulation';
 import type { BiomeId } from '../world/Biomes';
 import { STREAM_GENERATOR_VERSION } from '../world/infinite/types';
+import { biomeChoices, BiomeWalkHud } from './BiomeWalk';
+import { developerMenu } from './DeveloperMenu';
+import { translate } from './i18n';
+import { settingsMenu } from './settings/SettingsMenu';
 import './theme.css';
-import { LANGUAGES, type Language } from '../types/languages';
-import { translate, languageCode } from './i18n';
-import { COLOR_MODES, type ColorMode } from '../types/colorModes';
-import type { Simulation } from '../simulation/Simulation';
-import type { SaveManager } from '../persistence/SaveManager';
-import type { InputManager } from '../core/input/InputManager';
-import type { InputAction } from '../core/input/types';
-import type { Game, GameShell as Shell, SceneState } from '../game/Game';
-import { OnboardingStore } from '../persistence/OnboardingStore';
-import type { SettingsStore } from '../persistence/SettingsStore';
+import { worldLibraryMenu } from './WorldLibraryMenu';
 
 export class GameShell implements Shell {
   game!: Game;
@@ -23,7 +21,7 @@ export class GameShell implements Shell {
   readonly onboarding = new OnboardingStore(localStorage);
   private video = document.createElement('video');
   private panel = document.createElement('section');
-  private cancelCapture: (() => void) | null = null;
+  private closeSettings: (() => void) | null = null;
   private t(text: string): string {
     return translate(this.settings.value.language, text);
   }
@@ -53,7 +51,10 @@ export class GameShell implements Shell {
     this.video.className = 'menu-backdrop';
     document.body.append(this.video, this.panel);
     this.panel.addEventListener('keydown', (e) => {
-      if (this.panel.querySelector('[data-busy=true]')) { if (e.code === 'Escape') e.preventDefault(); return; }
+      if (this.panel.querySelector('[data-busy=true]')) {
+        if (e.code === 'Escape') e.preventDefault();
+        return;
+      }
       if (e.code === 'Escape') {
         e.preventDefault();
         if (
@@ -95,8 +96,8 @@ export class GameShell implements Shell {
   onSceneChanged(scene: SceneState): void {
     this.closeDeveloper?.();
     this.closeDeveloper = undefined;
-    this.cancelCapture?.();
-    this.cancelCapture = null;
+    this.closeSettings?.();
+    this.closeSettings = null;
     if (scene === 'loading' || scene === 'error') {
       this.panel.hidden = true;
       this.video.hidden = true;
@@ -156,10 +157,18 @@ export class GameShell implements Shell {
 
     if (scene === 'paused') button('Resume', 'resume-button', () => this.game.resume());
     else {
-      if (scene === 'menu' && this.saves?.hasTutorialSave()) button('Resume Tutorial', 'continue-button', () => { this.saves?.developerContext(); this.withSave(() => this.saves?.load()); });
+      if (scene === 'menu' && this.saves?.hasTutorialSave())
+        button('Resume Tutorial', 'continue-button', () => {
+          this.saves?.developerContext();
+          this.withSave(() => this.saves?.load());
+        });
       button('Play', 'new-game-button', () => this.showPlay());
-      button('Tutorial', 'tutorial-button', () => { this.saves?.developerContext(); this.game.startNewGame({ tutorial: true }); });
-      if (scene === 'menu') button('Developer · Demo', 'developer-button', () => this.showDeveloper());
+      button('Tutorial', 'tutorial-button', () => {
+        this.saves?.developerContext();
+        this.game.startNewGame({ tutorial: true });
+      });
+      if (scene === 'menu')
+        button('Developer · Demo', 'developer-button', () => this.showDeveloper());
     }
     if (scene === 'paused') {
       if (this.simulation?.stream?.exploration)
@@ -197,14 +206,35 @@ export class GameShell implements Shell {
     this.panel.dataset.screen = 'play';
     const box = this.panel.firstElementChild as HTMLElement | null;
     const saves = this.saves;
-    if (box && saves) this.withSave(() => worldLibraryMenu(box, saves, this.settings.value.difficulty, () => this.onSceneChanged('menu')));
+    if (box && saves)
+      this.withSave(() =>
+        worldLibraryMenu(box, saves, this.settings.value.difficulty, () =>
+          this.onSceneChanged('menu'),
+        ),
+      );
   }
   private showDeveloper(): void {
     this.closeDeveloper?.();
     this.panel.dataset.screen = 'developer';
     const box = this.panel.firstElementChild as HTMLElement | null;
-    if (box) this.closeDeveloper = developerMenu(box, () => { this.closeDeveloper?.(); this.showBiomes(); }, () => this.onSceneChanged('menu'));
-    if (box) { const b = document.createElement('button'); b.textContent = 'Import exploration save'; b.onclick = () => { this.saves?.developerContext(); this.importSave(); }; box.append(b); }
+    if (box)
+      this.closeDeveloper = developerMenu(
+        box,
+        () => {
+          this.closeDeveloper?.();
+          this.showBiomes();
+        },
+        () => this.onSceneChanged('menu'),
+      );
+    if (box) {
+      const b = document.createElement('button');
+      b.textContent = 'Import exploration save';
+      b.onclick = () => {
+        this.saves?.developerContext();
+        this.importSave();
+      };
+      box.append(b);
+    }
   }
   private showBiomes(): void {
     if (this.game.currentScene === 'playing') this.game.pause();
@@ -345,295 +375,17 @@ export class GameShell implements Shell {
     };
     input.click();
   }
-  private settingRow(section: HTMLElement, text: string): HTMLLabelElement {
-    const row = document.createElement('label');
-    row.className = 'setting-row';
-    const name = document.createElement('span');
-    name.className = 'setting-label';
-    name.textContent = this.t(text);
-    row.append(name);
-    section.append(row);
-    return row;
-  }
+
   private showSettings(scene: SceneState): void {
-    const box = this.panel.firstElementChild;
-    if (!box) return;
-    box.replaceChildren();
-    this.panel.dataset.screen = 'settings';
-    box.className = 'menu-panel settings-panel';
-    const heading = document.createElement('h1');
-    heading.textContent = this.t('Settings');
-    box.append(heading);
-    const layout = document.createElement('div');
-    layout.className = 'settings-layout';
-    box.append(layout);
-    const navigation = document.createElement('nav');
-    navigation.className = 'settings-nav';
-    navigation.setAttribute('aria-label', 'Settings sections');
-    layout.append(navigation);
-    const body = document.createElement('div');
-    body.className = 'settings-body';
-    layout.append(body);
-    const group = (name: string) => {
-      const section = document.createElement('fieldset');
-      section.dataset.section = name;
-      section.hidden = name !== 'Display';
-      const legend = document.createElement('legend');
-      legend.textContent = this.t(name);
-      section.append(legend);
-      body.append(section);
-      const tab = document.createElement('button');
-      tab.textContent = this.t(name);
-      tab.type = 'button';
-      tab.className = 'settings-tab';
-      tab.setAttribute('aria-pressed', String(name === 'Display'));
-      tab.onclick = () => {
-        for (const other of body.querySelectorAll<HTMLElement>('fieldset'))
-          other.hidden = other !== section;
-        for (const other of navigation.querySelectorAll('button'))
-          other.setAttribute('aria-pressed', String(other === tab));
-        body.scrollTop = 0;
-      };
-      navigation.append(tab);
-      return section;
-    };
-    const display = group('Display'),
-      gameplay = group('Gameplay'),
-      audio = group('Audio'),
-      access = group('Accessibility');
-    for (const [key, text, section] of [
-      ['lighting', 'Lighting', display],
-      ['clouds', 'Clouds', display],
-      ['particles', 'Ambient particles', display],
-      ['showStars', 'Stars at night', display],
-      ['shake', 'Camera shake', display],
-      ['fireflies', 'Fireflies', display],
-      ['performance', 'Performance overlay', display],
-      ['hud', 'Show HUD', gameplay],
-      ['tutorials', 'Show tutorials', gameplay],
-      ['invertY', 'Invert Y axis', gameplay],
-    ] as const) {
-      const label = this.settingRow(section, text);
-      label.classList.add('setting-row--toggle');
-      const control = document.createElement('input');
-      control.type = 'checkbox';
-      control.checked = this.settings.value[key];
-      control.onchange = () => {
-        this.settings.value[key] = control.checked;
-        this.persist();
-      };
-      label.append(control);
-    }
-    for (const [key, text] of [
-      ['masterVolume', 'Master volume'],
-      ['musicVolume', 'Music volume'],
-      ['sfxVolume', 'Effects volume'],
-    ] as const) {
-      const label = this.settingRow(audio, text);
-      const value = document.createElement('span');
-      value.className = 'setting-value';
-      const control = document.createElement('input');
-      control.type = 'range';
-      control.min = '0';
-      control.max = '1';
-      control.step = '.05';
-      control.value = String(this.settings.value[key]);
-      const output = document.createElement('output');
-      output.textContent = `${Math.round(Number(control.value) * 100)}%`;
-      control.oninput = () => {
-        this.settings.value[key] = Number(control.value);
-        output.textContent = `${Math.round(Number(control.value) * 100)}%`;
-        this.persist();
-      };
-      value.append(control, output);
-      label.append(value);
-    }
-    const select = (
-      section: HTMLElement,
-      text: string,
-      choices: Array<[string, string]>,
-      current: string,
-      change: (v: string) => void,
-    ) => {
-      const label = this.settingRow(section, text);
-      const control = document.createElement('select');
-      for (const [value, title] of choices) control.append(new Option(this.t(title), value));
-      control.value = current;
-      control.onchange = () => {
-        change(control.value);
-        this.persist();
-      };
-      label.append(control);
-    };
-    select(
-      display,
-      'Frame limit',
-      [60, 120, 144, 170, 240, 0].map((n) => [String(n), n ? `${n} FPS` : 'Unlimited']),
-      String(this.settings.value.maxFps),
-      (v) => (this.settings.value.maxFps = Number(v)),
-    );
-    const sensitivity = this.settingRow(gameplay, 'Movement sensitivity');
-    const sensitivityControls = document.createElement('span');
-    sensitivityControls.className = 'setting-value';
-    const slider = document.createElement('input');
-    slider.type = 'range';
-    slider.min = '1';
-    slider.max = '10';
-    slider.step = '1';
-    slider.value = String(this.settings.value.sensitivity);
-    const sensitivityValue = document.createElement('output');
-    sensitivityValue.textContent = slider.value;
-    slider.oninput = () => {
-      this.settings.value.sensitivity = Number(slider.value);
-      sensitivityValue.textContent = slider.value;
-      this.persist();
-    };
-    sensitivityControls.append(slider, sensitivityValue);
-    sensitivity.append(sensitivityControls);
-    select(
-      gameplay,
-      'Difficulty (next world)',
-      [
-        ['easy', 'Easy'],
-        ['normal', 'Normal'],
-        ['hard', 'Hard'],
-      ],
-      this.settings.value.difficulty,
-      (v) => {
-        if (v === 'easy' || v === 'normal' || v === 'hard') this.settings.value.difficulty = v;
-      },
-    );
-    select(
-      access,
-      'Language',
-      LANGUAGES.map((language) => [language, language]),
-      this.settings.value.language,
-      (value) => {
-        if (LANGUAGES.some((language) => language === value)) {
-          this.settings.value.language = value as Language;
-          document.documentElement.lang = languageCode(this.settings.value.language);
-          queueMicrotask(() => {
-            this.showSettings(scene);
-            const tab = this.panel.querySelectorAll<HTMLButtonElement>('.settings-tab')[3];
-            tab?.click();
-            tab?.focus();
-          });
-        }
-      },
-    );
-    select(
-      access,
-      'Color mode',
-      COLOR_MODES.map((mode) => [mode, mode]),
-      this.settings.value.colorMode,
-      (v) => {
-        if (COLOR_MODES.some((mode) => mode === v)) this.settings.value.colorMode = v as ColorMode;
-      },
-    );
-    select(
-      access,
-      'UI scale',
-      [
-        ['0.8', 'Compact'],
-        ['1', 'Default'],
-        ['1.2', 'Large'],
-      ],
-      String(this.settings.value.uiScale),
-      (v) => (this.settings.value.uiScale = Number(v)),
-    );
-    const controls = group('Controls');
-    const actions: Array<[InputAction, string]> = [
-      ['moveUp', 'Move up'],
-      ['moveDown', 'Move down'],
-      ['moveLeft', 'Move left'],
-      ['moveRight', 'Move right'],
-      ['sprint', 'Sprint'],
-      ['jump', 'Jump'],
-      ['dash', 'Dash'],
-      ['attack', 'Attack'],
-      ['interact', 'Interact'],
-      ['skillQ', 'Spin'],
-      ['skillE', 'Magic bolt'],
-      ['potionHealth', 'Health potion'],
-      ['potionSpeed', 'Speed potion'],
-      ['pause', 'Pause'],
-    ];
-    for (const [action, name] of actions) {
-      const label = this.settingRow(controls, name);
-      const key = document.createElement('button');
-      key.className = 'key-binding';
-      key.textContent = String(this.input?.getKeybinds()[action]?.[0] ?? 'Unbound');
-      key.onclick = () => {
-        this.cancelCapture?.();
-        key.textContent = this.t('Press a key…');
-        const capture = (event: KeyboardEvent) => {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          window.removeEventListener('keydown', capture, true);
-          if (event.code !== 'Escape' && this.input) {
-            const bindings = this.input.getKeybinds();
-            for (const other of Object.keys(bindings) as InputAction[])
-              if (other !== action) {
-                this.input.unbindAction(other, event.code);
-                if (event.keyCode) this.input.unbindAction(other, event.keyCode);
-              }
-            this.input.setKeybinds({ [action]: [event.code] });
-            this.input.saveToStorage();
-          }
-          key.textContent = String(this.input?.getKeybinds()[action]?.[0] ?? 'Unbound');
-        };
-        this.cancelCapture = () => {
-          window.removeEventListener('keydown', capture, true);
-          key.textContent = String(this.input?.getKeybinds()[action]?.[0] ?? 'Unbound');
-        };
-        window.addEventListener('keydown', capture, true);
-      };
-      label.append(key);
-    }
-    const restore = document.createElement('button');
-    restore.textContent = this.t('Reset controls');
-    restore.onclick = () => {
-      this.input?.resetToDefaults();
-      this.input?.saveToStorage();
-      this.showSettings(scene);
-    };
-    controls.append(restore);
-    const replay = document.createElement('button');
-    replay.textContent = this.t('Replay tutorial');
-    replay.onclick = () => this.game.startNewGame({ tutorial: true });
-    gameplay.append(replay);
-    const fullscreen = document.createElement('button');
-    fullscreen.textContent = this.t('Toggle fullscreen');
-    fullscreen.onclick = () => {
-      void this.game.toggleFullscreen();
-    };
-    display.append(fullscreen);
-    const footer = document.createElement('footer');
-    footer.className = 'settings-footer';
-    box.append(footer);
-    const reset = document.createElement('button');
-    reset.textContent = this.t('Reset settings');
-    reset.onclick = () => {
-      this.settings.reset();
-      this.applySettings();
-      this.showSettings(scene);
-    };
-    footer.append(reset);
-    const back = document.createElement('button');
-    back.className = 'menu-button--primary';
-    back.textContent = this.t('Back');
-    back.onclick = () => this.onSceneChanged(scene);
-    footer.append(back);
-    navigation.querySelector('button')?.focus();
-  }
-  private persist(): void {
-    const saved = this.settings.save();
-    this.applySettings();
-    if (!saved) {
-      const notice = document.createElement('p');
-      notice.setAttribute('role', 'status');
-      notice.textContent = 'Preferences apply for this session but could not be saved.';
-      this.panel.firstElementChild?.append(notice);
-    }
+    this.closeSettings?.();
+    this.closeSettings = settingsMenu({
+      panel: this.panel,
+      settings: this.settings,
+      input: this.input,
+      game: this.game,
+      scene,
+      applySettings: this.applySettings,
+      onBack: (current) => this.onSceneChanged(current),
+    });
   }
 }

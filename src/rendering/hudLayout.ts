@@ -28,12 +28,12 @@ export interface HudLayout {
 }
 export const EMPTY_INSETS: SafeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 export const HUD_MARGIN = 16;
-export const LEVEL_PANEL = { width: 184, height: 48 } as const;
+const LEVEL_PANEL = { width: 184, height: 48 } as const;
 const SLOT_COUNT = 5,
   PAD = 6;
 
 /** Logical vitals panel height: two heart rows, MP and STA bars, padding. */
-export function vitalsHeight(heartStep: number, bar: number): number {
+function vitalsHeight(heartStep: number, bar: number): number {
   return PAD + heartStep * 2 + 3 + bar + 3 + bar + PAD;
 }
 

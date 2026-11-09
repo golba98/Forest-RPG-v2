@@ -4,15 +4,17 @@ import { describe, expect, it } from 'vitest';
 import {
   ANIMATION_DEFS,
   PROCEDURAL_SPRITES,
+  listReferencedAliases,
+} from '../../../src/animation/AnimationDefs';
+import { playerSheetAlias } from '../../../src/animation/PlayerSheets';
+import {
   getAnimationDurationMs,
   isAnimationFinished,
   isAnimationLooping,
-  listReferencedAliases,
-  playerSheetAlias,
   resolveSpriteFrame,
   toCardinal,
   type SpriteFrameInput,
-} from '../../../src/animation';
+} from '../../../src/animation/resolveSpriteFrame';
 import type { AnimState, Direction } from '../../../src/types/entities';
 
 function view(overrides: Partial<SpriteFrameInput> = {}): SpriteFrameInput {

@@ -55,7 +55,7 @@ time, evictions and urgent misses without constructing full object diagnostics.
 `hilltopViews`, `propViews` and bridge sprite counts describe instantiated views.
 The debug-only `setZoom()` exposes the existing renderer zoom control for QA.
 
-Hills are autotiled from elevation topology with a generated, project-owned cliff tileset (`scripts/build-hill-tileset.mjs`): every 8-neighbour configuration has a frame (plateau top, rims, south cliff faces, inner/outer corners, contact shadow). Forest trees are planned so every solid forest tile is visibly covered. Entities animate through `EntityAnimator` (clip restarts on state change, attack telegraphs, hurt flash, death fade); portals through `PortalView` (locked / reacting / open / transitioning, see `docs/contracts/visual-contract.md`). Press F3 in debug builds for the collider / sprite-bounds overlay.
+Hills are autotiled from elevation topology with a generated, project-owned cliff tileset (`scripts/assets/build-hill-tileset.mjs`): every 8-neighbour configuration has a frame (plateau top, rims, south cliff faces, inner/outer corners, contact shadow). Forest trees are planned so every solid forest tile is visibly covered. Entities animate through `EntityAnimator` (clip restarts on state change, attack telegraphs, hurt flash, death fade); portals through `PortalView` (locked / reacting / open / transitioning, see `docs/contracts/visual-contract.md`). Press F3 in debug builds for the collider / sprite-bounds overlay.
 
 Clouds are high, soft-focus and parallaxed with matching ground shadows, clipped to world bounds; settings control clouds, ambient particles, stars, fireflies, lighting and camera shake. Water clips the lower part of a grounded player's sprite and draws ripples; jumping lifts the character out of that effect. The HUD provides health, resource bars, inventory counts and a minimap. Menus use a video backdrop with a static woodland fallback. The portal, mud and backdrop include new artwork; icon sizes are provided for browsers and installed apps.
 
@@ -126,7 +126,7 @@ bridges, boulders and player sprites remain intact. Soil grain uses global coord
 so it stays anchored during local window rebases.
 
 Streamed versions 15 and 16 use each biome's `upland.png`: a native 360×648 atlas
-with three 58-frame banks. `scripts/build-upland-art.mjs`, called by the environment
+with three 58-frame banks. `scripts/assets/build-upland-art.mjs`, called by the environment
 pipeline, authors irregular rock strata, moss/soil rims and four oriented stone-step
 flights over the existing cliff collision silhouette. Forest, meadow, highland,
 wetland and autumn materials have distinct palettes. There are 141 mask frames,

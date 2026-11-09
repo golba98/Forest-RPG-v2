@@ -53,7 +53,7 @@ export const DECOR_VEGETATION: Readonly<Partial<Record<PropKind, VegetationFrame
   log_stump: VEGETATION.stump,
 };
 
-export function nearRiver(world: WorldData, x: number, y: number): boolean {
+function nearRiver(world: WorldData, x: number, y: number): boolean {
   for (let dy = -3; dy <= 3; dy++)
     for (let dx = -3; dx <= 3; dx++) {
       const tx = x + dx,

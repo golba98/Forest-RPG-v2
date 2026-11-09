@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { radarPoint, rimPoint } from '../../../src/rendering/Minimap';
-import { hurtBlinkAlpha } from '../../../src/rendering/PixiRenderer';
+import { hurtBlinkAlpha } from '../../../src/rendering/entities/EntityLayer';
 
 describe('minimap radar', () => {
   it('keeps the player at the centre and scales by 4 px per tile', () => {

@@ -3,7 +3,7 @@ import type { Bounds } from '../types/gameplay';
 import type { WorldBridge } from '../types/world';
 
 export const BRIDGE_TILE_PX = 32;
-export const BRIDGE_WIDTH = 2;
+const BRIDGE_WIDTH = 2;
 export const BRIDGE_DECK_INSET = 6 / BRIDGE_TILE_PX;
 export const BRIDGE_RAIL_OUTSET = 3 / BRIDGE_TILE_PX;
 export interface BridgeWorld {

@@ -24,6 +24,31 @@ copy-on-write revision references instead of loading every visited area. See
 [world generation](world-generation.md#streamed-worlds) and
 [save format](save-format.md#streamed-worlds-schema-3) for the concrete contracts.
 
+## Ownership and module boundaries
+
+Keep the existing subsystem directories rather than adding a parallel engine hierarchy:
+
+| Owner                                               | Responsibility                                                                                                 |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `bootstrap.ts`, `game/Game.ts`, `core/`             | Composition, scene lifecycle, fixed loop, typed events and input                                               |
+| `simulation/Simulation.ts`                          | Authoritative world, actors, clocks, gameplay updates and stream window installation                           |
+| `simulation/streaming/StreamingCoordinator.ts`      | Active/pending sessions, cancellation epochs, asynchronous preparation, publication and transition persistence |
+| `world/generation/`, `world/infinite/`              | Finite terrain stages and versioned streamed generation, chunk sources and residency                           |
+| `systems/`, `entities/`                             | Movement, collision, combat, encounters, loot and portals                                                      |
+| `rendering/PixiRenderer.ts`                         | Camera, terrain, layer composition and frame order                                                             |
+| `rendering/entities/EntityLayer.ts`                 | Actor animation/views, portal views, shadows, wading masks and view cleanup                                    |
+| `animation/PlayerSheets.ts`                         | Shared player animation/direction names and texture aliases                                                    |
+| `ui/GameShell.ts`, `ui/settings/SettingsMenu.ts`    | Menu navigation and settings controls, with explicit listener teardown                                         |
+| `persistence/SaveManager.ts`, `persistence/codecs/` | Save/library orchestration and finite save/entity validation; storage formats remain separate contracts        |
+
+The streaming coordinator holds session orchestration state once. It asks the simulation to install a prepared window; it does not own a second player/world copy. The entity layer consumes a frame context and never decides gameplay. Settings return a teardown callback so leaving a key-binding screen cancels temporary keyboard capture.
+
+Use direct imports from each owner. `NestGeometry` receives the swept-path predicate from its caller, avoiding a runtime dependency cycle with `CollisionSystem` while keeping physical rules in collision. Save readers share record/finite predicates, but retain format-specific limits. Audio uses the core event contract rather than a second bus interface.
+
+Finite generator 13, tutorial fixtures, streamed generator versions 13–16, old save readers, key-binding conversions and cooperative worker fallback are active compatibility paths. Keep them until their consumers and stored formats can be deliberately migrated. Historical player review tools and source artwork are development evidence; a missing static application import does not justify deleting them.
+
+`check:unused` covers app and worker roots, browser/unit tests, asset tools, profiling CLIs and review pages. Narrow exceptions retain the historical player-study asset adapter, dynamically called study exports and approved pixel-math exports. `check:cycles` checks runtime import cycles; type-only relationships do not introduce runtime cycles. Update tool entrypoints when moving scripts rather than suppressing unresolved imports.
+
 ## Finite-world audit and integration
 
 The original generator builds a complete row-major map, normally 150×150, with

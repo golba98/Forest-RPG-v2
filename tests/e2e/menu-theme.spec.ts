@@ -151,6 +151,25 @@ test('settings keyboard navigation, rebinding, cancel and resets remain usable',
   await expect(page.getByRole('combobox', { name: 'Frame limit', exact: true })).toHaveValue('60');
 });
 
+test('pending key capture is cancelled by reset and menu navigation', async ({ page }) => {
+  await page.goto('/?debug=1');
+  await page.getByTestId('settings-button').click();
+  const controls = page.getByRole('button', { name: 'Controls', exact: true });
+  const up = page.locator('.setting-row').filter({ hasText: 'Move up' }).getByRole('button');
+  await controls.click();
+  await up.click();
+  await page.getByRole('button', { name: 'Reset controls', exact: true }).click();
+  await page.keyboard.press('KeyZ');
+  await controls.click();
+  await expect(up).toHaveText('KeyW');
+  await up.click();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.keyboard.press('KeyX');
+  await page.getByTestId('settings-button').click();
+  await controls.click();
+  await expect(up).toHaveText('KeyW');
+});
+
 test('tutorial, pause, character and game-over share the theme and return to gameplay', async ({
   page,
 }, testInfo) => {

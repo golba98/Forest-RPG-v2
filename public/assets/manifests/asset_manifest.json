@@ -8,20 +8,8 @@
           "src": "assets/fonts/pixel_font.ttf"
         },
         {
-          "alias": "ui_button_bg",
-          "src": "assets/images/ui/button_bg.png"
-        },
-        {
           "alias": "ui_heart",
           "src": "assets/images/ui/heart.png"
-        },
-        {
-          "alias": "bg_menu",
-          "src": "assets/images/background/menu_bg.png"
-        },
-        {
-          "alias": "bg_settings",
-          "src": "assets/images/background/settings_bg.png"
         }
       ]
     },
@@ -43,38 +31,6 @@
         {
           "alias": "tile_bridge",
           "src": "assets/images/terrain/bridge.png"
-        },
-        {
-          "alias": "hill_e",
-          "src": "assets/images/terrain/hills/hill_east.png"
-        },
-        {
-          "alias": "hill_n",
-          "src": "assets/images/terrain/hills/hill_north.png"
-        },
-        {
-          "alias": "hill_ne",
-          "src": "assets/images/terrain/hills/hill_northeast.png"
-        },
-        {
-          "alias": "hill_nw",
-          "src": "assets/images/terrain/hills/hill_northwest.png"
-        },
-        {
-          "alias": "hill_s",
-          "src": "assets/images/terrain/hills/hill_south.png"
-        },
-        {
-          "alias": "hill_se",
-          "src": "assets/images/terrain/hills/hill_southeast.png"
-        },
-        {
-          "alias": "hill_sw",
-          "src": "assets/images/terrain/hills/hill_southwest.png"
-        },
-        {
-          "alias": "hill_w",
-          "src": "assets/images/terrain/hills/hill_west.png"
         },
         {
           "alias": "tile_mud",
@@ -122,14 +78,6 @@
           "src": "assets/images/characters/enemies/acid_blob.png"
         },
         {
-          "alias": "vfx_acid_splat",
-          "src": "assets/images/characters/enemies/acid_splat.png"
-        },
-        {
-          "alias": "vfx_eggsplosion",
-          "src": "assets/images/characters/enemies/eggsplosion.png"
-        },
-        {
           "alias": "item_chest",
           "src": "assets/images/items/chest.png"
         },
@@ -140,10 +88,6 @@
         {
           "alias": "item_potion_speed",
           "src": "assets/images/items/potion_speed.png"
-        },
-        {
-          "alias": "item_coin",
-          "src": "assets/images/items/coin.png"
         },
         {
           "alias": "item_coin_anim",

@@ -1,5 +1,6 @@
-import fluid from './playerFluidMetadata.json';
 import { CHARACTER_FOOT_OFFSET_PX } from '../types/physical';
+import { DIRECTIONS, playerSheetAlias, type PlayerSheetAnim } from './PlayerSheets';
+import fluid from './playerFluidMetadata.json';
 /**
  * Data-only animation metadata for every sprite set, keyed by
  * `RenderEntityView.spriteKey`. Frame specs and timings are taken from the
@@ -14,7 +15,12 @@ import type { AnimState, Direction } from '../types/entities';
 export type CardinalDirection = 'N' | 'E' | 'S' | 'W';
 
 /** Order of the four direction rows on an enemy/projectile sheet, top to bottom. */
-export type RowOrder = readonly [CardinalDirection, CardinalDirection, CardinalDirection, CardinalDirection];
+export type RowOrder = readonly [
+  CardinalDirection,
+  CardinalDirection,
+  CardinalDirection,
+  CardinalDirection,
+];
 
 /** A texture laid out as a uniform grid. `sheetWidth / columns` may be fractional. */
 export interface SheetLayout {
@@ -39,7 +45,10 @@ export type ClipSource =
   /** Grid with one row per cardinal direction (enemies, acid blob). */
   | { readonly kind: 'directionalRows'; readonly sheet: SheetLayout; readonly rowOrder: RowOrder }
   /** Single-row strip per facing direction (player). Columns = clip frameCount. */
-  | { readonly kind: 'perDirectionSheets'; readonly sheets: Readonly<Record<Direction, DirectionalSheet>> }
+  | {
+      readonly kind: 'perDirectionSheets';
+      readonly sheets: Readonly<Record<Direction, DirectionalSheet>>;
+    }
   /** Single row, direction-independent (coin, portal, static items). */
   | { readonly kind: 'single'; readonly sheet: SheetLayout };
 
@@ -58,7 +67,11 @@ export interface ClipDef {
 
 export type AnchorDef =
   /** Source foot (default: bottom-centre) sits `footOffsetPx` below the entity point. */
-  | { readonly kind: 'feet'; readonly footOffsetPx: number; readonly sourceFoot?: { readonly x: number; readonly y: number } }
+  | {
+      readonly kind: 'feet';
+      readonly footOffsetPx: number;
+      readonly sourceFoot?: { readonly x: number; readonly y: number };
+    }
   | { readonly kind: 'center' };
 
 export interface SpriteSetDef {
@@ -92,29 +105,8 @@ export const SYNTHETIC_HOLD_MS: Readonly<Partial<Record<AnimState, number>>> = {
   death: 500,
 };
 
-/** Characters' feet sit roughly at the bottom edge of their collision box (halfSize 0.3 tile). */
-
-
-const DIRECTIONS: readonly Direction[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-
-const DIRECTION_FILE_SUFFIX: Readonly<Record<Direction, string>> = {
-  N: 'north',
-  NE: 'northeast',
-  E: 'east',
-  SE: 'southeast',
-  S: 'south',
-  SW: 'southwest',
-  W: 'west',
-  NW: 'northwest',
-};
-
-/** Player sheet aliases follow the manifest's `hill_ne` style: `player_<anim>_<dir>`. */
-export function playerSheetAlias(anim: 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'attack2' | 'attack3', dir: Direction): string {
-  return `player_${anim}_${DIRECTION_FILE_SUFFIX[dir]}`;
-}
-
 function playerSheets(
-  anim: 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'attack2' | 'attack3',
+  anim: PlayerSheetAnim,
   sheetWidth: number,
 ): Readonly<Record<Direction, DirectionalSheet>> {
   const out = {} as Record<Direction, DirectionalSheet>;
@@ -124,7 +116,13 @@ function playerSheets(
   return out;
 }
 
-function grid(alias: string, sheetWidth: number, sheetHeight: number, columns: number, rows: number): SheetLayout {
+function grid(
+  alias: string,
+  sheetWidth: number,
+  sheetHeight: number,
+  columns: number,
+  rows: number,
+): SheetLayout {
   return { alias, sheetWidth, sheetHeight, columns, rows };
 }
 
@@ -133,7 +131,12 @@ function staticItem(alias: string, scale: number): SpriteSetDef {
     scale,
     anchor: { kind: 'center' },
     clips: {
-      idle: { source: { kind: 'single', sheet: grid(alias, 32, 32, 1, 1) }, frameCount: 1, frameDurationMs: 1000, loop: true },
+      idle: {
+        source: { kind: 'single', sheet: grid(alias, 32, 32, 1, 1) },
+        frameCount: 1,
+        frameDurationMs: 1000,
+        loop: true,
+      },
     },
   };
 }
@@ -141,10 +144,18 @@ function staticItem(alias: string, scale: number): SpriteSetDef {
 /** All remastered player frames have integer bounds and independently drawn directions.
  * The old diagonal filename swaps and SW run mirror belong to the replaced art,
  * not combat direction. The simulation's locked attack facing is unchanged. */
-function playerClip(anim: Parameters<typeof playerSheetAlias>[0], count: number, _ms: number, loop: boolean, stridePx?: number): ClipDef {
+function playerClip(
+  anim: Parameters<typeof playerSheetAlias>[0],
+  count: number,
+  _ms: number,
+  loop: boolean,
+  stridePx?: number,
+): ClipDef {
   return {
     source: { kind: 'perDirectionSheets', sheets: playerSheets(anim, count * 64) },
-    frameCount: count, frameDurationMs: fluid.durations[anim].reduce((a,b)=>a+b,0)/count, loop,
+    frameCount: count,
+    frameDurationMs: fluid.durations[anim].reduce((a, b) => a + b, 0) / count,
+    loop,
     frameDurationsMs: fluid.durations[anim],
     ...(stridePx === undefined ? {} : { stridePx }),
   };
@@ -157,8 +168,19 @@ const ROWS_SWEN: RowOrder = ['S', 'W', 'E', 'N'];
 /** Legacy getDirectionSpriteRow_Ghost. */
 const ROWS_SNEW: RowOrder = ['S', 'N', 'E', 'W'];
 
-function enemyClip(sheet: SheetLayout, rowOrder: RowOrder, frameCount: number, frameDurationMs: number, loop: boolean): ClipDef {
-  return { source: { kind: 'directionalRows', sheet, rowOrder }, frameCount, frameDurationMs, loop };
+function enemyClip(
+  sheet: SheetLayout,
+  rowOrder: RowOrder,
+  frameCount: number,
+  frameDurationMs: number,
+  loop: boolean,
+): ClipDef {
+  return {
+    source: { kind: 'directionalRows', sheet, rowOrder },
+    frameCount,
+    frameDurationMs,
+    loop,
+  };
 }
 
 const MANTIS_MOVE = grid('enemy_mantis_move', 128, 128, 4, 4);
@@ -175,7 +197,9 @@ const PORTAL_INACTIVE = grid('portal_inactive', 1536, 256, 6, 1);
 const PORTAL_ACTIVE = grid('portal_active', 1536, 256, 6, 1);
 
 function portalClips(sheet: SheetLayout): Readonly<Partial<Record<AnimState, ClipDef>>> {
-  return { idle: { source: { kind: 'single', sheet }, frameCount: 6, frameDurationMs: 150, loop: true } };
+  return {
+    idle: { source: { kind: 'single', sheet }, frameCount: 6, frameDurationMs: 150, loop: true },
+  };
 }
 
 const PLAYER: SpriteSetDef = {
@@ -184,12 +208,15 @@ const PLAYER: SpriteSetDef = {
   clips: {
     idle: playerClip('idle', fluid.counts.idle, 200, true),
     walk: playerClip('walk', fluid.counts.walk, 320 / 12, true, 64),
-    run: playerClip('run', fluid.counts.run, (8000 / 34) / 12, true, 64),
+    run: playerClip('run', fluid.counts.run, 8000 / 34 / 12, true, 64),
     jump: playerClip('jump', fluid.counts.jump, 500 / 12, false),
     // Impact pose starts at 120 ms, matching the unchanged combat strike.
     attack: playerClip('attack', fluid.counts.attack, 30, false),
   },
-  attackClips: { 2: playerClip('attack2', fluid.counts.attack2, 30, false), 3: playerClip('attack3', fluid.counts.attack3, 30, false) },
+  attackClips: {
+    2: playerClip('attack2', fluid.counts.attack2, 30, false),
+    3: playerClip('attack3', fluid.counts.attack3, 30, false),
+  },
 };
 
 export const ANIMATION_DEFS: Readonly<Record<string, SpriteSetDef>> = {
@@ -251,7 +278,14 @@ export const ANIMATION_DEFS: Readonly<Record<string, SpriteSetDef>> = {
   coin: {
     scale: 0.8,
     anchor: { kind: 'center' },
-    clips: { idle: { source: { kind: 'single', sheet: COIN_ANIM }, frameCount: 4, frameDurationMs: 150, loop: true } },
+    clips: {
+      idle: {
+        source: { kind: 'single', sheet: COIN_ANIM },
+        frameCount: 4,
+        frameDurationMs: 150,
+        loop: true,
+      },
+    },
   },
 
   // Portal: 6 frames @ 150 ms, 256 px frames drawn 2 tiles tall, bottom on the tile's bottom edge.
@@ -281,7 +315,13 @@ export interface ProceduralSpriteDef {
 }
 
 export const PROCEDURAL_SPRITES: Readonly<Record<string, ProceduralSpriteDef>> = {
-  magic_bolt: { shape: 'circle', radiusPx: 5, color: 0x64c8ff, outlineColor: 0xffffff, outlineWidthPx: 1.5 },
+  magic_bolt: {
+    shape: 'circle',
+    radiusPx: 5,
+    color: 0x64c8ff,
+    outlineColor: 0xffffff,
+    outlineWidthPx: 1.5,
+  },
 };
 
 /** Every texture alias referenced by ANIMATION_DEFS (for manifest validation). */

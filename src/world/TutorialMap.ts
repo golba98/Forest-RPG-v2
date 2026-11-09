@@ -5,7 +5,7 @@ import type { PickupSpawn, TilePoint, WorldData } from '../types/world';
 import { GenGrid } from './generation/GenGrid';
 
 /** Layout constants from legacy `game-tutorial.js`. */
-export const TUTORIAL_LAYOUT = {
+const TUTORIAL_LAYOUT = {
   wallY: 10,
   wallX: 10,
   gapXs: [5, 15],
@@ -57,7 +57,13 @@ export function generateTutorialWorld(): WorldData {
     spawn,
     portal: { x: L.portal.x, y: L.portal.y },
     enemySpawns: [
-      { type: 'beetle', x: L.dummy.x, y: L.dummy.y, aggressive: false, maxHealth: L.dummy.maxHealth },
+      {
+        type: 'beetle',
+        x: L.dummy.x,
+        y: L.dummy.y,
+        aggressive: false,
+        maxHealth: L.dummy.maxHealth,
+      },
     ],
     pickupSpawns,
   };

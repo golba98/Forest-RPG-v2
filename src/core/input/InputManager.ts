@@ -1,11 +1,5 @@
 import { Vector2 } from '../math/Vector2';
-import {
-  InputAction,
-  InputCode,
-  KeybindConfig,
-  IInputManager,
-  DEFAULT_KEYBINDS,
-} from './types';
+import { DEFAULT_KEYBINDS, IInputManager, InputAction, InputCode, KeybindConfig } from './types';
 
 export class InputManager implements IInputManager {
   private _target: Window | HTMLElement | null = null;
@@ -61,20 +55,18 @@ export class InputManager implements IInputManager {
   // Lifecycle & DOM Attachment
   // =========================================================================
 
-  public attach(
-    target?: Window | HTMLElement,
-    canvasElement?: HTMLElement
-  ): void {
+  public attach(target?: Window | HTMLElement, canvasElement?: HTMLElement): void {
     const resolvedTarget = target ?? (typeof window !== 'undefined' ? window : null);
     if (this._attached || !resolvedTarget) return;
 
     this._target = resolvedTarget;
     this._canvas =
-      canvasElement ||
-      (typeof document !== 'undefined' ? document.querySelector('canvas') : null);
+      canvasElement || (typeof document !== 'undefined' ? document.querySelector('canvas') : null);
 
     // Attach keyboard listeners on target (using capture to intercept prior to bubbling)
-    resolvedTarget.addEventListener('keydown', this._onKeyDownRef as EventListener, { capture: true });
+    resolvedTarget.addEventListener('keydown', this._onKeyDownRef as EventListener, {
+      capture: true,
+    });
     resolvedTarget.addEventListener('keyup', this._onKeyUpRef as EventListener, { capture: true });
 
     // Attach mouse listeners
@@ -101,7 +93,9 @@ export class InputManager implements IInputManager {
   public detach(): void {
     if (!this._attached || !this._target) return;
 
-    this._target.removeEventListener('keydown', this._onKeyDownRef as EventListener, { capture: true });
+    this._target.removeEventListener('keydown', this._onKeyDownRef as EventListener, {
+      capture: true,
+    });
     this._target.removeEventListener('keyup', this._onKeyUpRef as EventListener, { capture: true });
     this._target.removeEventListener('mouseup', this._onMouseUpRef as EventListener);
 
@@ -263,8 +257,7 @@ export class InputManager implements IInputManager {
     if (typeof localStorage === 'undefined') return false;
     try {
       // Save legacy compatible format for core actions + full config
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const legacyObj: Record<string, any> = {};
+      const legacyObj: Record<string, InputCode[] | number> = {};
       for (const [action, set] of this._bindings.entries()) {
         const arr = Array.from(set);
         legacyObj[action] = arr;
@@ -376,7 +369,9 @@ export class InputManager implements IInputManager {
     const target = ev.target as { tagName?: unknown; isContentEditable?: unknown } | null;
     if (!target || typeof target.tagName !== 'string') return false;
     const tag = target.tagName.toUpperCase();
-    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable === true;
+    return (
+      tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable === true
+    );
   }
 
   private _handleKeyDown(ev: KeyboardEvent): void {

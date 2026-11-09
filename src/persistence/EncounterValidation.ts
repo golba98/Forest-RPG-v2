@@ -2,11 +2,9 @@ import type { EncounterState } from '../types/encounters';
 import type { WorldData } from '../types/world';
 import { ENCOUNTER_CONFIG as C } from '../config/EncounterConfig';
 import { canOccupy } from '../systems/CollisionSystem';
+import { finite, object } from './codecs/validation';
 
-const object = (v: unknown): v is Record<string, unknown> =>
-  !!v && typeof v === 'object' && !Array.isArray(v);
-const number = (v: unknown): v is number =>
-  typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1e9;
+const number = (v: unknown): v is number => finite(v) && v >= 0 && v <= 1e9;
 const timer = (v: Record<string, unknown>, names: string[]) => names.every((k) => number(v[k]));
 const flags = (v: Record<string, unknown>, names: string[]) =>
   names.every((k) => typeof v[k] === 'boolean');
@@ -46,7 +44,9 @@ export function validateEncounterSites(world: WorldData): void {
 }
 
 export function validateEncounterState(
-  world: Pick<WorldData, 'encounterSites'> & {readonly meta: Pick<WorldData['meta'],'width'|'height'>},
+  world: Pick<WorldData, 'encounterSites'> & {
+    readonly meta: Pick<WorldData['meta'], 'width' | 'height'>;
+  },
   state: unknown,
 ): asserts state is EncounterState {
   if (state === undefined) return;

@@ -1,3 +1,4 @@
+import { hasClearPath } from '../../../src/systems/CollisionSystem';
 import { expect, it } from 'vitest';
 import { nestGeometry } from '../../../src/world/NestGeometry';
 import { Simulation } from '../../../src/simulation/Simulation';
@@ -34,7 +35,7 @@ it('shortens the entrance approach on cramped legacy terrain without changing it
   const site = w.encounterSites![0]!;
   w.tiles[11 * 64 + 12] = Tile.FOREST;
   const before = w.tiles.slice();
-  const g = nestGeometry(w, site);
+  const g = nestGeometry(w, site, hasClearPath);
   expect(g.travel).toBeLessThan(0.75);
   expect(canOccupy(w, g.entrance.x, g.entrance.y, 0.3, 'groundEnemy')).toBe(true);
   expect(w.tiles).toEqual(before);

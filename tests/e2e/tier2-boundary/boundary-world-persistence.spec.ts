@@ -83,7 +83,7 @@ test.describe('Tier 2 Boundary: World Borders & Persistence Stress', () => {
     await driver.launchGame();
     await driver.waitForEngineReady();
 
-    const _result = await driver.executeDebugCommand('/tp 999999 999999');
+    await driver.executeDebugCommand('/tp 999999 999999');
     const state = await driver.getState();
 
     // Coordinates must either remain unchanged or clamp to [0, 149]

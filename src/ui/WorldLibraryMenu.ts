@@ -9,7 +9,7 @@ export function action(host: HTMLElement, label: string, run: () => void): HTMLB
   host.append(b);
   return b;
 }
-export function download(blob: Blob, name: string): void {
+function download(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob),
     a = document.createElement('a');
   a.href = url;

@@ -12,7 +12,7 @@ animation, and browser timing are excluded.
 version, and five serial timing samples. Capture used:
 
 ```sh
-TMPDIR=/dev/shm node scripts/profile-landscape.mjs --capture-baseline
+TMPDIR=/dev/shm node scripts/qa/profile-landscape.mjs --capture-baseline
 ```
 
 Capture writes exclusively and refuses to overwrite an existing fixture. These

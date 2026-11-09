@@ -1,19 +1,24 @@
 import type { Entity, PlayerEntity, PortalEntity } from '../types/entities';
 import type { PortalChange, PortalState, RoundStatus } from '../types/gameplay';
 
-export const PORTAL_RULES = {
+const PORTAL_RULES = {
   approachRadius: 2.5,
   leaveRadius: 3,
   entryRadius: 0.8,
   reactionMs: 600,
 } as const;
-export function roundStatus(entities: readonly Entity[], complete = false, pendingBosses = 0): RoundStatus {
+export function roundStatus(
+  entities: readonly Entity[],
+  complete = false,
+  pendingBosses = 0,
+): RoundStatus {
   let enemiesRemaining = pendingBosses,
     coinsRemaining = 0;
   for (const e of entities)
     if (e.alive) {
       if (e.kind === 'enemy' && e.enemyType !== 'ghost') enemiesRemaining++;
-      else if (e.kind === 'pickup' && e.pickupType === 'coin' && e.requiredForCompletion !== false) coinsRemaining++;
+      else if (e.kind === 'pickup' && e.pickupType === 'coin' && e.requiredForCompletion !== false)
+        coinsRemaining++;
     }
   return {
     complete: complete || (enemiesRemaining === 0 && coinsRemaining === 0),
@@ -43,7 +48,13 @@ export class PortalSystem {
     if (previous !== state)
       this.changed?.({ portalId: portal.id, previous, state, round: this.getStatus() });
   }
-  step(p: PlayerEntity, entities: readonly Entity[], dt: number, pendingBosses = 0, objectives?: RoundStatus): void {
+  step(
+    p: PlayerEntity,
+    entities: readonly Entity[],
+    dt: number,
+    pendingBosses = 0,
+    objectives?: RoundStatus,
+  ): void {
     const portal = entities.find((e): e is PortalEntity => e.kind === 'portal');
     if (!portal) return;
     this.status = objectives ?? roundStatus(entities, this.complete, pendingBosses);

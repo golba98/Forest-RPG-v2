@@ -9,7 +9,7 @@ import { NB } from './hillAutotile';
  * Static art is baked into terrain chunks; the shimmer lives in WaterLayer.
  */
 
-export const WATER_SIZE = 32;
+const WATER_SIZE = 32;
 export const WATER_BASE_VARIANTS = 4;
 export const WATER_PALETTE = {
   deep: 0x1b5269,
@@ -24,7 +24,7 @@ export const WATER_PALETTE = {
 } as const;
 
 /** Bridges stand in water, so they never get a shoreline. */
-export function isWaterTile(tile: number): boolean {
+function isWaterTile(tile: number): boolean {
   return tile === Tile.SHALLOW_WATER || channelTerrain(tile);
 }
 
@@ -40,7 +40,13 @@ const OFFSETS: ReadonlyArray<readonly [number, number, number]> = [
 ];
 
 /** Bit set for each in-bounds neighbour that is land. The map edge counts as water. */
-export function waterEdgeMask(tiles: ArrayLike<number>, width: number, height: number, x: number, y: number): number {
+export function waterEdgeMask(
+  tiles: ArrayLike<number>,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): number {
   let mask = 0;
   for (const [dx, dy, bit] of OFFSETS) {
     const nx = x + dx,
@@ -67,13 +73,16 @@ export function waterEdges(mask: number): WaterEdge[] {
   return edges;
 }
 
-export const waterBaseAlias = (variant: number): string => `water_base_${variant % WATER_BASE_VARIANTS}`;
+export const waterBaseAlias = (variant: number): string =>
+  `water_base_${variant % WATER_BASE_VARIANTS}`;
 export const waterEdgeAlias = (edge: WaterEdge): string => `water_edge_${edge}`;
 
 const hex = (c: number): string => `#${c.toString(16).padStart(6, '0')}`;
 const TAU = Math.PI * 2;
 
-function canvas(draw: (px: (x: number, y: number, color: number, alpha?: number) => void) => void): Texture {
+function canvas(
+  draw: (px: (x: number, y: number, color: number, alpha?: number) => void) => void,
+): Texture {
   const el = document.createElement('canvas');
   el.width = WATER_SIZE;
   el.height = WATER_SIZE;
@@ -119,11 +128,17 @@ function drawBase(variant: number) {
 
 /** Depth (px) of the shallow band along a north edge, wobbling but seamless at x=0/32. */
 function bandDepth(x: number): number {
-  return 7 + Math.round(1.5 * Math.sin((TAU * x) / WATER_SIZE) + Math.sin((TAU * 3 * x) / WATER_SIZE + 1));
+  return (
+    7 +
+    Math.round(1.5 * Math.sin((TAU * x) / WATER_SIZE) + Math.sin((TAU * 3 * x) / WATER_SIZE + 1))
+  );
 }
 
 /** North edge strip drawn through `t`, which rotates it to other sides. */
-function drawStrip(px: (x: number, y: number, c: number, a?: number) => void, t: (x: number, y: number) => [number, number]) {
+function drawStrip(
+  px: (x: number, y: number, c: number, a?: number) => void,
+  t: (x: number, y: number) => [number, number],
+) {
   const { shallow, shallowLight, foam, foamShade } = WATER_PALETTE;
   for (let x = 0; x < WATER_SIZE; x++) {
     const depth = bandDepth(x);
@@ -142,7 +157,10 @@ function drawStrip(px: (x: number, y: number, c: number, a?: number) => void, t:
 }
 
 /** Corner nub (land only diagonally): a quarter disc of shallow water with a foam rim. */
-function drawCorner(px: (x: number, y: number, c: number, a?: number) => void, t: (x: number, y: number) => [number, number]) {
+function drawCorner(
+  px: (x: number, y: number, c: number, a?: number) => void,
+  t: (x: number, y: number) => [number, number],
+) {
   const { shallow, shallowLight, foam, foamShade } = WATER_PALETTE;
   for (let y = 0; y < 9; y++)
     for (let x = 0; x < 9; x++) {
@@ -169,7 +187,7 @@ const CORNERS: Record<'ne' | 'se' | 'sw' | 'nw', (x: number, y: number) => [numb
 };
 
 /** Distance to a neighbouring material, including concave diagonal corners. */
-export function edgeDistance(mask: number, x: number, y: number): number {
+function edgeDistance(mask: number, x: number, y: number): number {
   let d = 64;
   if (mask & NB.N) d = Math.min(d, y + 0.5);
   if (mask & NB.E) d = Math.min(d, 31.5 - x);
@@ -181,10 +199,17 @@ export function edgeDistance(mask: number, x: number, y: number): number {
   if (mask & NB.NW) d = Math.min(d, Math.hypot(x + 0.5, y + 0.5));
   return d;
 }
-export function neighbourMaterialMask(tiles: ArrayLike<number>, width: number, height: number, x: number, y: number): number {
+export function neighbourMaterialMask(
+  tiles: ArrayLike<number>,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): number {
   let mask = 0;
   for (const [dx, dy, bit] of OFFSETS) {
-    const nx = x + dx, ny = y + dy;
+    const nx = x + dx,
+      ny = y + dy;
     if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
     const tile = tiles[ny * width + nx] ?? 0;
     if (channelTerrain(tile)) mask |= bit;
@@ -193,21 +218,32 @@ export function neighbourMaterialMask(tiles: ArrayLike<number>, width: number, h
 }
 export const bankAlias = (mask: number): string => `river_bank_${mask}`;
 
-
 /** Every water texture by alias. Browser-only (uses canvas). */
 export function createWaterTextures(): Map<string, Texture> {
   const out = new Map<string, Texture>();
   for (let v = 0; v < WATER_BASE_VARIANTS; v++) out.set(waterBaseAlias(v), drawBase(v));
-  for (const [edge, t] of Object.entries(SIDES)) out.set(waterEdgeAlias(edge as WaterEdge), canvas((px) => drawStrip(px, t)));
-  for (const [edge, t] of Object.entries(CORNERS)) out.set(waterEdgeAlias(edge as WaterEdge), canvas((px) => drawCorner(px, t)));
+  for (const [edge, t] of Object.entries(SIDES))
+    out.set(
+      waterEdgeAlias(edge as WaterEdge),
+      canvas((px) => drawStrip(px, t)),
+    );
+  for (const [edge, t] of Object.entries(CORNERS))
+    out.set(
+      waterEdgeAlias(edge as WaterEdge),
+      canvas((px) => drawCorner(px, t)),
+    );
   for (let mask = 0; mask < 256; mask++) {
-    out.set(bankAlias(mask), canvas(px => {
-      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-        const d = edgeDistance(mask, x, y), r = h2(x, y);
-        if (d < 1.2 || d < 3 && r % 3 === 0) px(x, y, r % 2 ? 0x635c35 : 0x59613b, 0.85);
-      }
-    }));
-
+    out.set(
+      bankAlias(mask),
+      canvas((px) => {
+        for (let y = 0; y < 32; y++)
+          for (let x = 0; x < 32; x++) {
+            const d = edgeDistance(mask, x, y),
+              r = h2(x, y);
+            if (d < 1.2 || (d < 3 && r % 3 === 0)) px(x, y, r % 2 ? 0x635c35 : 0x59613b, 0.85);
+          }
+      }),
+    );
   }
   return out;
 }

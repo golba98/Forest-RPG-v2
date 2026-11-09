@@ -1,3 +1,4 @@
+import { hasClearPath } from '../../../src/systems/CollisionSystem';
 import { expect, it } from 'vitest';
 import { Simulation } from '../../../src/simulation/Simulation';
 import { encounterFixture } from '../../fixtures/encounter-world';
@@ -21,7 +22,7 @@ for (const sprint of [false, true])
       const s = new Simulation();
       s.loadWorld(encounterFixture());
       const site = s.world.encounterSites![0]!;
-      const { originY } = nestLayout(s.world, site);
+      const { originY } = nestLayout(s.world, site, hasClearPath);
       const cy = (originY + 53) / 32 - PLAYER_FOOTPRINT.offsetY;
       s.setPlayerPosition(site.x - dx * 2.5, cy - dy * 2.5);
       let hit = false;
@@ -43,7 +44,7 @@ it('stops at the entrance, stays stable, and slides along the union without seam
   s.setPlayerPosition(site.x, site.y + 2);
   for (let i = 0; i < 120; i++) s.step(1 / 60, { ...IDLE_INTENT, moveY: -1 });
   const y = s.player.y;
-  const front = Math.max(...nestBaseBounds(s.world, site).map((b) => b.maxY));
+  const front = Math.max(...nestBaseBounds(s.world, site, hasClearPath).map((b) => b.maxY));
   expect(y + PLAYER_FOOTPRINT.offsetY - PLAYER_FOOTPRINT.halfHeight).toBeCloseTo(front, 8);
   for (let i = 0; i < 600; i++) s.step(1 / 60, { ...IDLE_INTENT, moveY: -1 });
   expect(s.player.y).toBe(y);
@@ -56,7 +57,7 @@ it('registers player and jumping geometry, excludes padding and leaves enemies u
   const s = new Simulation();
   s.loadWorld(encounterFixture());
   const site = s.world.encounterSites![0]!;
-  const { entrance, originY } = nestLayout(s.world, site);
+  const { entrance, originY } = nestLayout(s.world, site, hasClearPath);
   const y = (originY + 52) / 32 - PLAYER_FOOTPRINT.offsetY;
   expect(canOccupy(s.world, site.x, y, PLAYER_FOOTPRINT)).toBe(false);
   expect(canOccupy(s.world, site.x, y, PLAYER_FOOTPRINT, 'jumping')).toBe(false);
@@ -76,7 +77,7 @@ it('repairs a saved interior position, preserves terrain, and keeps the collider
   const s = new Simulation();
   s.loadWorld(encounterFixture());
   const site = s.world.encounterSites![0]!;
-  const { originY } = nestLayout(s.world, site);
+  const { originY } = nestLayout(s.world, site, hasClearPath);
   s.player.x = site.x;
   s.player.y = (originY + 52) / 32 - PLAYER_FOOTPRINT.offsetY;
   const entities = structuredClone([...s.getEntities()]);

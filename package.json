@@ -15,7 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "benchmark": "vitest bench --run",
-    "sanitize-assets": "node scripts/sanitize-assets.js",
+    "sanitize-assets": "node scripts/assets/sanitize-assets.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "profile:build": "VITE_PERF_PROFILE=1 vite build --outDir artifacts/performance/profile-build",
@@ -34,7 +34,12 @@
     "profile:platform": "node scripts/performance/platform.mjs",
     "check:player": "node scripts/regression/approved-player.mjs",
     "test:workflow": "node --test scripts/regression/critical-diff.test.mjs",
-    "test:critical": "playwright test --config playwright.critical.config.ts"
+    "test:critical": "playwright test --config playwright.critical.config.ts",
+    "check:unused": "knip --exclude cycles",
+    "check:cycles": "knip --include cycles",
+    "test:tooling": "node --test scripts/assets/output-directory.test.mjs scripts/qa/format-changed.test.mjs scripts/performance/statistics.test.mjs",
+    "format:changed": "node scripts/qa/format-changed.mjs --write",
+    "format:check:changed": "node scripts/qa/format-changed.mjs"
   },
   "dependencies": {
     "pixi.js": "^8.6.6"
@@ -45,7 +50,9 @@
     "@types/node": "^22.8.1",
     "@vitest/coverage-v8": "^4.1.12",
     "eslint": "^9.14.0",
+    "globals": "14.0.0",
     "happy-dom": "^21.0.4",
+    "knip": "6.44.2",
     "prettier": "^3.9.10",
     "sharp": "^0.35.5",
     "typescript": "^5.6.3",

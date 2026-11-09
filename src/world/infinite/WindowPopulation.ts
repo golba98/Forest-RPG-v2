@@ -95,7 +95,7 @@ export function hydrateWindow(
     },
   };
 }
-export function baselineActors(world: WorldData, context: PopulationContext): Entity[] {
+function baselineActors(world: WorldData, context: PopulationContext): Entity[] {
   const result: Entity[] = [];
   const base = (id: string, x: number, y: number) => ({
     id,

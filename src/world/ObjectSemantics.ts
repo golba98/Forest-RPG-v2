@@ -5,7 +5,7 @@ import type { Bounds } from '../types/gameplay';
 import type { PropKind, WorldProp } from '../types/world';
 
 /** Physical footprints in tile units, relative to the sprite's ground tile. */
-export const OBJECT_FOOTPRINTS: Readonly<Partial<Record<PropKind, Bounds>>> = {
+const OBJECT_FOOTPRINTS: Readonly<Partial<Record<PropKind, Bounds>>> = {
   // Only the trunk and substantial roots block movement; foliage is overhead.
   tree: { minX: 0.32, minY: 0.65, maxX: 0.68, maxY: 1 },
   rock_boulder: { minX: 0.1, minY: 0.4, maxX: 0.9, maxY: 1 },

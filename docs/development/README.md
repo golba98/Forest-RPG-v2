@@ -17,22 +17,27 @@ The development server runs at [localhost:3000](http://localhost:3000).
 
 ## Commands
 
-| Command                 | Purpose                                        |
-| ----------------------- | ---------------------------------------------- |
-| `npm run dev`           | Start the development server                   |
-| `npm run typecheck`     | Check TypeScript without generating output     |
-| `npm run lint`          | Run ESLint                                     |
-| `npm test`              | Run unit and integration tests                 |
-| `npm run test:watch`    | Watch unit and integration tests               |
-| `npm run test:coverage` | Generate test coverage                         |
-| `npm run build`         | Typecheck and build the static site in `dist/` |
-| `npm run preview`       | Serve `dist/` at localhost:4173                |
-| `npm run test:e2e`      | Run Playwright browser tests                   |
-| `npm run test:critical` | Run mandatory character, world and save checks |
-| `npm run check:player`  | Verify all approved character files            |
-| `npm run test:workflow` | Verify PR diff protection                      |
-| `npm run benchmark`     | Run Vitest benchmarks                          |
-| `npm run format:check`  | Check formatting with Prettier                 |
+| Command                        | Purpose                                                         |
+| ------------------------------ | --------------------------------------------------------------- |
+| `npm run dev`                  | Start the development server                                    |
+| `npm run typecheck`            | Check TypeScript without generating output                      |
+| `npm run lint`                 | Run ESLint                                                      |
+| `npm test`                     | Run unit and integration tests                                  |
+| `npm run test:watch`           | Watch unit and integration tests                                |
+| `npm run test:coverage`        | Generate test coverage                                          |
+| `npm run build`                | Typecheck and build the static site in `dist/`                  |
+| `npm run preview`              | Serve `dist/` at localhost:4173                                 |
+| `npm run test:e2e`             | Run Playwright browser tests                                    |
+| `npm run test:critical`        | Run mandatory character, world and save checks                  |
+| `npm run check:player`         | Verify all approved character files                             |
+| `npm run test:workflow`        | Verify PR diff protection                                       |
+| `npm run benchmark`            | Run Vitest benchmarks                                           |
+| `npm run test:tooling`         | Test staging guards, formatter selection and profile statistics |
+| `npm run check:unused`         | Detect unused files, exports and dependencies                   |
+| `npm run check:cycles`         | Detect runtime import cycles                                    |
+| `npm run format:changed`       | Format changed eligible files                                   |
+| `npm run format:check:changed` | Check changed eligible files                                    |
+| `npm run format:check`         | Inspect repository-wide formatting debt                         |
 
 Before submitting code changes, run typecheck, lint, relevant tests, and the production build. Use browser checks for gameplay and rendering changes. Check formatting and relative links for documentation changes.
 
@@ -76,16 +81,18 @@ Add `&tutorial=1` to start in the training glade. In a diagnostic session, open 
 
 ## Scripts and generated output
 
-| Script                                                                     | Purpose                                                                                 |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `prepare-grove-assets.mjs`, `prepare-nest-assets.mjs`                      | Reproduce shipped sprites from tracked asset sources                                    |
-| `build-hill-tileset.mjs`, `build-upland-art.mjs`, `build-rock-sprites.mjs` | Generate shipped terrain and object art                                                 |
-| `sanitize-assets.js`, `transcode-media.sh`                                 | Prepare asset manifests and media; review generated asset diffs                         |
-| `profile-landscape.mjs`                                                    | Profile generation/loading; fixture regeneration requires explicit `--capture-baseline` |
-| `profile-browser.mjs`, `profile-surface-weather.mjs`                       | Measure browser cadence or compare weather builds                                       |
-| `capture-surface-weather.mjs`, `directional-gallery.mjs`                   | Produce local QA captures and galleries                                                 |
+| Script group                                                                       | Purpose                                                                                           |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `scripts/assets/prepare-{grove,nest,environment}-assets.mjs`                       | Reproduce shipped environment assets from retained sources                                        |
+| `scripts/assets/build-{hill-tileset,upland-art,rock-sprites}.mjs`                  | Generate terrain and object art                                                                   |
+| `scripts/assets/sanitize-assets.js`                                                | Stage historical legacy migration output for review                                               |
+| `scripts/assets/transcode-media.sh`                                                | Reproduce compressed shipped audio and video                                                      |
+| `scripts/player-art/`                                                              | Stage historical player art imports and sheet preparation; approved face pack has checksum guards |
+| `scripts/qa/profile-landscape.mjs`                                                 | Profile generation; fixture regeneration requires explicit `--capture-baseline`                   |
+| `scripts/qa/profile-{browser,infinite-world,surface-weather,world-visibility}.mjs` | Measure browser cadence, residency or weather                                                     |
+| `scripts/qa/capture-*.mjs`, `scripts/qa/directional-gallery.mjs`                   | Produce local QA captures and galleries                                                           |
 
-Asset preparation intentionally changes shipped files; ordinary tests and captures should not. Browser/profiling scripts may require a running production preview; see [testing](../testing.md) and [performance](../performance.md) for prerequisites and options.
+Environment asset reproduction intentionally changes shipped files; ordinary tests and captures should not. Historical player generators and the legacy sanitizer stage into ignored `artifacts/` by default and reject destinations overlapping source code, production assets, source artwork or fixtures. Pass an explicit staging directory as the first argument when needed; promote generated artwork only through a reviewed change. Browser/profiling scripts may require a running production preview; see [testing](../testing.md) and [performance](../performance.md) for prerequisites and options.
 
 `dist/`, `coverage/`, `test-results/`, `playwright-report/`, `artifacts/` and caches are ignored. Put temporary drafts and handoffs in ignored `docs/tmp/`; see the [note guidance](notes/README.md). Maintained documentation, regression fixtures, asset sources and curated `docs/images/` stay tracked.
 
@@ -100,7 +107,9 @@ Asset preparation intentionally changes shipped files; ordinary tests and captur
 | `src/types/`, `src/config/`                     | Shared interfaces and configuration                                   |
 | `tests/`                                        | Unit, integration, browser and benchmark suites, helpers and fixtures |
 | `public/assets/`                                | Shipped images, audio, manifests and licenses                         |
-| `scripts/`                                      | Asset preparation, profiling and capture tools                        |
+| `scripts/assets/`, `scripts/player-art/`        | Environment production and historical player preparation              |
+| `scripts/qa/`, `scripts/performance/`           | Browser captures, focused profiles and extended performance lab       |
+| `scripts/regression/`                           | Approved-player and integration protection                            |
 | `docs/`                                         | Maintained technical guides, source attribution and curated images    |
 
 Before submitting, inspect `git status --short` and `git diff --check`. A normal test run should not modify documentation or tracked images. Keep generated output out of commits; move only deliberately selected documentation images into `docs/images/`.
@@ -112,8 +121,8 @@ additional rocks without replacing the originals, then prepare the tree/plant,
 ground and relief packs:
 
 ```sh
-node scripts/build-rock-sprites.mjs --environment
-node scripts/prepare-environment-assets.mjs
+node scripts/assets/build-rock-sprites.mjs --environment
+node scripts/assets/prepare-environment-assets.mjs
 ```
 
 Review changed images at native scale and run the environment-asset validation

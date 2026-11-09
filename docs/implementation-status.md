@@ -1,7 +1,7 @@
 # Implementation status
 
 New Normal Adventure and Biome Walk worlds stream signed-coordinate chunks on
-demand, with all five biomes in one continuous world. Play → Biome Walk provides
+demand, with all five biomes in one continuous world. Developer → Biomes provides
 five safe starting locations, biome switching in the same world, coordinates,
 seed, return-to-spawn and menu controls. Adventure retains combat, finite starting
 objectives and portal progression. Biome Walk has separate persistent saves.

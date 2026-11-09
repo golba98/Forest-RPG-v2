@@ -6,7 +6,7 @@ import { coordinateRandom } from '../world/Geography';
 
 export const ENV_GROUND = 'environment_ground';
 export const ENV_RELIEF = 'environment_relief';
-export const ENV_UPLAND = 'environment_upland';
+const ENV_UPLAND = 'environment_upland';
 export function environmentAssets(): { alias: string; src: string }[] {
   const base = 'assets/images/environment';
   return [

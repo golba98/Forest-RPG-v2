@@ -8,10 +8,9 @@ import type { WorldCheckpoint, WorldRepository } from './WorldRepository';
 import { validateEncounterState } from './EncounterValidation';
 import { BIOME_IDS, validEnvironmentAssetKey } from '../world/Biomes';
 import type { EncounterState } from '../types/encounters';
+import { finite, object as isRecord } from './codecs/validation';
 
-export const isRecord = (v: unknown): v is Record<string, unknown> =>
-  v !== null && typeof v === 'object' && !Array.isArray(v);
-const nonNegativeFinite = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+const nonNegativeFinite = (v: unknown) => finite(v) && v >= 0;
 const coordinate = (v: unknown) =>
   typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < COORDINATE_LIMIT - 1024;
 export function validateCheckpoint(
@@ -30,7 +29,8 @@ export function validateCheckpoint(
     Number(d.seed) > 0xffffffff ||
     !(
       (d.generatorVersion === 13 && d.biomeVersion === 1) ||
-      ((d.generatorVersion === 14 || d.generatorVersion === 15 || d.generatorVersion === 16) && d.biomeVersion === 2)
+      ((d.generatorVersion === 14 || d.generatorVersion === 15 || d.generatorVersion === 16) &&
+        d.biomeVersion === 2)
     ) ||
     (d.mode !== undefined && d.mode !== 'adventure' && d.mode !== 'biome-walk') ||
     ![32, 64].includes(Number(d.chunkSize)) ||
@@ -107,7 +107,7 @@ export function validateCheckpoint(
   )
     throw new Error('Invalid infinite world entities');
 }
-export function validateDelta(
+function validateDelta(
   value: unknown,
   size: number,
   entity: (v: unknown) => boolean,

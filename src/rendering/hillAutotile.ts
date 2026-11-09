@@ -1,4 +1,10 @@
-import { elevationMask, isRaisedSurface, NB, reduceMask, stairsDirection } from '../world/ElevationTopology';
+import {
+  elevationMask,
+  isRaisedSurface,
+  NB,
+  reduceMask,
+  stairsDirection,
+} from '../world/ElevationTopology';
 export { elevationMask, NB, reduceMask };
 import atlas from './generated/cliff_tileset.json';
 
@@ -9,7 +15,7 @@ import atlas from './generated/cliff_tileset.json';
  * from the generator's HILL_* edge ids. Collision shares this topology;
  * topology-driven art also covers concave corners and lower faces
  * the 8 legacy edge ids cannot express. Frames come from the generated
- * `cliff_tileset.png` (scripts/build-hill-tileset.mjs), whose mask reduction
+ * `cliff_tileset.png` (scripts/assets/build-hill-tileset.mjs), whose mask reduction
  * must match `reduceMask` below.
  */
 
@@ -32,18 +38,33 @@ interface HillAtlasJson {
 const HILL_ATLAS: HillAtlasJson = atlas;
 const INTERIOR = 255;
 /** Plain interior first, then painted-detail variants; plain tiles dominate so detail stays sparse. */
-const INTERIOR_KEYS = ['mask_255', 'mask_255', 'plateau_1', 'mask_255', 'plateau_2', 'plateau_3', 'mask_255', 'plateau_4', 'plateau_5'] as const;
+const INTERIOR_KEYS = [
+  'mask_255',
+  'mask_255',
+  'plateau_1',
+  'mask_255',
+  'plateau_2',
+  'plateau_3',
+  'mask_255',
+  'plateau_4',
+  'plateau_5',
+] as const;
 
 /** Raised terrain drawn with the cliff tileset. */
 export const isElevatedTile = isRaisedSurface;
 
 /** The 47 distinct reduced masks, ascending (atlas frame order). */
-export const BLOB_MASKS: readonly number[] = [...new Set(Array.from({ length: 256 }, (_, m) => reduceMask(m)))].sort((a, b) => a - b);
+export const BLOB_MASKS: readonly number[] = [
+  ...new Set(Array.from({ length: 256 }, (_, m) => reduceMask(m))),
+].sort((a, b) => a - b);
 
 /** Atlas rect for an elevated cell with neighbour mask `mask`; `variant` picks interior variety. */
 export function hillFrame(mask: number, variant = 0): AtlasRect {
   const reduced = reduceMask(mask);
-  const key = reduced === INTERIOR ? INTERIOR_KEYS[variant % INTERIOR_KEYS.length] ?? 'mask_255' : `mask_${reduced}`;
+  const key =
+    reduced === INTERIOR
+      ? (INTERIOR_KEYS[variant % INTERIOR_KEYS.length] ?? 'mask_255')
+      : `mask_${reduced}`;
   return frameOrThrow(key);
 }
 
@@ -69,6 +90,9 @@ export function hillAtlasMasks(): readonly number[] {
 
 function frameOrThrow(key: string): AtlasRect {
   const rect = HILL_ATLAS.frames[key];
-  if (!rect) throw new Error(`[hillAutotile] cliff_tileset.json has no frame "${key}"; re-run scripts/build-hill-tileset.mjs`);
+  if (!rect)
+    throw new Error(
+      `[hillAutotile] cliff_tileset.json has no frame "${key}"; re-run scripts/assets/build-hill-tileset.mjs`,
+    );
   return rect;
 }

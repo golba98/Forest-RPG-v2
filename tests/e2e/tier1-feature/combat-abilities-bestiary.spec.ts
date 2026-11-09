@@ -25,8 +25,6 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
   test('T1.3.1 — 3-Hit melee combo: 1st/2nd hits deal base damage, 3rd hit deals critical 1.5x+1 damage and kicks camera shake', async () => {
     // Spawn a target enemy (Mantis with 10 HP for combo testing) 1 tile ahead
     await driver.executeDebugCommand('/spawn mantis 1 0');
-    const startState = await driver.getState();
-    const _initialCombo = startState.player.comboCount;
 
     // Hit 1
     await driver.performMeleeAttack();
@@ -167,21 +165,35 @@ test.describe('Tier 1: Real-Time Combat, Skills & Bestiary AI', () => {
   test('T1.3.9 — grove ghost forms, survives dawn and enters cooldown on defeat', async () => {
     await loadEncounterWorld(driver.page);
     await driver.page.evaluate(() => {
-      window.__GAME__!.setDaylightRatio(.95);
+      window.__GAME__!.setDaylightRatio(0.95);
       window.__GAME__!.setPlayerPosition(33, 39.2875);
     });
     await driver.page.clock.runFor(450);
-    const forming = await driver.page.evaluate(() => window.__GAME__!.getGameplayDebug()!.encounters!.groves[0]!);
-    expect(forming.members).toHaveLength(1); expect(forming.members[0]!.status).toBe('forming');
+    const forming = await driver.page.evaluate(
+      () => window.__GAME__!.getGameplayDebug()!.encounters!.groves[0]!,
+    );
+    expect(forming.members).toHaveLength(1);
+    expect(forming.members[0]!.status).toBe('forming');
     await driver.page.clock.runFor(750);
-    expect(await driver.page.evaluate(() => window.__GAME__!.getGameplayDebug()!.encounters!.groves[0]!.members[0]!.status)).toBe('active');
-    await driver.executeDebugCommand('/time dawn'); await driver.page.clock.runFor(300);
-    const ghost = (await driver.getState()).enemies.find(e => e.type === 'ghost')!;
+    expect(
+      await driver.page.evaluate(
+        () => window.__GAME__!.getGameplayDebug()!.encounters!.groves[0]!.members[0]!.status,
+      ),
+    ).toBe('active');
+    await driver.executeDebugCommand('/time dawn');
+    await driver.page.clock.runFor(300);
+    const ghost = (await driver.getState()).enemies.find((e) => e.type === 'ghost')!;
     expect(ghost.health).toBeGreaterThan(0);
-    await driver.page.evaluate(g => window.__GAME__!.setPlayerPosition(g.x, g.y), ghost);
-    for (let i = 0; i < 3; i++) { await driver.castSkill('Q'); await driver.page.clock.runFor(300); }
-    const cleared = await driver.page.evaluate(() => window.__GAME__!.getGameplayDebug()!.encounters!.groves[0]!);
-    expect(cleared.phase).toBe('cooldown'); expect(cleared.cooldownMs).toBeGreaterThan(88000);
+    await driver.page.evaluate((g) => window.__GAME__!.setPlayerPosition(g.x, g.y), ghost);
+    for (let i = 0; i < 3; i++) {
+      await driver.castSkill('Q');
+      await driver.page.clock.runFor(300);
+    }
+    const cleared = await driver.page.evaluate(
+      () => window.__GAME__!.getGameplayDebug()!.encounters!.groves[0]!,
+    );
+    expect(cleared.phase).toBe('cooldown');
+    expect(cleared.cooldownMs).toBeGreaterThan(88000);
   });
 
   test('T1.3.10 — XP progression & Level-up: defeating enemy awards XP, 100 XP triggers level-up', async () => {

@@ -22,7 +22,7 @@ const distance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
   Math.hypot(a.x - b.x, a.y - b.y);
 const livingEnemies = (entities: readonly Entity[]) =>
   entities.filter((e): e is EnemyEntity => e.kind === 'enemy' && e.alive);
-export const bossEntityId = (site: EncounterSite) => `${site.id}:boss`;
+const bossEntityId = (site: EncounterSite) => `${site.id}:boss`;
 
 /** Sole owner of managed actor lifetimes. No renderer, camera or wall-clock dependencies. */
 export class EncounterDirector {
@@ -130,7 +130,7 @@ export class EncounterDirector {
     return e;
   }
   private crawl(b: BossEncounter, e: EnemyEntity, restored = false): void {
-    const { entrance, exit } = nestGeometry(this.world, this.site(b.siteId));
+    const { entrance, exit } = nestGeometry(this.world, this.site(b.siteId), hasClearPath);
     const t = Math.max(0, Math.min(1, 1 - b.remainingMs / C.boss.emergenceMs));
     e.prevX = restored ? entrance.x : e.x;
     e.prevY = restored ? entrance.y + (exit.y - entrance.y) * t : e.y;

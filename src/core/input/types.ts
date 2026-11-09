@@ -25,17 +25,6 @@ export type InputAction =
   | 'toggleMinimap';
 
 /**
- * Standard mouse buttons matching DOM MouseEvent.button.
- */
-export enum MouseButton {
-  Left = 0,
-  Middle = 1,
-  Right = 2,
-  Back = 3,
-  Forward = 4,
-}
-
-/**
  * Input code representing either:
  * - A modern DOM KeyboardEvent.code string (e.g. 'KeyW', 'ArrowUp', 'Space', 'ShiftLeft')
  * - A legacy DOM KeyboardEvent.keyCode number (e.g. 87, 38, 32, 16)
@@ -47,20 +36,6 @@ export type InputCode = string | number;
  * Action to input codes mapping dictionary.
  */
 export type KeybindConfig = Record<InputAction, InputCode[]>;
-
-/**
- * Legacy keybind mapping structure saved in legacy localStorage ('playerKeybinds').
- */
-export interface LegacyKeybindConfig {
-  moveUp?: number | string;
-  moveDown?: number | string;
-  moveLeft?: number | string;
-  moveRight?: number | string;
-  sprint?: number | string;
-  jump?: number | string;
-  cut?: number | string; // Legacy melee attack name
-  [key: string]: number | string | undefined;
-}
 
 /**
  * Default keybinding configuration.

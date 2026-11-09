@@ -36,7 +36,7 @@ import { smoothRiverDiagonals } from './generation/rivers';
 import { PerlinNoise } from './Noise';
 import { Rng } from './Rng';
 
-export const MIN_WORLD_SIZE = 32;
+const MIN_WORLD_SIZE = 32;
 const MAX_ATTEMPTS = 32;
 
 /**

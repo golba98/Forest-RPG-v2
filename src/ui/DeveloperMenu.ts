@@ -1,8 +1,8 @@
 import { ANIMATION_DEFS } from '../animation/AnimationDefs';
+import { DIRECTIONS } from '../animation/PlayerSheets';
 import { resolveSpriteFrame } from '../animation/resolveSpriteFrame';
-import { buildVisualManifest } from '../rendering/visualManifest';
 import { environmentAssets } from '../rendering/environmentArt';
-import { DIRECTIONS } from '../rendering/assetCatalog';
+import { buildVisualManifest } from '../rendering/visualManifest';
 import type { AnimState, Direction } from '../types/entities';
 import { action } from './WorldLibraryMenu';
 

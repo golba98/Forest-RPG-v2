@@ -23,9 +23,20 @@ export interface VisualDebugFlags {
   readonly labels: boolean;
 }
 
-export const DEFAULT_DEBUG_FLAGS: VisualDebugFlags = { enabled: false, colliders: true, tileGrid: false, spriteBounds: false, labels: true };
+const DEFAULT_DEBUG_FLAGS: VisualDebugFlags = {
+  enabled: false,
+  colliders: true,
+  tileGrid: false,
+  spriteBounds: false,
+  labels: true,
+};
 
-interface HudBounds { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
+interface HudBounds {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
 
 /** Renderer counters exposed to visual regression tests. */
 export interface VisualDebugInfo {
@@ -38,9 +49,32 @@ export interface VisualDebugInfo {
     readonly assetLoads: readonly { alias: string; ms: number }[];
     readonly chunkBuildMs: readonly number[];
   };
-  readonly worldObjects?: readonly { key: string; id?: import('../types/world').WorldObjectId; hilltop: boolean; x: number; y: number; width: number; height: number; depth: number; assetId: string; resident: boolean; visible: boolean }[];
-  readonly residency?: Partial<import('../types/render').WorldResidencyStats> & { residentObjects: number; worldObjects: number; renderCpuMs: number };
-  readonly atmosphere?: { births: readonly { cloud: import('./chunkMath').WorldRect; shadow: import('./chunkMath').WorldRect; guard: import('./chunkMath').WorldRect }[]; formations: readonly { x: number; y: number; shadowX: number; shadowY: number; age: number }[] };
+  readonly worldObjects?: readonly {
+    key: string;
+    id?: import('../types/world').WorldObjectId;
+    hilltop: boolean;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    depth: number;
+    assetId: string;
+    resident: boolean;
+    visible: boolean;
+  }[];
+  readonly residency?: Partial<import('../types/render').WorldResidencyStats> & {
+    residentObjects: number;
+    worldObjects: number;
+    renderCpuMs: number;
+  };
+  readonly atmosphere?: {
+    births: readonly {
+      cloud: import('./chunkMath').WorldRect;
+      shadow: import('./chunkMath').WorldRect;
+      guard: import('./chunkMath').WorldRect;
+    }[];
+    formations: readonly { x: number; y: number; shadowX: number; shadowY: number; age: number }[];
+  };
   readonly playerSlash?: import('./effects/EffectsLayer').PlayerSlashView | null;
   /** Actual displayed texture and transform, rather than the next requested pose. */
   readonly playerSprite?: {
@@ -51,29 +85,83 @@ export interface VisualDebugInfo {
     readonly facing: Direction;
     readonly animTimeMs: number;
     readonly assetId: string;
-    readonly frame: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
-    readonly scaleX: number; readonly scaleY: number; readonly rotation: number;
-    readonly transform: { readonly a: number; readonly b: number; readonly c: number; readonly d: number };
-    readonly bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+    readonly frame: {
+      readonly x: number;
+      readonly y: number;
+      readonly w: number;
+      readonly h: number;
+    };
+    readonly scaleX: number;
+    readonly scaleY: number;
+    readonly rotation: number;
+    readonly transform: {
+      readonly a: number;
+      readonly b: number;
+      readonly c: number;
+      readonly d: number;
+    };
+    readonly bounds: {
+      readonly x: number;
+      readonly y: number;
+      readonly width: number;
+      readonly height: number;
+    };
   } | null;
-  readonly groveViews?: readonly { id: string; x: number; y: number; width: number; height: number; scaleX: number; scaleY: number; depth: number; fungi: number }[];
+  readonly groveViews?: readonly {
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    scaleX: number;
+    scaleY: number;
+    depth: number;
+    fungi: number;
+  }[];
   readonly propViews?: number;
-  readonly hilltopViews?: readonly { id: import('../types/world').WorldObjectId; x: number; y: number; depth: number; visible: boolean }[];
+  readonly hilltopViews?: readonly {
+    id: import('../types/world').WorldObjectId;
+    x: number;
+    y: number;
+    depth: number;
+    visible: boolean;
+  }[];
   readonly playerDepth?: number | undefined;
-  readonly wading?: { readonly x: number; readonly waterlineY: number; readonly spriteY: number } | null;
+  readonly wading?: {
+    readonly x: number;
+    readonly waterlineY: number;
+    readonly spriteY: number;
+  } | null;
   readonly hud?: {
-    readonly x: number; readonly y: number; readonly width: number; readonly height: number;
-    readonly level: HudBounds; readonly cluster: HudBounds;
-    readonly scale: number; readonly heartCount: number; readonly slotCount: number; readonly visible: boolean;
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+    readonly level: HudBounds;
+    readonly cluster: HudBounds;
+    readonly scale: number;
+    readonly heartCount: number;
+    readonly slotCount: number;
+    readonly visible: boolean;
   } | null;
   readonly placeholderSprites: number;
   readonly portalStates: readonly string[];
   readonly portalViews: number;
-  readonly portalTextures?: readonly { id: string; width: number; height: number; placeholder: boolean }[];
+  readonly portalTextures?: readonly {
+    id: string;
+    width: number;
+    height: number;
+    placeholder: boolean;
+  }[];
   readonly clouds: number;
   /** Rain is currently visible (fading counts). */
   readonly raining: boolean;
-  readonly weather?: { readonly drops: number; readonly impacts: number; readonly footsteps: number; readonly positions: readonly { x: number; y: number; material: string; foot: boolean }[] };
+  readonly weather?: {
+    readonly drops: number;
+    readonly impacts: number;
+    readonly footsteps: number;
+    readonly positions: readonly { x: number; y: number; material: string; foot: boolean }[];
+  };
   readonly puddles?: readonly { x: number; y: number; amount: number }[];
   readonly riverRepairSkipped?: readonly { x: number; y: number }[];
   readonly effects: number;
@@ -148,7 +236,13 @@ export class DebugOverlay {
   private readonly bounds = new Graphics();
   private readonly panel = new Text({
     text: '',
-    style: { fontFamily: 'monospace', fontSize: 12, fill: 0xf4f7e8, stroke: { color: 0x0b140c, width: 3 }, lineHeight: 15 },
+    style: {
+      fontFamily: 'monospace',
+      fontSize: 12,
+      fill: 0xf4f7e8,
+      stroke: { color: 0x0b140c, width: 3 },
+      lineHeight: 15,
+    },
   });
   private flags: VisualDebugFlags = DEFAULT_DEBUG_FLAGS;
   private pointer: { x: number; y: number } | null = null;
@@ -183,38 +277,68 @@ export class DebugOverlay {
     const y1 = Math.min(height - 1, Math.ceil((visible.y + visible.height) / TILE));
 
     if (this.flags.tileGrid) {
-      for (let x = x0; x <= x1 + 1; x++) g.moveTo(x * TILE, y0 * TILE).lineTo(x * TILE, (y1 + 1) * TILE);
-      for (let y = y0; y <= y1 + 1; y++) g.moveTo(x0 * TILE, y * TILE).lineTo((x1 + 1) * TILE, y * TILE);
+      for (let x = x0; x <= x1 + 1; x++)
+        g.moveTo(x * TILE, y0 * TILE).lineTo(x * TILE, (y1 + 1) * TILE);
+      for (let y = y0; y <= y1 + 1; y++)
+        g.moveTo(x0 * TILE, y * TILE).lineTo((x1 + 1) * TILE, y * TILE);
       g.stroke({ width: 1, color: 0xffffff, alpha: 0.18 });
     }
 
     if (this.flags.waterCells || this.flags.banks) {
-      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-        const wet = (tx: number, ty: number) => tx >= 0 && ty >= 0 && tx < width && ty < height && world.tiles[ty * width + tx] === Tile.RIVER;
-        if (!wet(x, y)) continue;
-        if (this.flags.waterCells) g.rect(x * TILE + 2, y * TILE + 2, TILE - 4, TILE - 4).fill({ color: 0x35cfff, alpha: 0.3 });
-        if (this.flags.banks) for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
-          if (wet(x + dx, y + dy)) continue;
-          const sx = x * TILE + (dx === 1 ? TILE : 0), sy = y * TILE + (dy === 1 ? TILE : 0);
-          g.moveTo(sx, sy).lineTo(sx + (dy ? TILE : 0), sy + (dx ? TILE : 0));
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) {
+          const wet = (tx: number, ty: number) =>
+            tx >= 0 &&
+            ty >= 0 &&
+            tx < width &&
+            ty < height &&
+            world.tiles[ty * width + tx] === Tile.RIVER;
+          if (!wet(x, y)) continue;
+          if (this.flags.waterCells)
+            g.rect(x * TILE + 2, y * TILE + 2, TILE - 4, TILE - 4).fill({
+              color: 0x35cfff,
+              alpha: 0.3,
+            });
+          if (this.flags.banks)
+            for (const [dx, dy] of [
+              [0, -1],
+              [1, 0],
+              [0, 1],
+              [-1, 0],
+            ] as const) {
+              if (wet(x + dx, y + dy)) continue;
+              const sx = x * TILE + (dx === 1 ? TILE : 0),
+                sy = y * TILE + (dy === 1 ? TILE : 0);
+              g.moveTo(sx, sy).lineTo(sx + (dy ? TILE : 0), sy + (dx ? TILE : 0));
+            }
         }
-      }
       g.stroke({ color: 0xffcc44, width: 1 });
     }
     if (this.flags.chunkEdges) {
-      for (let x = Math.ceil(x0 / 16) * 16; x <= x1; x += 16) g.moveTo(x * TILE, y0 * TILE).lineTo(x * TILE, (y1 + 1) * TILE);
-      for (let y = Math.ceil(y0 / 16) * 16; y <= y1; y += 16) g.moveTo(x0 * TILE, y * TILE).lineTo((x1 + 1) * TILE, y * TILE);
+      for (let x = Math.ceil(x0 / 16) * 16; x <= x1; x += 16)
+        g.moveTo(x * TILE, y0 * TILE).lineTo(x * TILE, (y1 + 1) * TILE);
+      for (let y = Math.ceil(y0 / 16) * 16; y <= y1; y += 16)
+        g.moveTo(x0 * TILE, y * TILE).lineTo((x1 + 1) * TILE, y * TILE);
       g.stroke({ color: 0xff63eb, width: 2, alpha: 0.8 });
     }
 
     if (this.flags.colliders) {
-      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-        const tile = world.tiles[y * width + x] as TileId;
-        if (!isRaisedSurface(tile) && (TILE_PROPERTIES[tile]?.solid ?? true)) g.rect(x * TILE, y * TILE, TILE, TILE);
-      }
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) {
+          const tile = world.tiles[y * width + x] as TileId;
+          if (!isRaisedSurface(tile) && (TILE_PROPERTIES[tile]?.solid ?? true))
+            g.rect(x * TILE, y * TILE, TILE, TILE);
+        }
       g.fill({ color: 0xff3040, alpha: 0.22 });
       if (ctx.colliders) {
-        for (const c of ctx.colliders) if (c.classification === 'solid') g.rect(c.minX * TILE, c.minY * TILE, (c.maxX - c.minX) * TILE, (c.maxY - c.minY) * TILE);
+        for (const c of ctx.colliders)
+          if (c.classification === 'solid')
+            g.rect(
+              c.minX * TILE,
+              c.minY * TILE,
+              (c.maxX - c.minX) * TILE,
+              (c.maxY - c.minY) * TILE,
+            );
       } else {
         for (const p of world.props) {
           if (!p.solid || p.tileX < x0 || p.tileX > x1 || p.tileY < y0 || p.tileY > y1) continue;
@@ -225,12 +349,18 @@ export class DebugOverlay {
       for (const e of ctx.entities) {
         if (!e.alive) continue;
         const f = resolveFootprint(entityFootprint(e));
-        g.rect((e.x + f.offsetX - f.halfWidth) * TILE, (e.y + f.offsetY - f.halfHeight) * TILE, f.halfWidth * 2 * TILE, f.halfHeight * 2 * TILE);
+        g.rect(
+          (e.x + f.offsetX - f.halfWidth) * TILE,
+          (e.y + f.offsetY - f.halfHeight) * TILE,
+          f.halfWidth * 2 * TILE,
+          f.halfHeight * 2 * TILE,
+        );
         g.circle(e.x * TILE, e.y * TILE, 1.5);
       }
       g.stroke({ width: 1, color: 0x45f0ff, alpha: 0.95 });
       for (const e of ctx.entities) {
-        if (e.kind === 'portal') g.circle(e.x * TILE, e.y * TILE, PORTAL_ENTER_RADIUS_ASSUMED * TILE);
+        if (e.kind === 'portal')
+          g.circle(e.x * TILE, e.y * TILE, PORTAL_ENTER_RADIUS_ASSUMED * TILE);
         if (e.kind === 'pickup' && e.alive) g.circle(e.x * TILE, e.y * TILE, 0.7 * TILE);
       }
       g.stroke({ width: 1, color: 0xd8ff5a, alpha: 0.8 });
@@ -247,7 +377,12 @@ export class DebugOverlay {
           this.bounds.rect(b.x, b.y, b.width, b.height);
           drawn++;
         }
-        if (this.pointer && b.containsPoint(this.pointer.x, this.pointer.y) && child.zIndex >= bestZ && ctx.spriteInfo.has(child)) {
+        if (
+          this.pointer &&
+          b.containsPoint(this.pointer.x, this.pointer.y) &&
+          child.zIndex >= bestZ &&
+          ctx.spriteInfo.has(child)
+        ) {
           bestZ = child.zIndex;
           hovered = child;
         }
@@ -256,21 +391,33 @@ export class DebugOverlay {
     }
 
     if (!this.flags.labels) return;
-    const lines = [`seed ${world.meta.seed}  level ${world.meta.level}  ${width}×${height}${world.meta.isTutorial ? '  tutorial' : ''}`];
+    const lines = [
+      `seed ${world.meta.seed}  level ${world.meta.level}  ${width}×${height}${world.meta.isTutorial ? '  tutorial' : ''}`,
+    ];
     if (this.pointer) {
       const w = ctx.screenToWorld(this.pointer.x, this.pointer.y);
-      const tx = Math.floor(w.x / TILE), ty = Math.floor(w.y / TILE);
-      const tile = tx >= 0 && ty >= 0 && tx < width && ty < height ? world.tiles[ty * width + tx] : undefined;
-      lines.push(`cursor world (${(w.x / TILE).toFixed(2)}, ${(w.y / TILE).toFixed(2)})  tile (${tx}, ${ty}) id ${tile ?? '-'}${tile !== undefined && (TILE_PROPERTIES[tile as TileId]?.solid ?? true) ? ' solid' : ''}`);
+      const tx = Math.floor(w.x / TILE),
+        ty = Math.floor(w.y / TILE);
+      const tile =
+        tx >= 0 && ty >= 0 && tx < width && ty < height ? world.tiles[ty * width + tx] : undefined;
+      lines.push(
+        `cursor world (${(w.x / TILE).toFixed(2)}, ${(w.y / TILE).toFixed(2)})  tile (${tx}, ${ty}) id ${tile ?? '-'}${tile !== undefined && (TILE_PROPERTIES[tile as TileId]?.solid ?? true) ? ' solid' : ''}`,
+      );
     }
     if (hovered) {
       const info = ctx.spriteInfo.get(hovered);
       const s = hovered as Sprite;
-      lines.push(`asset ${info?.assetId ?? '?'}  layer ${info?.layer ?? '?'}  z ${Math.round(s.zIndex)}`);
-      lines.push(`anchor (${s.anchor.x.toFixed(2)}, ${s.anchor.y.toFixed(2)})  pos (${s.x.toFixed(1)}, ${s.y.toFixed(1)})  frame ${s.texture.frame.width}×${s.texture.frame.height}`);
+      lines.push(
+        `asset ${info?.assetId ?? '?'}  layer ${info?.layer ?? '?'}  z ${Math.round(s.zIndex)}`,
+      );
+      lines.push(
+        `anchor (${s.anchor.x.toFixed(2)}, ${s.anchor.y.toFixed(2)})  pos (${s.x.toFixed(1)}, ${s.y.toFixed(1)})  frame ${s.texture.frame.width}×${s.texture.frame.height}`,
+      );
     }
     lines.push(...ctx.extraLines);
-    lines.push('F3 toggle · red solid tile · orange solid prop · cyan entity box · lime interaction radius');
+    lines.push(
+      'F3 toggle · red solid tile · orange solid prop · cyan entity box · lime interaction radius',
+    );
     this.panel.text = lines.join('\n');
     this.panel.position.set(12, screenHeight - this.panel.height - 36);
   }
@@ -288,13 +435,25 @@ const PANEL_ID = 'visual-debug-panel';
  * F3 toggles the overlay; a small checkbox panel switches individual layers.
  * Only installed in debug builds (dev server or `?debug=1`).
  */
-export function attachVisualDebugControls(canvas: HTMLCanvasElement, overlay: DebugOverlay): { sync(): void; dispose(): void } {
+export function attachVisualDebugControls(
+  canvas: HTMLCanvasElement,
+  overlay: DebugOverlay,
+): { sync(): void; dispose(): void } {
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
   panel.setAttribute('role', 'group');
   panel.setAttribute('aria-label', 'Visual debug layers');
-  panel.style.cssText = 'position:fixed;right:20px;top:170px;z-index:40;display:none;padding:8px 10px;border-radius:6px;background:rgba(11,20,12,.82);color:#f4f7e8;font:12px monospace;line-height:1.7';
-  const options: Array<[keyof VisualDebugFlags, string]> = [['colliders', 'Colliders'], ['tileGrid', 'Tile grid'], ['spriteBounds', 'Sprite bounds'], ['labels', 'Info / coords'], ['waterCells', 'Water cells'], ['banks', 'Banks'], ['chunkEdges', 'Chunk edges']];
+  panel.style.cssText =
+    'position:fixed;right:20px;top:170px;z-index:40;display:none;padding:8px 10px;border-radius:6px;background:rgba(11,20,12,.82);color:#f4f7e8;font:12px monospace;line-height:1.7';
+  const options: Array<[keyof VisualDebugFlags, string]> = [
+    ['colliders', 'Colliders'],
+    ['tileGrid', 'Tile grid'],
+    ['spriteBounds', 'Sprite bounds'],
+    ['labels', 'Info / coords'],
+    ['waterCells', 'Water cells'],
+    ['banks', 'Banks'],
+    ['chunkEdges', 'Chunk edges'],
+  ];
   for (const [key, label] of options) {
     const row = document.createElement('label');
     row.style.display = 'block';
