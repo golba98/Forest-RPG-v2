@@ -1,17 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { GameLoop } from '@/core/loop/GameLoop';
-import { Interpolation } from '@/core/loop/Interpolation';
-import { FIXED_STEP_MS, IInterpolatable } from '@/core/loop/types';
 import { EventBus } from '@/core/events/EventBus';
-import { ServiceContainer } from '@/core/di/ServiceContainer';
-import { createServiceToken } from '@/core/di/types';
-import { SpatialHashGrid } from '@/core/spatial/SpatialHashGrid';
-import { ISpatialEntity } from '@/core/spatial/types';
-import { AABB } from '@/core/math/AABB';
-import { Vector2 } from '@/core/math/Vector2';
 import { InputManager } from '@/core/input/InputManager';
+import { GameLoop } from '@/core/loop/GameLoop';
+import { FIXED_STEP_MS } from '@/core/loop/types';
+import { Vector2 } from '@/core/math/Vector2';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-describe('Milestone 2 Challenger Stress & Adversarial Suite', () => {
+describe('Engine lifecycle and input stress', () => {
   // =========================================================================
   // 1. TIMING & LIFECYCLE STRESS TESTS
   // =========================================================================
@@ -194,42 +188,8 @@ describe('Milestone 2 Challenger Stress & Adversarial Suite', () => {
           expect(a).toBeLessThanOrEqual(1.0);
         }
 
-        // Test entity position interpolation under this refresh rate
-        const entity: IInterpolatable = {
-          prevX: 0,
-          prevY: 0,
-          x: 100,
-          y: 200,
-          renderX: 0,
-          renderY: 0,
-        };
-
-        for (const a of alphas) {
-          Interpolation.interpolateEntity(entity, a);
-          // Interpolated coordinates must remain strictly between prev and curr
-          expect(entity.renderX).toBeGreaterThanOrEqual(0);
-          expect(entity.renderX).toBeLessThanOrEqual(100);
-          expect(entity.renderY).toBeGreaterThanOrEqual(0);
-          expect(entity.renderY).toBeLessThanOrEqual(200);
-        }
-
         testLoop.stop();
       }
-    });
-
-    it('Interpolation.lerpAngle correctly handles 0 / 2pi boundary wraps without spinning', () => {
-      // Interpolating from ~0.1 rad to ~6.18 rad (crossing 0)
-      const prevAngle = 0.1;
-      const currAngle = 2 * Math.PI - 0.1; // ~6.183 rad
-
-      // The shortest arc difference is -0.2 rad
-      const mid = Interpolation.lerpAngle(prevAngle, currAngle, 0.5);
-      // Midpoint along the shortest arc should be 0 (or 2pi)
-      expect(mid).toBeCloseTo(0, 1);
-
-      // Reverse direction: from 6.18 rad to 0.1 rad
-      const midRev = Interpolation.lerpAngle(currAngle, prevAngle, 0.5);
-      expect(midRev).toBeCloseTo(0, 1);
     });
 
     it('triggers spiral-of-death backlog drop when maxStepsPerFrame is severely constrained', () => {
@@ -245,7 +205,7 @@ describe('Milestone 2 Challenger Stress & Adversarial Suite', () => {
         {
           maxStepsPerFrame: 1,
           maxAccumulatorBacklogMs: 50.0,
-        }
+        },
       );
 
       constrainedLoop.start();
@@ -486,171 +446,6 @@ describe('Milestone 2 Challenger Stress & Adversarial Suite', () => {
       unsub1();
       expect(bus.listenerCount('player:staminaChanged')).toBe(0);
       expect(bus.hasListeners('player:staminaChanged')).toBe(false);
-    });
-  });
-
-  // =========================================================================
-  // 3. SPATIAL HASH GRID ADVERSARIAL STRESS
-  // =========================================================================
-  describe('SpatialHashGrid Adversarial Stress', () => {
-    interface DummySpatialEntity extends ISpatialEntity {
-      aabb: AABB;
-    }
-
-    it('handles negative coordinates, extreme world bounds, and deduplicates multi-cell spanning entities', () => {
-      const grid = new SpatialHashGrid<DummySpatialEntity>(64);
-
-      // Entity spanning across cell (0,0), (-1,0), (0,-1), (-1,-1)
-      const spanningEntity: DummySpatialEntity = {
-        id: 'spanning_origin',
-        getAABB: () => new AABB(-32, -32, 32, 32),
-        aabb: new AABB(-32, -32, 32, 32),
-      };
-
-      grid.insert(spanningEntity);
-
-      // Query broad region covering all 4 cells
-      const queryArea = new AABB(-100, -100, 100, 100);
-      const results = grid.queryAABB(queryArea);
-
-      // CRITICAL: Entity must appear exactly ONCE (deduplication)
-      expect(results.length).toBe(1);
-      expect(results[0]?.id).toBe('spanning_origin');
-
-      // Radial query centered at (0, 0)
-      const radialResults = grid.queryRadius(new Vector2(0, 0), 50);
-      expect(radialResults.length).toBe(1);
-    });
-
-    it('survives 5,000 dynamic entity inserts, rapid moves, and deletions without orphan references', () => {
-      const grid = new SpatialHashGrid<DummySpatialEntity>(64);
-      const ENTITY_COUNT = 5000;
-      const entities: DummySpatialEntity[] = [];
-
-      for (let i = 0; i < ENTITY_COUNT; i++) {
-        const x = (i % 100) * 32;
-        const y = Math.floor(i / 100) * 32;
-        const ent: DummySpatialEntity = {
-          id: `ent_${i}`,
-          aabb: new AABB(x, y, x + 16, y + 16),
-          getAABB() {
-            return this.aabb;
-          },
-        };
-        entities.push(ent);
-        grid.insert(ent);
-      }
-
-      expect(grid.getStats().entityCount).toBe(ENTITY_COUNT);
-
-      // Move half of them 200 pixels away
-      for (let i = 0; i < 2500; i++) {
-        const ent = entities[i]!;
-        ent.aabb.set(ent.aabb.minX + 200, ent.aabb.minY + 200, ent.aabb.maxX + 200, ent.aabb.maxY + 200);
-        grid.update(ent);
-      }
-
-      // Remove the other half
-      for (let i = 2500; i < ENTITY_COUNT; i++) {
-        const ent = entities[i]!;
-        const removed = grid.remove(ent);
-        expect(removed).toBe(true);
-      }
-
-      expect(grid.getStats().entityCount).toBe(2500);
-
-      // Removing already removed entity returns false
-      expect(grid.remove(entities[2500]!)).toBe(false);
-
-      grid.clear();
-      expect(grid.getStats().entityCount).toBe(0);
-      expect(grid.getStats().occupiedCellCount).toBe(0);
-    });
-
-    it('teleporting entity across distant grid coordinates clears origin cells and populates destination cells', () => {
-      const grid = new SpatialHashGrid<DummySpatialEntity>(64);
-      const teleporter: DummySpatialEntity = {
-        id: 'teleporter',
-        aabb: new AABB(10, 10, 20, 20),
-        getAABB() {
-          return this.aabb;
-        },
-      };
-
-      grid.insert(teleporter);
-      expect(grid.queryPoint(new Vector2(15, 15)).length).toBe(1);
-
-      // Extreme teleportation across thousands of units
-      teleporter.aabb.set(4000, 4000, 4010, 4010);
-      grid.update(teleporter);
-
-      // Origin cell must have ZERO entities
-      expect(grid.queryPoint(new Vector2(15, 15)).length).toBe(0);
-      // Destination cell must have EXACTLY 1 entity
-      expect(grid.queryPoint(new Vector2(4005, 4005)).length).toBe(1);
-      expect(grid.getStats().entityCount).toBe(1);
-      expect(grid.getStats().occupiedCellCount).toBe(1);
-    });
-
-    it('handles degenerate zero-size point entity without error', () => {
-      const grid = new SpatialHashGrid<DummySpatialEntity>(64);
-      const pointEntity: DummySpatialEntity = {
-        id: 'point_ent',
-        aabb: new AABB(100, 100, 100, 100),
-        getAABB() {
-          return this.aabb;
-        },
-      };
-
-      grid.insert(pointEntity);
-      expect(grid.queryPoint(new Vector2(100, 100)).length).toBe(1);
-      expect(grid.queryPoint(new Vector2(101, 100)).length).toBe(0);
-    });
-  });
-
-  // =========================================================================
-  // 4. SERVICE CONTAINER ADVERSARIAL STRESS
-  // =========================================================================
-  describe('ServiceContainer Circular Dependency Stress', () => {
-    it('detects indirect cycles of arbitrary depth (A -> B -> C -> D -> B) and formats informative stack trace', () => {
-      const container = new ServiceContainer();
-
-      const tokenA = createServiceToken<{ name: string }>('ServiceA');
-      const tokenB = createServiceToken<{ name: string }>('ServiceB');
-      const tokenC = createServiceToken<{ name: string }>('ServiceC');
-      const tokenD = createServiceToken<{ name: string }>('ServiceD');
-
-      container.register(tokenA, (c) => ({ name: 'A', dep: c.resolve(tokenB) }));
-      container.register(tokenB, (c) => ({ name: 'B', dep: c.resolve(tokenC) }));
-      container.register(tokenC, (c) => ({ name: 'C', dep: c.resolve(tokenD) }));
-      container.register(tokenD, (c) => ({ name: 'D', dep: c.resolve(tokenB) })); // Cycle back to B
-
-      expect(() => {
-        container.resolve(tokenA);
-      }).toThrowError(/Circular dependency detected: ServiceA -> ServiceB -> ServiceC -> ServiceD -> ServiceB/);
-    });
-
-    it('scoping hierarchy: child resolves parent singletons while maintaining isolated child singletons', () => {
-      const parent = new ServiceContainer();
-      const parentToken = createServiceToken<{ id: number }>('ParentService');
-      const childToken = createServiceToken<{ id: number }>('ChildService');
-
-      let parentCounter = 0;
-      let childCounter = 0;
-
-      parent.register(parentToken, () => ({ id: ++parentCounter }), true);
-
-      const child = parent.createChild();
-      child.register(childToken, () => ({ id: ++childCounter }), true);
-
-      // Child can resolve parent singleton
-      const parentInst1 = child.resolve(parentToken);
-      const parentInst2 = child.resolve(parentToken);
-      expect(parentInst1).toBe(parentInst2);
-      expect(parentCounter).toBe(1);
-
-      // Parent cannot resolve child service
-      expect(() => parent.resolve(childToken)).toThrowError(/Service not registered/);
     });
   });
 

@@ -64,12 +64,3 @@ export interface GameLoopStats {
   lastFrameDeltaMs: number;
   droppedFramesCount: number;
 }
-
-export interface IInterpolatable {
-  prevX: number;
-  prevY: number;
-  x: number;
-  y: number;
-  renderX: number;
-  renderY: number;
-}

@@ -56,7 +56,11 @@ for (const [direction, suffix] of Object.entries(dirs)) {
     }
   }
 }
-await fs.writeFile('src/animation/playerSettleSteps.json', JSON.stringify(targets, null, 2) + '\n');
+await fs.mkdir('artifacts/player-flow', { recursive: true });
+await fs.writeFile(
+  'artifacts/player-flow/playerSettleSteps.json',
+  JSON.stringify(targets, null, 2) + '\n',
+);
 console.log('Analysed existing pose-to-idle joins without changing artwork.');
 
 await fs.mkdir('artifacts/player-flow', { recursive: true });

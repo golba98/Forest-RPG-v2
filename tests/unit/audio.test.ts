@@ -1,11 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {
-  SoundSynthesizer,
-  MusicPlayer,
-  registerAudioEvents,
-  IEventBus,
-  SoundEffectType,
-} from '@/audio';
+import { registerAudioEvents, type IEventBus } from '@/audio/AudioBridge';
+import { MusicPlayer } from '@/audio/MusicPlayer';
+import { SoundSynthesizer } from '@/audio/SoundSynthesizer';
+import type { SoundEffectType } from '@/audio/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('SoundSynthesizer Headless Tests', () => {
   let synth: SoundSynthesizer;
@@ -123,7 +120,7 @@ describe('SoundSynthesizer Web Audio Node Graph Simulation', () => {
     private assertFinite(val: number, method: string): void {
       if (typeof val !== 'number' || !Number.isFinite(val)) {
         throw new TypeError(
-          `Failed to execute '${method}' on 'AudioParam': The provided float value is non-finite.`
+          `Failed to execute '${method}' on 'AudioParam': The provided float value is non-finite.`,
         );
       }
     }
@@ -329,12 +326,12 @@ describe('MusicPlayer Full Tests with DOM Audio Mock', () => {
     set volume(val: number) {
       if (typeof val !== 'number' || !Number.isFinite(val)) {
         throw new TypeError(
-          "Failed to set the 'volume' property on 'HTMLMediaElement': The provided double value is non-finite."
+          "Failed to set the 'volume' property on 'HTMLMediaElement': The provided double value is non-finite.",
         );
       }
       if (val < 0 || val > 1) {
         throw new RangeError(
-          `Failed to set the 'volume' property on 'HTMLMediaElement': The volume provided (${val}) is outside the range [0, 1].`
+          `Failed to set the 'volume' property on 'HTMLMediaElement': The volume provided (${val}) is outside the range [0, 1].`,
         );
       }
       this._volume = val;
@@ -412,7 +409,9 @@ describe('MusicPlayer Full Tests with DOM Audio Mock', () => {
     for (const tc of testCases) {
       expect(() => music.setMusicVolume(tc.input)).not.toThrow();
       expect((music as unknown as { targetVolume: number }).targetVolume).toBe(tc.expected);
-      const active = (music as unknown as { getActiveAudio: () => MockAudioElement }).getActiveAudio();
+      const active = (
+        music as unknown as { getActiveAudio: () => MockAudioElement }
+      ).getActiveAudio();
       expect(active.volume).toBe(tc.expected);
     }
   });
@@ -425,14 +424,18 @@ describe('MusicPlayer Full Tests with DOM Audio Mock', () => {
     // 0-duration crossfade to 'game'
     await expect(music.crossfadeTo('game', 0)).resolves.toBeUndefined();
     expect(music.currentTrack).toBe('game');
-    const activeGame = (music as unknown as { getActiveAudio: () => MockAudioElement }).getActiveAudio();
+    const activeGame = (
+      music as unknown as { getActiveAudio: () => MockAudioElement }
+    ).getActiveAudio();
     expect(activeGame.volume).toBeCloseTo(0.6, 2);
     expect(Number.isFinite(activeGame.volume)).toBe(true);
 
     // Negative duration crossfade to 'menu'
     await expect(music.crossfadeTo('menu', -1.5)).resolves.toBeUndefined();
     expect(music.currentTrack).toBe('menu');
-    const activeMenu = (music as unknown as { getActiveAudio: () => MockAudioElement }).getActiveAudio();
+    const activeMenu = (
+      music as unknown as { getActiveAudio: () => MockAudioElement }
+    ).getActiveAudio();
     expect(activeMenu.volume).toBeCloseTo(0.6, 2);
     expect(Number.isFinite(activeMenu.volume)).toBe(true);
 
@@ -462,7 +465,9 @@ describe('MusicPlayer Full Tests with DOM Audio Mock', () => {
 
     // Frame 0 execution
     expect(() => scheduledStep!(startTime)).not.toThrow();
-    const active = (music as unknown as { getActiveAudio: () => MockAudioElement }).getActiveAudio();
+    const active = (
+      music as unknown as { getActiveAudio: () => MockAudioElement }
+    ).getActiveAudio();
     expect(Number.isFinite(active.volume)).toBe(true);
 
     // Midway and final frames
@@ -476,7 +481,9 @@ describe('MusicPlayer Full Tests with DOM Audio Mock', () => {
     await music.play('menu');
     music.setMusicVolume(0.7);
 
-    const active = (music as unknown as { getActiveAudio: () => MockAudioElement }).getActiveAudio();
+    const active = (
+      music as unknown as { getActiveAudio: () => MockAudioElement }
+    ).getActiveAudio();
 
     // Multiplier > 1.0 (0.7 * 2.0 = 1.4, must clamp to 1.0)
     expect(() => music.duck(2.0, 0.5)).not.toThrow();
