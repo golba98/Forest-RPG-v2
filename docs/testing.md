@@ -13,6 +13,8 @@ npm test -- --maxWorkers=2
 npm run build
 ```
 
+The three-map connectivity sweep has a 30-second budget and the 100-seed topology sweep has a 120-second budget for shared CI runners. Their seed sets and assertions are unchanged; generation speed remains measured separately by benchmarks.
+
 Vitest runs unit and integration tests. Limiting workers reduces resource contention during world-generation sweeps. Benchmarks run separately with `npm run benchmark`; use Vitest `bench()` declarations, since ordinary `it()` declarations are not measured in benchmark mode. Input and vector timing assertions remain inside their benchmarks.
 
 TypeScript also rejects unused locals and parameters. Knip checks files, exports, dependencies and runtime cycles, including explicit tooling entrypoints. Its narrow retained-evidence exceptions are documented in [architecture](architecture.md#ownership-and-module-boundaries); do not use static analysis as proof that dynamically selected artwork is disposable.
