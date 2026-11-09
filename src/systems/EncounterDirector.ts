@@ -130,7 +130,7 @@ export class EncounterDirector {
     return e;
   }
   private crawl(b: BossEncounter, e: EnemyEntity, restored = false): void {
-    const { entrance, exit } = nestGeometry(this.world, this.site(b.siteId));
+    const { entrance, exit } = nestGeometry(this.world, this.site(b.siteId), hasClearPath);
     const t = Math.max(0, Math.min(1, 1 - b.remainingMs / C.boss.emergenceMs));
     e.prevX = restored ? entrance.x : e.x;
     e.prevY = restored ? entrance.y + (exit.y - entrance.y) * t : e.y;

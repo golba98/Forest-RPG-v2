@@ -1,3 +1,4 @@
+import { hasClearPath } from '../../src/systems/CollisionSystem';
 import { expect, test, type Page } from '@playwright/test';
 import { EncounterDirector } from '../../src/systems/EncounterDirector';
 import { encounterFixture } from '../fixtures/encounter-world';
@@ -312,8 +313,8 @@ test('nest blocks walking and running approaches from every direction, persists 
   const world = generateWorld({ seed: 42, level: 1, difficulty: 'normal' });
   const errors = await boot(page, world);
   const site = world.encounterSites!.find((s) => s.kind === 'nest')!;
-  const layout = nestLayout(world, site),
-    bounds = nestBaseBounds(world, site);
+  const layout = nestLayout(world, site, hasClearPath),
+    bounds = nestBaseBounds(world, site, hasClearPath);
   const cy = (layout.originY + 53) / 32 - 0.2125;
   for (const sprint of [false, true])
     for (const [dx, dy, keys] of [

@@ -1,3 +1,4 @@
+import { hasClearPath } from '../systems/CollisionSystem';
 import { Container, Graphics, Sprite } from 'pixi.js';
 import type { RenderSnapshot, RenderEntityView } from '../types/render';
 import type { TextureStore } from './TextureStore';
@@ -26,11 +27,14 @@ export class NestView {
     this.particles.clear();
   }
   update(snapshot: RenderSnapshot, actors: Container, textures: TextureStore, time: number): void {
-    const active=new Set((snapshot.encounters?.sites??[]).filter(s=>s.kind==='nest').map(s=>s.id));
-    for(const [id,v] of this.views)if(!active.has(id)){
-      for(const s of [v.body,v.front,v.cleared,v.ground,v.mask])s.destroy();
-      this.views.delete(id);
-    }
+    const active = new Set(
+      (snapshot.encounters?.sites ?? []).filter((s) => s.kind === 'nest').map((s) => s.id),
+    );
+    for (const [id, v] of this.views)
+      if (!active.has(id)) {
+        for (const s of [v.body, v.front, v.cleared, v.ground, v.mask]) s.destroy();
+        this.views.delete(id);
+      }
     this.particles.clear();
     for (const site of snapshot.encounters?.sites ?? []) {
       if (site.kind !== 'nest') continue;
@@ -48,7 +52,13 @@ export class NestView {
         actors.addChild(v.body, v.front, v.cleared, v.mask);
         this.views.set(site.id, v);
       }
-      const { entrance, mouthX: x, mouthY: y, originX, originY } = nestLayout(snapshot.world, site);
+      const {
+        entrance,
+        mouthX: x,
+        mouthY: y,
+        originX,
+        originY,
+      } = nestLayout(snapshot.world, site, hasClearPath);
       const shake = site.phase === 'warning' ? Math.round(Math.sin(time / 48)) : 0;
       for (const s of [v.body, v.front, v.cleared, v.ground]) s.position.set(originX, originY);
       v.body.x += shake;
@@ -56,7 +66,7 @@ export class NestView {
       v.bugLipY = entrance.y * 32 + 12;
       v.body.zIndex = entrance.y * 32 - 2;
       v.front.zIndex =
-        (Math.max(...nestBaseBounds(snapshot.world, site).map((b) => b.maxY)) -
+        (Math.max(...nestBaseBounds(snapshot.world, site, hasClearPath).map((b) => b.maxY)) -
           PLAYER_FOOTPRINT.offsetY) *
         32;
       v.cleared.zIndex = v.front.zIndex + 0.1;

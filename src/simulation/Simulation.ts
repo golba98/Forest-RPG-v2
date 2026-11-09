@@ -1,181 +1,69 @@
-import { CancelledWork } from '../core/WorkSlice';
-import { findBiomeLanding } from '../world/infinite/BiomeLanding';
-import type { BiomeId } from '../world/Biomes';
-import { copyWindowOverlap } from '../world/infinite/WindowOverlap';
-import { SurfaceSites } from '../systems/SurfaceMoisture';
-import { preparePropIndex } from '../systems/CollisionSystem';
-import { collectLoot, prepareLoot } from '../systems/LootSystem';
-import {
-  InfiniteSession,
-  infiniteDescriptor,
-  bindSession,
-  sessionFor,
-  translateEntity,
-} from '../world/infinite/InfiniteSession';
-import { WorldRepository } from '../persistence/WorldRepository';
 import type { WorldCheckpoint } from '../persistence/WorldRepository';
+import { collectLoot, prepareLoot } from '../systems/LootSystem';
 import type { WorldGenOptions } from '../types/world';
+import type { BiomeId } from '../world/Biomes';
+import { InfiniteSession, bindSession, translateEntity } from '../world/infinite/InfiniteSession';
 import type { WorldEdit } from '../world/infinite/WorldEdits';
+import { StreamingCoordinator } from './streaming/StreamingCoordinator';
 
-import { landscapeFor } from '../world/LandscapePlan';
-import { normalizeWorldCompatibility } from '../world/WorldCompatibility';
-import { prepareHilltopObjects } from '../world/HilltopObjects';
-import { SurfaceMoisture, surfaceSites } from '../systems/SurfaceMoisture';
-import type { WeatherKind } from '../types/render';
+import { GAME_CONFIG as C } from '../config/GameConfig';
+import { canOccupy, hasClearPath, queryColliders } from '../systems/CollisionSystem';
 import { EncounterDirector, type EncounterCue } from '../systems/EncounterDirector';
-import { prepareEncounterWorld } from '../world/EncounterPlacement';
-import type { SimulationRuntime } from '../types/encounters';
+import { EncounterSystem, type CombatFeedback } from '../systems/EncounterSystem';
 import { entityFootprint, groundTile, resolveFootprint } from '../systems/EntityFootprint';
-import { supportingSurface } from '../systems/SurfaceState';
+import { movePlayer, movementRuntime, restoreMovementRuntime } from '../systems/MovementSystem';
 import { PortalSystem } from '../systems/PortalSystem';
 import { restoreSafePosition } from '../systems/SpawnSafety';
-import { describeTerrain } from '../world/TerrainTopology';
-import { queryColliders, canOccupy, hasClearPath } from '../systems/CollisionSystem';
-import { floodFill, findPath } from '../world/pathfinding';
+import { SurfaceMoisture, surfaceSites } from '../systems/SurfaceMoisture';
+import { supportingSurface } from '../systems/SurfaceState';
+import { TutorialSystem } from '../systems/TutorialSystem';
+import type { SimulationRuntime } from '../types/encounters';
+import type { EnemyType, Entity, EntityBase, PlayerEntity, PlayerIntent } from '../types/entities';
 import type { GameplayDebug, PortalChange, RoundStatus } from '../types/gameplay';
-import { Rng } from '../world/Rng';
-import { GAME_CONFIG as C } from '../config/GameConfig';
-import type { Entity, EntityBase, EnemyType, PlayerEntity, PlayerIntent } from '../types/entities';
-import type { RenderSnapshot } from '../types/render';
+import type { RenderSnapshot, WeatherKind } from '../types/render';
 import type { ISimulation } from '../types/simulation';
 import type { WorldData } from '../types/world';
+import { prepareEncounterWorld } from '../world/EncounterPlacement';
+import { prepareHilltopObjects } from '../world/HilltopObjects';
+import { landscapeFor } from '../world/LandscapePlan';
+import { findPath, floodFill } from '../world/pathfinding';
+import { Rng } from '../world/Rng';
+import { describeTerrain } from '../world/TerrainTopology';
 import { generateTutorialWorld } from '../world/TutorialMap';
-import { TutorialSystem } from '../systems/TutorialSystem';
-import { EncounterSystem, type CombatFeedback } from '../systems/EncounterSystem';
-import {
-  movePlayer,
-  movementRuntime,
-  restoreMovementRuntime,
-  rebaseMovementRuntime,
-} from '../systems/MovementSystem';
+import { normalizeWorldCompatibility } from '../world/WorldCompatibility';
 
 export class Simulation implements ISimulation {
+  private readonly streaming = new StreamingCoordinator(this, (...args) =>
+    this.installStream(...args),
+  );
+  get stream(): InfiniteSession | undefined {
+    return this.streaming.session;
+  }
   preparePresentation: ((world: WorldData) => Promise<void>) | undefined;
   async travelToBiome(biome: BiomeId): Promise<void> {
-    const stream = this.stream;
-    if (!stream?.exploration) throw new Error('Biome travel is available in Biome Walk');
-    while (this.preparingStream) await new Promise<void>((resolve) => setTimeout(resolve, 1));
-    stream.capture(this.world, this.entities, this.getRuntimeState(), this.elapsedMs);
-    const landing = await findBiomeLanding(stream, biome, this.world);
-    await this.setGlobalPosition(landing.position.x, landing.position.y);
-    await this.saveInfinite('auto');
+    await this.streaming.travelToBiome(biome);
   }
   viewDimensions: (() => { width: number; height: number }) | undefined;
   destroy(): void {
-    this.streamEpoch++;
-    this.preparingStream = false;
-    this.installingStream = false;
-    this.stream?.dispose();
-    this.preparingSession?.dispose();
+    this.streaming.destroy();
   }
-  stream: InfiniteSession | undefined;
-  private preparingSession: InfiniteSession | undefined;
-  private preparingStream = false;
-  private installingStream = false;
-  private streamEpoch = 0;
-  private transitionSave: Promise<void> | undefined;
-  async prepareInfinite(options: WorldGenOptions, state?: WorldCheckpoint): Promise<WorldData> {
-    if (options.generatorVersion !== undefined && ![13, 14, 15, 16].includes(options.generatorVersion))
-      throw new Error('Unsupported streamed generation request');
-    this.preparingSession?.dispose();
-    const session = new InfiniteSession(
-      state?.descriptor ?? infiniteDescriptor(options),
-      new WorldRepository(),
-      state?.legacy,
-    );
-    const view = this.viewDimensions?.();
-    if (view) session.setViewTiles(view.width, view.height);
-    this.preparingSession = session;
-    if (state) {
-      session.revision = state.revision;
-      if (state.exploration) {
-        session.home = state.exploration.home;
-        session.landings = { ...state.exploration.landings };
-      }
-      for (const id of state.objectives) session.objectives.add(id);
-    }
-    const p = state?.entities.find((e) => e.kind === 'player') ??
-      state?.legacy?.entities.find((e) => e.kind === 'player') ?? { x: 0.5, y: 0.5 };
-    try {
-      if (!state && options.mode === 'biome-walk') {
-        const landing = await findBiomeLanding(session, options.biome ?? 'forest');
-        if (this.preparingSession !== session) throw new Error('World preparation cancelled');
-        session.home = landing.position;
-        session.commitWindow(landing.world);
-        await this.preparePresentation?.(landing.world);
-        this.preparingSession = undefined;
-        return bindSession(landing.world, session);
-      }
-      await session.prepareAt(p.x, p.y);
-      if (this.preparingSession !== session) throw new Error('World preparation cancelled');
-      this.preparingSession = undefined;
-      const world = session.buildWindow();
-      await this.preparePresentation?.(world);
-      return bindSession(world, session);
-    } catch (error) {
-      session.dispose();
-      throw error;
-    }
+  prepareInfinite(options: WorldGenOptions, state?: WorldCheckpoint): Promise<WorldData> {
+    return this.streaming.prepareInfinite(options, state);
   }
-  getWorldWaitReason():
-    'installation' | 'preparation-edge' | 'stream-error-edge' | 'persistence-edge' | null {
-    if (this.installingStream) return 'installation';
-    const edge =
-      this.stream &&
-      this.player &&
-      (this.player.x < 16 ||
-        this.player.y < 16 ||
-        this.player.x > this.world.meta.width - 16 ||
-        this.player.y > this.world.meta.height - 16);
-    if (edge && this.stream?.error) return 'stream-error-edge';
-    if (edge && this.transitionSave) return 'persistence-edge';
-    if (edge && this.preparingStream) return 'preparation-edge';
-    return null;
+  getWorldWaitReason() {
+    return this.streaming.getWorldWaitReason();
   }
   isWaitingForWorld(): boolean {
     return this.getWorldWaitReason() !== null;
   }
-  async saveInfinite(slot?: string): Promise<void> {
-    while (this.installingStream) await new Promise<void>((resolve) => setTimeout(resolve, 1));
-    const stream = this.stream;
-    if (!stream) return;
-    const recovering = !!stream.error;
-    const runtime = this.getRuntimeState();
-    stream.capture(this.world, this.entities, runtime, this.elapsedMs);
-    await stream.checkpoint(this.entities, runtime, this.time, this.elapsedMs, slot);
-    stream.error = null;
-    if (recovering) stream.prune(false);
+  saveInfinite(slot?: string): Promise<void> {
+    return this.streaming.saveInfinite(slot);
   }
   getStreamingDebug() {
-    return this.stream
-      ? {
-          ...this.stream.source.info,
-          worldId: this.stream.descriptor.id,
-          generatorVersion: this.stream.descriptor.generatorVersion,
-          mode: this.stream.descriptor.mode ?? 'adventure',
-          biome:
-            this.stream.generator.geography?.sample(
-              Math.floor(this.player.x + this.stream.origin.x),
-              Math.floor(this.player.y + this.stream.origin.y),
-            ).biome ?? 0,
-          origin: this.stream.origin,
-          globalPosition: this.stream.globalPosition(this.player),
-          transitions: this.stream.transitions,
-          error: this.stream.error,
-          preparing: this.preparingStream,
-        }
-      : null;
+    return this.streaming.getStreamingDebug();
   }
-  async ensureView(width: number, height: number): Promise<void> {
-    const stream = this.stream;
-    if (!stream) return;
-    stream.setViewTiles(width, height);
-    while (this.stream === stream && this.world.meta.width !== stream.windowSize) {
-      await this.transitionSave;
-      await this.advanceStream();
-      if (stream.error) throw new Error(stream.error);
-      if (this.preparingStream) await new Promise<void>((resolve) => setTimeout(resolve, 1));
-    }
+  ensureView(width: number, height: number): Promise<void> {
+    return this.streaming.ensureView(width, height);
   }
   applyWorldEdit(edit: WorldEdit): void {
     const stream = this.stream;
@@ -250,80 +138,8 @@ export class Simulation implements ISimulation {
     }
     return [];
   }
-  async setGlobalPosition(x: number, y: number): Promise<void> {
-    await this.transitionSave;
-    const stream = this.stream;
-    if (!stream) {
-      this.setPlayerPosition(x, y);
-      return;
-    }
-    const origin = stream.origin,
-      lx = x - origin.x,
-      ly = y - origin.y;
-    if (
-      Number.isFinite(x) &&
-      Number.isFinite(y) &&
-      lx >= 32 &&
-      ly >= 32 &&
-      lx < this.world.meta.width - 32 &&
-      ly < this.world.meta.height - 32 &&
-      !this.installingStream
-    ) {
-      if (Math.hypot(this.player.x - lx, this.player.y - ly) > 4) {
-        stream.teleportVersion++;
-        if (this.world.window) this.world.window.teleportVersion = stream.teleportVersion;
-      }
-      this.player.x = this.player.prevX = lx;
-      this.player.y = this.player.prevY = ly;
-      void this.advanceStream();
-      return;
-    }
-    if (this.preparingStream) {
-      while (this.preparingStream) await new Promise<void>((resolve) => setTimeout(resolve, 1));
-      return this.setGlobalPosition(x, y);
-    }
-    this.preparingStream = true;
-    try {
-      await stream.prepareAt(x, y);
-      this.installingStream = true;
-      const runtime = this.getRuntimeState(),
-        old = stream.origin;
-      stream.capture(this.world, this.entities, runtime, this.elapsedMs);
-      await stream.checkpoint(this.entities, runtime, this.time, this.elapsedMs, 'auto');
-      stream.teleportVersion++;
-      // Keep the active origin and scene intact if decoding an entering biome
-      // fails. Only publish after both terrain and its artwork are ready.
-      let world: WorldData;
-      try {
-        world = await stream.stageWindow(this.world, () => this.stream === stream);
-        await this.preparePresentation?.(world);
-        if (this.stream !== stream) throw new CancelledWork();
-      } catch (error) {
-        if (this.stream === stream) stream.prune(false);
-        throw error;
-      }
-      stream.commitWindow(world);
-      const next = stream.origin;
-      const player = translateEntity(this.player, old.x - next.x, old.y - next.y);
-      player.x = player.prevX = x - next.x;
-      player.y = player.prevY = y - next.y;
-      const portal = this.entities.find((e) => e.kind === 'portal');
-      this.installStream(
-        world,
-        player,
-        portal ? translateEntity(portal, old.x - next.x, old.y - next.y) : undefined,
-        runtime,
-        this.entities
-          .filter((e) => e.kind === 'projectile')
-          .map((e) => translateEntity(e, old.x - next.x, old.y - next.y)),
-      );
-      restoreSafePosition(world, this.player);
-      stream.error = null;
-      stream.prune();
-    } finally {
-      this.preparingStream = false;
-      this.installingStream = false;
-    }
+  setGlobalPosition(x: number, y: number): Promise<void> {
+    return this.streaming.setGlobalPosition(x, y);
   }
   private installStream(
     world: WorldData,
@@ -420,113 +236,7 @@ export class Simulation implements ISimulation {
     }
     this.portal.restore(this.entities, 0, stream.objectiveStatus());
   }
-  private async advanceStream(): Promise<void> {
-    const stream = this.stream,
-      epoch = this.streamEpoch;
-    if (
-      !stream ||
-      this.preparingStream ||
-      this.transitionSave ||
-      stream.error ||
-      (!stream.needsShift(this.player) && this.world.meta.width === stream.windowSize)
-    )
-      return;
-    this.preparingStream = true;
-    try {
-      const p = stream.globalPosition(this.player);
-      await stream.prepareAt(p.x, p.y);
-      let world: WorldData;
-      for (;;) {
-        const active = this.world,
-          count = active.props.length,
-          teleportVersion = stream.teleportVersion;
-        if (this.stream !== stream || epoch !== this.streamEpoch) throw new CancelledWork();
-        // Capture current geometry before preparing metadata; actors/moisture are
-        // captured again at publication, not frozen while asynchronous work runs.
-        stream.capture(active, this.entities, this.getRuntimeState(), this.elapsedMs);
-        const valid = () =>
-          this.stream === stream &&
-          epoch === this.streamEpoch &&
-          this.world === active &&
-          active.props.length === count &&
-          stream.teleportVersion === teleportVersion &&
-          stream.windowSize === worldSize;
-        const worldSize = stream.windowSize;
-        try {
-          world = await stream.stageWindow(active, valid);
-          await SurfaceSites.prepare(world, valid);
-          await preparePropIndex(world, valid);
-          await this.preparePresentation?.(world);
-          if (!valid()) throw new CancelledWork();
-          break;
-        } catch (error) {
-          if (
-            !(error instanceof CancelledWork) ||
-            this.stream !== stream ||
-            epoch !== this.streamEpoch
-          )
-            throw error;
-          const at = stream.globalPosition(this.player);
-          await stream.prepareAt(at.x, at.y);
-        }
-      }
-      // One synchronous publication between simulation calls. No storage await
-      // occurs inside the installation guard.
-      this.installingStream = true;
-      const runtime = this.getRuntimeState(),
-        previous = this.world,
-        live = this.entities,
-        moisture = this.moisture;
-      stream.capture(previous, live, runtime, this.elapsedMs);
-      const durable = stream.checkpoint(live, runtime, this.time, this.elapsedMs, 'auto');
-      copyWindowOverlap(world, previous);
-      const old = stream.origin;
-      stream.commitWindow(world);
-      const next = stream.origin,
-        dx = old.x - next.x,
-        dy = old.y - next.y;
-      const player = this.player;
-      player.x += dx;
-      player.prevX += dx;
-      player.y += dy;
-      player.prevY += dy;
-      rebaseMovementRuntime(player, dx, dy);
-      const portal = live.find((e) => e.kind === 'portal');
-      this.installStream(
-        world,
-        player,
-        portal ? translateEntity(portal, dx, dy) : undefined,
-        runtime,
-        live.filter((e) => e.kind === 'projectile').map((e) => translateEntity(e, dx, dy)),
-        moisture,
-        live,
-      );
-      stream.transitions++;
-      const saving = durable
-        .then(() => {
-          if (this.stream === stream) {
-            stream.prune(false);
-            stream.error = null;
-          }
-        })
-        .catch((error: unknown) => {
-          if (this.stream === stream)
-            stream.error = error instanceof Error ? error.message : String(error);
-        })
-        .finally(() => {
-          if (this.transitionSave === saving) this.transitionSave = undefined;
-        });
-      this.transitionSave = saving;
-    } catch (error) {
-      if (!(error instanceof CancelledWork) && this.stream === stream && epoch === this.streamEpoch)
-        stream.error = error instanceof Error ? error.message : String(error);
-    } finally {
-      if (epoch === this.streamEpoch) {
-        this.preparingStream = false;
-        this.installingStream = false;
-      }
-    }
-  }
+
   onPortalChange: ((change: PortalChange) => void) | null = null;
   onRoundComplete: ((status: RoundStatus) => void) | null = null;
   private portal = new PortalSystem(
@@ -590,18 +300,7 @@ export class Simulation implements ISimulation {
     };
   }
   loadWorld(world: WorldData): void {
-    this.streamEpoch++;
-    this.preparingStream = false;
-    this.installingStream = false;
-    const stream = sessionFor(world);
-    if (world.window && !stream)
-      throw new Error('Streamed views must be loaded through their session');
-    if (this.preparingSession && this.preparingSession !== stream) {
-      this.preparingSession.dispose();
-      this.preparingSession = undefined;
-    }
-    if (this.stream && this.stream !== stream) this.stream.dispose();
-    this.stream = stream;
+    const stream = this.streaming.setWorld(world);
     world = prepareHilltopObjects(prepareEncounterWorld(normalizeWorldCompatibility(world)));
     landscapeFor(world);
     this.encounters = new EncounterSystem(
@@ -716,7 +415,7 @@ export class Simulation implements ISimulation {
         });
         return;
       }
-      void this.advanceStream();
+      void this.streaming.advance();
       if (this.isWaitingForWorld()) return;
     }
     this.elapsedMs += dt * 1000;
