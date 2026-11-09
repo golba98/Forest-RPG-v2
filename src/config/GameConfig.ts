@@ -107,5 +107,3 @@ export const GAME_CONFIG = {
     followLerp: 0.12,
   },
 } as const;
-
-export type GameConfig = typeof GAME_CONFIG;

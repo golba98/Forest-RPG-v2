@@ -5,7 +5,7 @@ import { groundPosition } from './EntityFootprint';
 import { elevationAt } from '../world/ElevationTopology';
 
 export const LOOT_RULES = { pickupRadius: 0.7, chestRadius: 1.25, openingMs: 600 } as const;
-export const chestReward = (variant: 'wooden' | 'reinforced'): number =>
+const chestReward = (variant: 'wooden' | 'reinforced'): number =>
   variant === 'reinforced' ? 10 : 5;
 export function prepareLoot(world: WorldData, entities: readonly Entity[]): void {
   const chests = entities.filter(

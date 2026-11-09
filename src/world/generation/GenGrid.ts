@@ -9,7 +9,7 @@ export class GenGrid implements TileGrid {
   constructor(
     readonly width: number,
     readonly height: number,
-    fill: TileId
+    fill: TileId,
   ) {
     this.tiles = new Uint8Array(width * height).fill(fill);
   }
@@ -38,23 +38,4 @@ export class GenGrid implements TileGrid {
     }
     return out;
   }
-}
-
-/**
- * The protected player-start rectangle (legacy "clear area"): 75–90% of the
- * map, centred. Bounds are fractional; "inside" is a strict comparison.
- */
-export interface ClearArea {
-  readonly centerX: number;
-  readonly centerY: number;
-  readonly width: number;
-  readonly height: number;
-  readonly startX: number;
-  readonly endX: number;
-  readonly startY: number;
-  readonly endY: number;
-}
-
-export function isInClearArea(area: ClearArea, x: number, y: number): boolean {
-  return x > area.startX && x < area.endX && y > area.startY && y < area.endY;
 }

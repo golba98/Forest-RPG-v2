@@ -22,7 +22,7 @@ const distance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
   Math.hypot(a.x - b.x, a.y - b.y);
 const livingEnemies = (entities: readonly Entity[]) =>
   entities.filter((e): e is EnemyEntity => e.kind === 'enemy' && e.alive);
-export const bossEntityId = (site: EncounterSite) => `${site.id}:boss`;
+const bossEntityId = (site: EncounterSite) => `${site.id}:boss`;
 
 /** Sole owner of managed actor lifetimes. No renderer, camera or wall-clock dependencies. */
 export class EncounterDirector {

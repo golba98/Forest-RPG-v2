@@ -1,13 +1,5 @@
-import { ISoundSynthesizer, IMusicPlayer } from './types';
-
-/**
- * Event bus interface required by the audio bridge.
- * Compatible with the central core EventBus implementation.
- */
-export interface IEventBus {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  on(event: string, handler: (payload?: any) => void): () => void;
-}
+import type { IEventBus } from '../core/events/types';
+import { IMusicPlayer, ISoundSynthesizer } from './types';
 
 /**
  * Connects the retro audio subsystem to the central game event bus.
@@ -19,9 +11,9 @@ export interface IEventBus {
  * @returns Teardown unsubscribe function
  */
 export function registerAudioEvents(
-  eventBus: IEventBus,
+  eventBus: Pick<IEventBus, 'on'>,
   synth: ISoundSynthesizer,
-  music: IMusicPlayer
+  music: IMusicPlayer,
 ): () => void {
   const unsubscribers: Array<() => void> = [
     // Combat SFX

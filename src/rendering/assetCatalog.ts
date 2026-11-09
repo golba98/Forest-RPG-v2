@@ -1,6 +1,11 @@
-import { GROVE_ASSETS } from './groveArt';
-import type { Direction } from '../types/entities';
+import {
+  DIRECTIONS,
+  DIRECTION_FILE_SUFFIX,
+  PLAYER_SHEET_ANIMS,
+  playerSheetAlias,
+} from '../animation/PlayerSheets';
 import type { PropKind } from '../types/world';
+import { GROVE_ASSETS } from './groveArt';
 import { HILL_ATLAS_ALIAS, HILL_ATLAS_SRC } from './hillAutotile';
 
 /**
@@ -22,31 +27,6 @@ export const RENDERER_EXTRA_BUNDLE = 'rendering_extras';
 /** Renderer-owned portal art must also load with older/regenerated asset manifests. */
 export const PORTAL_ART_ALIAS = 'portal_forest';
 export const PORTAL_ART_SRC = 'assets/images/objects/portal_forest.png';
-
-export const PLAYER_SHEET_ANIMS = [
-  'idle',
-  'walk',
-  'run',
-  'jump',
-  'attack',
-  'attack2',
-  'attack3',
-] as const;
-export type PlayerSheetAnim = (typeof PLAYER_SHEET_ANIMS)[number];
-
-export const DIRECTIONS: readonly Direction[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-
-/** File-name suffix used by `characters/player/<anim>/<anim>_<suffix>.png`. */
-export const DIRECTION_FILE_SUFFIX: Readonly<Record<Direction, string>> = {
-  N: 'north',
-  NE: 'northeast',
-  E: 'east',
-  SE: 'southeast',
-  S: 'south',
-  SW: 'southwest',
-  W: 'west',
-  NW: 'northwest',
-};
 
 export const DECOR_KINDS: readonly PropKind[] = [
   'bush_small',
@@ -73,25 +53,6 @@ export const GROUND_PROPS: ReadonlySet<PropKind> = new Set<PropKind>([
   'rock_pebble',
   'hole',
 ]);
-
-function buildPlayerAliases(): Readonly<
-  Record<PlayerSheetAnim, Readonly<Record<Direction, string>>>
-> {
-  const table = {} as Record<PlayerSheetAnim, Record<Direction, string>>;
-  for (const anim of PLAYER_SHEET_ANIMS) {
-    const row = {} as Record<Direction, string>;
-    for (const dir of DIRECTIONS) row[dir] = `player_${anim}_${DIRECTION_FILE_SUFFIX[dir]}`;
-    table[anim] = row;
-  }
-  return table;
-}
-
-/** Precomputed so hot-path frame selection never builds strings. */
-export const PLAYER_SHEET_ALIASES = buildPlayerAliases();
-
-export function playerSheetAlias(anim: PlayerSheetAnim, dir: Direction): string {
-  return PLAYER_SHEET_ALIASES[anim][dir];
-}
 
 export function decorAlias(kind: PropKind): string {
   if (kind === 'tree') return 'tile_tree';

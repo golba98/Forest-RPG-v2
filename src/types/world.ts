@@ -1,6 +1,7 @@
 import type { WorldEnvironment } from '../world/Biomes';
-import type { EnemyType, PickupType } from './entities';
+import type { WorldWindow } from '../world/infinite/types';
 import type { EncounterSite } from './encounters';
+import type { EnemyType, PickupType } from './entities';
 
 /** Bump whenever generator output for a given seed changes. Stored in saves. */
 export const WORLD_GENERATOR_VERSION = 13;
@@ -104,7 +105,7 @@ export interface PickupSpawn {
 export interface WorldData {
   readonly environment?: WorldEnvironment;
   /** A bounded local adapter over independently generated global chunks. Never serialized as a finite map. */
-  readonly window?: import('../world/infinite/types').WorldWindow;
+  readonly window?: WorldWindow;
   readonly encounterSites?: readonly EncounterSite[];
   readonly meta: WorldMeta;
   readonly tiles: Uint8Array;

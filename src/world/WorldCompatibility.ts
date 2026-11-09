@@ -2,7 +2,7 @@ import { WORLD_GENERATOR_VERSION, type WorldData, type WorldMeta } from '../type
 
 export const SAVE_SCHEMA_VERSION = 2;
 /** Imported original maps and otherwise valid V2 worlds with unknown procedural provenance. */
-export const LEGACY_GENERATOR_VERSION = 0;
+const LEGACY_GENERATOR_VERSION = 0;
 
 export function assertGeneratorVersion(value: unknown): asserts value is number {
   if (
@@ -29,8 +29,12 @@ export function appliedMigrations(meta: WorldMeta): readonly string[] {
   ];
 }
 export function normalizeWorldCompatibility(world: WorldData): WorldData {
-  if(world.window){
-    if(![13,14,15,16].includes(world.meta.generatorVersion)||world.window.descriptor.generatorVersion!==world.meta.generatorVersion)throw new Error('Unsupported streamed generator version');
+  if (world.window) {
+    if (
+      ![13, 14, 15, 16].includes(world.meta.generatorVersion) ||
+      world.window.descriptor.generatorVersion !== world.meta.generatorVersion
+    )
+      throw new Error('Unsupported streamed generator version');
     return world;
   }
   const version =

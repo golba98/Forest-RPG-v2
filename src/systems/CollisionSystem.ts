@@ -22,7 +22,7 @@ export interface CollisionQueryOptions {
   readonly ignoreNestId?: string;
   readonly ignoreChestId?: string;
 }
-export const CONTACT_EPSILON = 1e-9;
+const CONTACT_EPSILON = 1e-9;
 const chestColliders = new WeakMap<CollisionWorld, readonly Collider[]>();
 export function registerChestColliders(
   world: CollisionWorld,

@@ -1,11 +1,11 @@
-import metadata from '../../../src/animation/playerFluidMetadata.json';
 import fs from 'node:fs/promises';
-import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
-import { EntityAnimator } from '../../../src/rendering/EntityAnimator';
-import { resolveSpriteFrame } from '../../../src/animation/resolveSpriteFrame';
+import { describe, expect, it } from 'vitest';
 import { ANIMATION_DEFS } from '../../../src/animation/AnimationDefs';
-import { PLAYER_SHEET_ANIMS, DIRECTION_FILE_SUFFIX } from '../../../src/rendering/assetCatalog';
+import metadata from '../../../src/animation/playerFluidMetadata.json';
+import { DIRECTION_FILE_SUFFIX, PLAYER_SHEET_ANIMS } from '../../../src/animation/PlayerSheets';
+import { resolveSpriteFrame } from '../../../src/animation/resolveSpriteFrame';
+import { EntityAnimator } from '../../../src/rendering/EntityAnimator';
 import type { RenderEntityView } from '../../../src/types/render';
 
 const player = (extra: Partial<RenderEntityView> = {}): RenderEntityView => ({

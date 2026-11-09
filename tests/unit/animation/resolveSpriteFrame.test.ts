@@ -5,8 +5,8 @@ import {
   ANIMATION_DEFS,
   PROCEDURAL_SPRITES,
   listReferencedAliases,
-  playerSheetAlias,
 } from '../../../src/animation/AnimationDefs';
+import { playerSheetAlias } from '../../../src/animation/PlayerSheets';
 import {
   getAnimationDurationMs,
   isAnimationFinished,

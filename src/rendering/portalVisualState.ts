@@ -3,9 +3,9 @@ import type { PortalVisualState } from '../types/render';
 // Fallback timings match the simulation's PORTAL_RULES (codex/gameplay-repair),
 // so derived and authoritative states look identical.
 /** Player distance (tiles) at which a locked portal reacts. */
-export const PORTAL_REACT_ENTER_TILES = 2.5;
+const PORTAL_REACT_ENTER_TILES = 2.5;
 /** The reaction re-arms only after the player moves beyond this distance. */
-export const PORTAL_REACT_EXIT_TILES = 3;
+const PORTAL_REACT_EXIT_TILES = 3;
 export const PORTAL_REACT_MS = 600;
 export const PORTAL_TRANSITION_MS = 650;
 /**
@@ -49,7 +49,10 @@ export class PortalVisualMachine {
   get reactProgress(): number {
     if (this.current !== 'reacting') return 0;
     // An explicit simulation state may outlive the derived timer; use time in state then.
-    const derived = this.reactRemainingMs > 0 ? 1 - this.reactRemainingMs / PORTAL_REACT_MS : this.stateMs / PORTAL_REACT_MS;
+    const derived =
+      this.reactRemainingMs > 0
+        ? 1 - this.reactRemainingMs / PORTAL_REACT_MS
+        : this.stateMs / PORTAL_REACT_MS;
     return Math.min(1, Math.max(0, derived));
   }
 

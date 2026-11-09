@@ -22,14 +22,6 @@ export function createChunkRange(): ChunkRange {
   return { minCol: 0, minRow: 0, maxCol: -1, maxRow: -1 };
 }
 
-export function isChunkRangeEmpty(range: ChunkRange): boolean {
-  return range.minCol > range.maxCol || range.minRow > range.maxRow;
-}
-
-export function chunkRangeContains(range: ChunkRange, col: number, row: number): boolean {
-  return col >= range.minCol && col <= range.maxCol && row >= range.minRow && row <= range.maxRow;
-}
-
 /** Number of chunks needed along one axis to cover `tiles` tiles. */
 export function chunksAlong(tiles: number, chunkTiles: number): number {
   if (tiles <= 0 || chunkTiles <= 0) return 0;
@@ -60,9 +52,4 @@ export function computeVisibleChunks(
   out.maxCol = Math.min(cols - 1, Math.ceil((rect.x + rect.width) / chunkPx) - 1);
   out.maxRow = Math.min(rows - 1, Math.ceil((rect.y + rect.height) / chunkPx) - 1);
   return out;
-}
-
-export function countChunks(range: ChunkRange): number {
-  if (isChunkRangeEmpty(range)) return 0;
-  return (range.maxCol - range.minCol + 1) * (range.maxRow - range.minRow + 1);
 }

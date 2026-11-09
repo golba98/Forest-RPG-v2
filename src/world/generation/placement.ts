@@ -22,7 +22,7 @@ import { tileProperties } from '../TileMap';
 import type { GenGrid } from './GenGrid';
 
 /** Tiles around spawn kept free of hills, props and spawns (legacy SPAWN_CLEAR_RADIUS). */
-export const SPAWN_CLEAR_RADIUS = 3;
+const SPAWN_CLEAR_RADIUS = 3;
 
 const DECOR_MAX_DENSITY = 0.07;
 const DECOR_MAX_OBSTACLE_DENSITY = 0.02;

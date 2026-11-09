@@ -4,11 +4,11 @@ export interface RiverGrid {
   readonly tiles: ArrayLike<number>;
   readonly meta: { readonly width: number; readonly height: number };
 }
-export const riverTerrain = (tile: number): boolean => tile === Tile.RIVER;
+const riverTerrain = (tile: number): boolean => tile === Tile.RIVER;
 /** Historical crossing cells retain their underlying hydrological connection. */
 export const channelTerrain = (tile: number): boolean =>
   riverTerrain(tile) || tile === Tile.LOG || tile === Tile.RAMP;
-export const CARDINAL = [
+const CARDINAL = [
   [0, -1],
   [1, 0],
   [0, 1],

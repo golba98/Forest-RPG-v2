@@ -2,7 +2,7 @@ import { GAME_CONFIG } from '../config/GameConfig';
 import { MAX_DELTA_MS } from '../core/loop/types';
 import type { WorldRect } from './chunkMath';
 
-export const WORLD_TILE_PX = 32;
+const WORLD_TILE_PX = 32;
 export const WORLD_CHUNK_TILES = 16;
 export const WORLD_CHUNK_PX = WORLD_TILE_PX * WORLD_CHUNK_TILES;
 export const RETENTION_MS = 5000;

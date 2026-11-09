@@ -1,22 +1,17 @@
 import type {
-  GameEvents,
-  EventHandler,
-  Unsubscribe,
   EventBusErrorHandler,
+  EventHandler,
+  GameEvents,
   IEventBus,
+  Unsubscribe,
 } from './types';
 
-/**
- * Production-grade, strongly typed EventBus implementation.
- * Features:
- * - O(1) listener addition and removal via Set collections
- * - Safe iteration over snapshot arrays against re-entrant mutations
- * - Listener error boundary protecting core simulation loops from UI/Audio exceptions
- * - Once-listener auto-cleanup
- */
+// Event-specific callback types are erased only inside listener storage.
+type StoredHandler = EventHandler<never>;
+
+/** Dispatches typed events with re-entrant iteration and listener error isolation. */
 export class EventBus implements IEventBus {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private readonly listeners: Map<string, Set<EventHandler<any>>> = new Map();
+  private readonly listeners: Map<string, Set<StoredHandler>> = new Map();
 
   private errorHandler: EventBusErrorHandler;
 
@@ -30,7 +25,7 @@ export class EventBus implements IEventBus {
         console.error(
           `[EventBus] Unhandled exception in listener for event "${String(event)}":`,
           error,
-          { payload }
+          { payload },
         );
       });
   }
@@ -48,18 +43,10 @@ export class EventBus implements IEventBus {
    */
   public on<K extends keyof GameEvents>(
     event: K,
-    handler: EventHandler<GameEvents[K]>
+    handler: EventHandler<GameEvents[K]>,
   ): Unsubscribe;
-  public on(
-    event: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    handler: EventHandler<any>
-  ): Unsubscribe;
-  public on(
-    event: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    handler: EventHandler<any>
-  ): Unsubscribe {
+  public on<T = unknown>(event: string, handler: EventHandler<T>): Unsubscribe;
+  public on(event: string, handler: StoredHandler): Unsubscribe {
     let handlers = this.listeners.get(event);
     if (!handlers) {
       handlers = new Set();
@@ -80,20 +67,9 @@ export class EventBus implements IEventBus {
   /**
    * Explicitly removes a handler from the specified event.
    */
-  public off<K extends keyof GameEvents>(
-    event: K,
-    handler: EventHandler<GameEvents[K]>
-  ): void;
-  public off(
-    event: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    handler: EventHandler<any>
-  ): void;
-  public off(
-    event: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    handler: EventHandler<any>
-  ): void {
+  public off<K extends keyof GameEvents>(event: K, handler: EventHandler<GameEvents[K]>): void;
+  public off<T = unknown>(event: string, handler: EventHandler<T>): void;
+  public off(event: string, handler: StoredHandler): void {
     const handlers = this.listeners.get(event);
     if (!handlers) return;
 
@@ -110,10 +86,8 @@ export class EventBus implements IEventBus {
    * Each listener is executed within a try...catch error boundary.
    */
   public emit<K extends keyof GameEvents>(event: K, payload: GameEvents[K]): void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public emit(event: string, payload?: any): void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public emit(event: string, payload?: any): void {
+  public emit(event: string, payload?: unknown): void;
+  public emit(event: string, payload?: unknown): void {
     const handlers = this.listeners.get(event);
     if (!handlers || handlers.size === 0) {
       return;
@@ -129,7 +103,7 @@ export class EventBus implements IEventBus {
       if (!handler) continue;
 
       try {
-        handler(payload);
+        handler(payload as never);
       } catch (err: unknown) {
         // Guard core simulation: report error without aborting next listeners or engine loop
         this.errorHandler(err, event as keyof GameEvents, payload);
@@ -142,22 +116,13 @@ export class EventBus implements IEventBus {
    */
   public once<K extends keyof GameEvents>(
     event: K,
-    handler: EventHandler<GameEvents[K]>
+    handler: EventHandler<GameEvents[K]>,
   ): Unsubscribe;
-  public once(
-    event: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    handler: EventHandler<any>
-  ): Unsubscribe;
-  public once(
-    event: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    handler: EventHandler<any>
-  ): Unsubscribe {
+  public once<T = unknown>(event: string, handler: EventHandler<T>): Unsubscribe;
+  public once(event: string, handler: StoredHandler): Unsubscribe {
     let unsubscribed = false;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const wrapper: EventHandler<any> = (payload: any) => {
+    const wrapper: StoredHandler = (payload) => {
       if (unsubscribed) return;
       unsubscribed = true;
       this.off(event, wrapper);

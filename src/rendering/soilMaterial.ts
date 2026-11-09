@@ -30,7 +30,7 @@ function receivesSoil(tile: number): boolean {
 const smooth = (v: number): number => v * v * (3 - 2 * v);
 
 /** Continuous material weights at cell centres, independent of tile/chunk origins. */
-export function soilCoverage(world: SoilWorld, worldX: number, worldY: number): number {
+function soilCoverage(world: SoilWorld, worldX: number, worldY: number): number {
   const gx = worldX / SOIL_TILE_SIZE - 0.5,
     gy = worldY / SOIL_TILE_SIZE - 0.5;
   const x0 = Math.floor(gx),

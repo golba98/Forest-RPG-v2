@@ -16,8 +16,8 @@ export function nestGeometry(
 }
 
 /** Native 96×80 sprite geometry; projections and thin root tips are not solid. */
-export const NEST_ART = { mouthX: 48, mouthY: 52, footOffset: -10 } as const;
-export const NEST_BASE_PIXELS = [
+const NEST_ART = { mouthX: 48, mouthY: 52, footOffset: -10 } as const;
+const NEST_BASE_PIXELS = [
   { minX: 22, minY: 30, maxX: 74, maxY: 76 },
   { minX: 12, minY: 46, maxX: 84, maxY: 72 },
   { minX: 4, minY: 58, maxX: 92, maxY: 68 },

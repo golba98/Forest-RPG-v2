@@ -9,8 +9,6 @@ export const MAX_DELTA_MS = 50.0;
 export const MAX_FIXED_STEPS_PER_FRAME = 5;
 export const MAX_ACCUMULATOR_BACKLOG_MS = 100.0;
 
-export type LoopState = 'stopped' | 'running' | 'paused';
-
 export interface GameLoopCallbacks {
   /**
    * Invoked at the authoritative 60Hz fixed timestep.

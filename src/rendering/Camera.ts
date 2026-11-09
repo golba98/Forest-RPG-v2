@@ -12,10 +12,10 @@ import type { WorldRect } from './chunkMath';
  */
 
 /** Legacy 60 Hz frame duration that the follow lerp factor was tuned for. */
-export const REFERENCE_FRAME_MS = 1000 / 60;
+const REFERENCE_FRAME_MS = 1000 / 60;
 
 /** Device-pixel viewport height per integer zoom step ('auto' zoom). */
-export const AUTO_ZOOM_STEP_DEVICE_PX = 480;
+const AUTO_ZOOM_STEP_DEVICE_PX = 480;
 
 export type ZoomSetting = number | 'auto';
 
@@ -215,7 +215,11 @@ export class Camera {
   }
 
   /** World px → CSS px, using the same snapped transform the renderer applies. */
-  public worldToScreen(worldX: number, worldY: number, out: ScreenPoint = { x: 0, y: 0 }): ScreenPoint {
+  public worldToScreen(
+    worldX: number,
+    worldY: number,
+    out: ScreenPoint = { x: 0, y: 0 },
+  ): ScreenPoint {
     const t = this.getTransform(scratchTransform);
     out.x = worldX * t.scale + t.x;
     out.y = worldY * t.scale + t.y;
@@ -223,7 +227,11 @@ export class Camera {
   }
 
   /** CSS px → world px. Inverse of {@link worldToScreen}. */
-  public screenToWorld(screenX: number, screenY: number, out: ScreenPoint = { x: 0, y: 0 }): ScreenPoint {
+  public screenToWorld(
+    screenX: number,
+    screenY: number,
+    out: ScreenPoint = { x: 0, y: 0 },
+  ): ScreenPoint {
     const t = this.getTransform(scratchTransform);
     out.x = (screenX - t.x) / t.scale;
     out.y = (screenY - t.y) / t.scale;

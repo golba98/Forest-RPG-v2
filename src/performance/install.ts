@@ -1,34 +1,34 @@
 import { TelemetryPipe } from './TelemetryPipe';
 /* eslint-disable prefer-rest-params -- Preserve arguments without allocating rest arrays in hot hooks. */
-import { activateCollector, type PerformanceCollector } from './FrameProfiler';
-import { RouteDriver, type DriverOptions } from './RouteDriver';
-import { GraphicsProbe } from './GraphicsProbe';
+import { Container, Sprite, Texture } from 'pixi.js';
 import { GameLoop } from '../core/loop/GameLoop';
 import { Game } from '../game/Game';
 import { IntentMapper } from '../game/IntentMapper';
-import { Simulation } from '../simulation/Simulation';
-import { EncounterSystem } from '../systems/EncounterSystem';
-import { EnemyAISystem } from '../systems/EnemyAISystem';
-import { EncounterDirector } from '../systems/EncounterDirector';
-import { SurfaceMoisture, SurfaceSites } from '../systems/SurfaceMoisture';
-import { InfiniteSession } from '../world/infinite/InfiniteSession';
-import { ChunkSource } from '../world/infinite/ChunkSource';
-import { WorldRepository } from '../persistence/WorldRepository';
 import { SaveManager } from '../persistence/SaveManager';
-import { PixiRenderer } from '../rendering/PixiRenderer';
-import { TerrainChunks } from '../rendering/TerrainChunks';
-import { WorldVisibility, WorldBoundsIndex } from '../rendering/WorldVisibility';
-import { EntityAnimator } from '../rendering/EntityAnimator';
-import { WorldObjects } from '../rendering/WorldObjects';
-import { WaterLayer } from '../rendering/effects/WaterLayer';
-import { SurfaceWaterLayer } from '../rendering/effects/SurfaceWaterLayer';
-import { SkyLayer } from '../rendering/effects/SkyLayer';
-import { WeatherLayer } from '../rendering/effects/WeatherLayer';
+import { WorldRepository } from '../persistence/WorldRepository';
 import { AmbientLayer } from '../rendering/effects/AmbientLayer';
 import { EffectsLayer } from '../rendering/effects/EffectsLayer';
-import { Minimap } from '../rendering/Minimap';
+import { SkyLayer } from '../rendering/effects/SkyLayer';
+import { SurfaceWaterLayer } from '../rendering/effects/SurfaceWaterLayer';
+import { WaterLayer } from '../rendering/effects/WaterLayer';
+import { WeatherLayer } from '../rendering/effects/WeatherLayer';
+import { EntityAnimator } from '../rendering/EntityAnimator';
 import { Hud } from '../rendering/Hud';
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Minimap } from '../rendering/Minimap';
+import { PixiRenderer } from '../rendering/PixiRenderer';
+import { TerrainChunks } from '../rendering/TerrainChunks';
+import { WorldObjects } from '../rendering/WorldObjects';
+import { WorldBoundsIndex, WorldVisibility } from '../rendering/WorldVisibility';
+import { Simulation } from '../simulation/Simulation';
+import { EncounterDirector } from '../systems/EncounterDirector';
+import { EncounterSystem } from '../systems/EncounterSystem';
+import { EnemyAISystem } from '../systems/EnemyAISystem';
+import { SurfaceMoisture, SurfaceSites } from '../systems/SurfaceMoisture';
+import { ChunkSource } from '../world/infinite/ChunkSource';
+import { InfiniteSession } from '../world/infinite/InfiniteSession';
+import { activateCollector, type PerformanceCollector } from './FrameProfiler';
+import { GraphicsProbe } from './GraphicsProbe';
+import { RouteDriver, type DriverOptions } from './RouteDriver';
 
 type Callable = (this: unknown, ...args: unknown[]) => unknown;
 const fields = (value: object) => value as unknown as Record<string, unknown>;
@@ -447,7 +447,6 @@ function resources(renderer: PixiRenderer) {
     activeClouds: (fields(renderer).sky as SkyLayer).cloudCount,
   };
 }
-export type PerformanceEndpoint = NonNullable<Window['__PERF__']>;
 declare global {
   interface Window {
     __PERF__?: {

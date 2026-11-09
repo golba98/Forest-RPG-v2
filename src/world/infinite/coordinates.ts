@@ -1,6 +1,6 @@
 /** Global cells use safe integer arithmetic. GPU and physics use nearby local coordinates. */
 export const COORDINATE_LIMIT = 2_147_483_647;
-export const CHUNK_SIZE = 32;
+const CHUNK_SIZE = 32;
 export const REGION_SIZE = 256;
 export interface ChunkAddress {
   readonly x: number;
@@ -18,11 +18,6 @@ export function splitCoordinate(n: number, size = CHUNK_SIZE): { chunk: number; 
   if (!Number.isSafeInteger(size) || size <= 0) throw new RangeError('Invalid chunk size');
   const chunk = Math.floor(n / size);
   return { chunk, local: n - chunk * size };
-}
-export function tileKey(x: number, y: number): string {
-  assertCoordinate(x);
-  assertCoordinate(y);
-  return addressKey(x, y);
 }
 /** Hash complete signed coordinates as text; never truncate coordinates to uint32. */
 export function coordinateHash(seed: number, x: number, y: number, salt = ''): number {

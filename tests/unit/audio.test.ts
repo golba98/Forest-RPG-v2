@@ -1,7 +1,8 @@
-import { registerAudioEvents, type IEventBus } from '@/audio/AudioBridge';
+import { registerAudioEvents } from '@/audio/AudioBridge';
 import { MusicPlayer } from '@/audio/MusicPlayer';
 import { SoundSynthesizer } from '@/audio/SoundSynthesizer';
 import type { SoundEffectType } from '@/audio/types';
+import { EventBus } from '@/core/events/EventBus';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('SoundSynthesizer Headless Tests', () => {
@@ -517,38 +518,8 @@ describe('MusicPlayer Full Tests with DOM Audio Mock', () => {
 });
 
 describe('AudioBridge Event Integration Tests', () => {
-  class MockEventBus implements IEventBus {
-    private handlers: Map<string, Array<(payload?: unknown) => void>> = new Map();
-
-    on(event: string, handler: (payload?: unknown) => void): () => void {
-      const handlers = this.handlers.get(event) ?? [];
-      handlers.push(handler);
-      this.handlers.set(event, handlers);
-      return () => {
-        const list = this.handlers.get(event);
-        if (list) {
-          const idx = list.indexOf(handler);
-          if (idx !== -1) list.splice(idx, 1);
-        }
-      };
-    }
-
-    emit(event: string, payload?: unknown): void {
-      const list = this.handlers.get(event);
-      if (list) {
-        for (const handler of [...list]) {
-          handler(payload);
-        }
-      }
-    }
-
-    handlerCount(event: string): number {
-      return this.handlers.get(event)?.length || 0;
-    }
-  }
-
   it('subscribes to combat and game events, invoking the synthesizer', () => {
-    const eventBus = new MockEventBus();
+    const eventBus = new EventBus();
     const synth = new SoundSynthesizer();
     const music = new MusicPlayer();
 
@@ -607,7 +578,7 @@ describe('AudioBridge Event Integration Tests', () => {
 
     // Teardown
     unsubscribe();
-    expect(eventBus.handlerCount('player:attackSwing')).toBe(0);
-    expect(eventBus.handlerCount('game:started')).toBe(0);
+    expect(eventBus.listenerCount('player:attackSwing')).toBe(0);
+    expect(eventBus.listenerCount('game:started')).toBe(0);
   });
 });

@@ -6,7 +6,7 @@
 
 import { LegacyActiveMapPayload, LegacySettingsPayload } from './types';
 
-export const LEGACY_TILE_TYPES = {
+const LEGACY_TILE_TYPES = {
   GRASS: 1,
   FOREST: 2,
   MOB: 3,
@@ -94,8 +94,8 @@ export function createStandardLegacyMap150x150(): LegacyActiveMapPayload {
   // Tree objects
   const treeObjects: Array<{ x: number; y: number }> = [];
   for (let i = 0; i < 50; i++) {
-    const tx = 10 + (i * 7) % 130;
-    const ty = 15 + (i * 11) % 120;
+    const tx = 10 + ((i * 7) % 130);
+    const ty = 15 + ((i * 11) % 120);
     if (tx !== 75 || ty !== 75) {
       treeObjects.push({ x: tx, y: ty });
       mapStates[ty * 150 + tx] = LEGACY_TILE_TYPES.FOREST;

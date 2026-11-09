@@ -2,7 +2,7 @@ import { BIOME_IDS, type BiomeId } from '../world/Biomes';
 import type { Game } from '../game/Game';
 import type { Simulation } from '../simulation/Simulation';
 
-export const BIOME_COPY: Record<BiomeId, { name: string; description: string }> = {
+const BIOME_COPY: Record<BiomeId, { name: string; description: string }> = {
   forest: {
     name: 'Forest',
     description: 'Deep green canopies, fern-lined clearings and sheltered river valleys.',

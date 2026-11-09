@@ -53,10 +53,6 @@ test.describe('Tier 1: World Gen, Environment, Camera & Lifecycle', () => {
     await driver.launchGame({ seed: 100 });
     await driver.waitForEngineReady();
 
-    const initial = await driver.getState();
-    const _initCamX = initial.camera.x;
-    const _initCamY = initial.camera.y;
-
     // Teleport player near edge (x: 2, y: 2)
     await driver.executeDebugCommand('/tp 2 2');
     await driver.page.waitForTimeout(150);
@@ -99,21 +95,26 @@ test.describe('Tier 1: World Gen, Environment, Camera & Lifecycle', () => {
 
   test('T1.4.5 — melee cuts fixture flowers in its cone after the strike delay', async () => {
     await boot(driver.page);
-    expect(await driver.page.evaluate(() => {
-      const g = window.__GAME__!; g.saveGame('flowers');
-      const data = JSON.parse(localStorage.getItem('forestrpg.v2.save.flowers')!);
-      data.world.tiles[20 * 40 + 21] = 9;
-      data.world.tiles[20 * 40 + 19] = 9;
-      data.entities.find((e: { kind: string }) => e.kind === 'player').facing = 'E';
-      localStorage.setItem('forestrpg.v2.save.flowers', JSON.stringify(data));
-      return g.loadGame('flowers');
-    })).toBe(true);
-    const tiles = () => driver.page.evaluate(() => {
-      window.__GAME__!.saveGame('flower-result');
-      const data = JSON.parse(localStorage.getItem('forestrpg.v2.save.flower-result')!);
-      return [data.world.tiles[20 * 40 + 21], data.world.tiles[20 * 40 + 19]];
-    });
-    await driver.page.keyboard.press('KeyE'); await driver.page.clock.runFor(100);
+    expect(
+      await driver.page.evaluate(() => {
+        const g = window.__GAME__!;
+        g.saveGame('flowers');
+        const data = JSON.parse(localStorage.getItem('forestrpg.v2.save.flowers')!);
+        data.world.tiles[20 * 40 + 21] = 9;
+        data.world.tiles[20 * 40 + 19] = 9;
+        data.entities.find((e: { kind: string }) => e.kind === 'player').facing = 'E';
+        localStorage.setItem('forestrpg.v2.save.flowers', JSON.stringify(data));
+        return g.loadGame('flowers');
+      }),
+    ).toBe(true);
+    const tiles = () =>
+      driver.page.evaluate(() => {
+        window.__GAME__!.saveGame('flower-result');
+        const data = JSON.parse(localStorage.getItem('forestrpg.v2.save.flower-result')!);
+        return [data.world.tiles[20 * 40 + 21], data.world.tiles[20 * 40 + 19]];
+      });
+    await driver.page.keyboard.press('KeyE');
+    await driver.page.clock.runFor(100);
     expect(await tiles()).toEqual([9, 9]);
     await driver.page.clock.runFor(50);
     expect(await tiles()).toEqual([1, 9]);
@@ -171,19 +172,23 @@ test.describe('Tier 1: World Gen, Environment, Camera & Lifecycle', () => {
 
   test('T1.4.9 — actual terminal UI executes supported help, teleport and resource commands', async () => {
     await boot(driver.page);
-    await driver.page.keyboard.press('Backquote'); await driver.page.clock.runFor(17);
+    await driver.page.keyboard.press('Backquote');
+    await driver.page.clock.runFor(17);
     const input = driver.page.getByLabel('Terminal command');
     await expect(input).toBeVisible();
     for (const command of ['/help', '/tp 22 23', '/give health 2', '/stamina 0']) {
-      await input.fill(command); await input.press('Enter');
+      await input.fill(command);
+      await input.press('Enter');
     }
     await expect(driver.page.locator('#debug-terminal pre')).toContainText('/kill all|boss');
     await expect(driver.page.locator('#debug-terminal pre')).toContainText('Position: 22, 23.');
     const state = await driver.getState();
-    expect(state.player.x).toBe(22); expect(state.player.y).toBe(23);
+    expect(state.player.x).toBe(22);
+    expect(state.player.y).toBe(23);
     expect(state.player.potions.health).toBeGreaterThanOrEqual(2);
     expect(state.player.stamina).toBe(0);
-    await input.press('Escape'); await driver.page.clock.runFor(17);
+    await input.press('Escape');
+    await driver.page.clock.runFor(17);
     await expect(input).toBeHidden();
     expect((await driver.getState()).ui.currentMenu).toBeNull();
   });

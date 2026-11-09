@@ -107,7 +107,7 @@ export function validateCheckpoint(
   )
     throw new Error('Invalid infinite world entities');
 }
-export function validateDelta(
+function validateDelta(
   value: unknown,
   size: number,
   entity: (v: unknown) => boolean,
