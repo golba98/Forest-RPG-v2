@@ -1,0 +1,126 @@
+name: Gameplay regression protection
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gameplay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review-diff:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      approval: ${{ steps.diff.outputs.approval }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - id: diff
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: node scripts/regression/critical-diff.mjs
+      - name: Verify that visual approval requires a human
+        if: steps.diff.outputs.approval == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/environments/visual-baselines" > "$RUNNER_TEMP/visual-environment.json"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const env = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/visual-environment.json`));
+          const reviewers = env.protection_rules?.find(r => r.type === 'required_reviewers')?.reviewers ?? [];
+          if (!reviewers.some(r => r.type === 'User' && r.reviewer.login === 'golba98') || env.can_admins_bypass !== false)
+            throw Error('Configure visual-baselines with required reviewer golba98 and administrator bypass disabled.');
+          JS
+
+  visual-approval:
+    needs: review-diff
+    if: needs.review-diff.outputs.approval == 'true'
+    runs-on: ubuntu-latest
+    environment: visual-baselines
+    steps:
+      - name: Record approval for this revision
+        env:
+          REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: echo "Human approved character/baseline or critical capability changes at $REVIEWED_SHA"
+
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check:player
+      - run: npm run test:workflow
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test -- --maxWorkers=2
+      - run: npm run build
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LIBGL_ALWAYS_SOFTWARE: '1'
+      MOZ_WEBRENDER: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox
+      - run: npm run build
+      - run: xvfb-run -a npm run test:critical
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: gameplay-evidence
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 14
+
+  critical-regressions:
+    if: always()
+    needs: [review-diff, visual-approval, checks, browser]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful checks and any requested human approval
+        env:
+          DIFF: ${{ needs.review-diff.result }}
+          CHECKS: ${{ needs.checks.result }}
+          BROWSER: ${{ needs.browser.result }}
+          APPROVAL_REQUIRED: ${{ needs.review-diff.outputs.approval }}
+          APPROVAL: ${{ needs.visual-approval.result }}
+        run: |
+          test "$DIFF" = success
+          test "$CHECKS" = success
+          test "$BROWSER" = success
+          if [ "$APPROVAL_REQUIRED" = true ]; then test "$APPROVAL" = success; fi

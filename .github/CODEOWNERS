@@ -1,0 +1,10 @@
+# Changes to regression protection and approved visuals require the owner's review.
+/.github/ @golba98
+/scripts/regression/ @golba98
+/playwright*.config.ts @golba98
+/docs/assets/source/player-face-continuity/ @golba98
+/public/assets/images/characters/player/ @golba98
+/src/animation/Player* @golba98
+/src/animation/player* @golba98
+/src/rendering/PlayerCompositor.ts @golba98
+/tests/fixtures/player-appearance/ @golba98

@@ -20,6 +20,56 @@ async function leave(page: Page) {
   await page.getByTestId('main-menu-button').click();
   await expect(page.getByTestId('new-game-button')).toBeVisible();
 }
+test('worlds with the same seed retain independent progress after switching and reload', async ({
+  page,
+}) => {
+  test.setTimeout(120000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  await page.goto('/?debug=1');
+  const worlds = [
+    ['First seed 42', 3],
+    ['Second seed 42', 6],
+  ] as const;
+  const identities: string[] = [];
+  for (const [name, health] of worlds) {
+    await library(page);
+    await create(page, name, '42');
+    await page.evaluate((health) => {
+      window.__GAME__!.setTimeScale(0);
+      window.__GAME__!.setPlayerHealth(health);
+    }, health);
+    expect(await page.evaluate(() => window.__GAME__!.saveGame('auto'))).toBe(true);
+    await leave(page);
+    await library(page);
+    const entry = page
+      .locator('.world-entry')
+      .filter({ has: page.getByRole('heading', { name, exact: true }) });
+    const id = await entry.getAttribute('data-world-id');
+    if (!id) throw new Error('Named world has no persistent library identity');
+    identities.push(id);
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+  }
+  expect(new Set(identities).size).toBe(2);
+  await page.reload();
+  for (const [index, [name, health]] of worlds.entries()) {
+    await library(page);
+    await expect(page.locator('.world-entry')).toHaveCount(2);
+    const entry = page
+      .locator('.world-entry')
+      .filter({ has: page.getByRole('heading', { name, exact: true }) });
+    await expect(entry).toHaveAttribute('data-world-id', identities[index]!);
+    await expect(entry).toContainText('Seed 42');
+    await entry.getByRole('button', { name: 'Play / Resume' }).click();
+    await page.waitForFunction(() => window.__GAME__?.getState().ui.currentMenu === null);
+    expect(await page.evaluate(() => window.__GAME__!.getState().player.health)).toBe(health);
+    await leave(page);
+  }
+  expect(errors).toEqual([]);
+});
 test('independent worlds resume, rename, export, import and delete', async ({ page }, info) => {
   test.setTimeout(240000);
   const errors: string[] = [];
