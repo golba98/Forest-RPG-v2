@@ -59,3 +59,14 @@ For build commands, tests, and technical guides, see the [development documentat
 Ghost-grove artwork uses [LPC Flowers / Plants / Fungi / Wood](https://opengameart.org/content/lpc-flowers-plants-fungi-wood) by bluecarrot16 and contributors under **CC BY-SA 3.0**. See the [complete credits and adaptation notice](public/assets/licenses/grove/NOTICE.txt) for source details and the changes made to those assets.
 
 Forest vegetation includes LPC artwork under CC BY-SA 3.0. See the [full credits](public/assets/images/environment/lpc/README.md).
+
+<!-- documentation-publication-policy:start -->
+
+## Documentation contributions
+
+Agent instruction entrypoints (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) are local-only and ignored by Git.
+
+Keep temporary plans and agent notes in ignored `docs/tmp/`. Update existing guides for lasting user or contributor needs; ordinary tasks do not need a Markdown report.
+
+After cloning, install local checks with `python3 scripts/check_documentation.py --install-hooks`. Run `python3 scripts/check_documentation.py` before publication. Public documentation and publication-policy changes require owner review of exact contents. Prepare a proposal with `python3 scripts/check_documentation.py --propose docs/tmp/documentation-review.json`; the owner reviews it in a separate terminal with `--review` and the same path. PR checks print the owner approval comment to post before rerunning validation. Hooks and CI cannot undo an initial public disclosure.
+<!-- documentation-publication-policy:end -->

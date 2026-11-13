@@ -1,0 +1,62 @@
+{
+  "owner": "golba98",
+  "private_git_blobs": [
+    "7d93bf12a8ff5a579e36b65f3825a98d797a2668"
+  ],
+  "private_hashes": [
+    "0e318b4ee9ea83d166993e242219127d11ae61ddb1daae7580683952b6f6026a"
+  ],
+  "private_paths": [
+    ".agents/scratch/",
+    ".agents/teamwork/",
+    ".private/",
+    "docs/_reports/",
+    "docs/tmp/"
+  ],
+  "protected_paths": [
+    ".github/documentation-policy.json",
+    "scripts/check_documentation.py",
+    "scripts/test_documentation_policy.py",
+    ".gitignore",
+    ".npmignore",
+    ".dockerignore",
+    "MANIFEST.in",
+    "scripts/documentation-policy.json",
+    "scripts/check-docs.mjs",
+    "scripts/install-hooks.mjs",
+    "tools/stage-workspace.py",
+    "scripts/package.mjs"
+  ],
+  "public_markdown": {
+    ".github/pull_request_template.md": "7488352683ebfec35fd4071324c012d5d96a88b244f9c36a860ad0266fa57b4c",
+    "README.md": "bd2be7988ffac7902ba08140675318467fb8b1ddaa1bd52e64f169cc3ee4ce41",
+    "docs/architecture.md": "4e5b3d1ce875696efd406da7dd7da841e029548aba3df10c1cdc4dd71da6bccb",
+    "docs/assets/replacements.md": "8f03f27ba6e40167f80490728748707eb1aa2974c7f60179909df934b294fce8",
+    "docs/assets/source/grove/lpc-flowers-plants-fungi-wood.zip!lpc-flowers-plants-fungi-wood/CREDITS-plants.txt": "1896439ecd772cb946af04ff2da1f3a84e7954e3b4d329321cfb75ecfc306ee7",
+    "docs/assets/source/player-face-continuity/README.md": "3c1ca4772d60dc8de5c2aab5fc9685005303d94c340b390f52d5bc90a471bf2b",
+    "docs/assets/visual-manifest.md": "03972777896bf958ced22e21f7c7964f6d048496b79dc1c23a6a5cc211010511",
+    "docs/contracts/visual-contract.md": "476b3cd8486d4107c46ef6d60298a3276611f22fbc9b9163fdac63380517f879",
+    "docs/deployment.md": "8b1af226c55a9e5b9578a64c98ffe4275db27a52332838688c16996d706f3649",
+    "docs/development/README.md": "6c027e7279bbe6e22c5218d9ba0bb97041f19797d71219d2e3122c211dfe15f5",
+    "docs/development/notes/2026-11-09-canonical-recovery.md": "a2b1c39bc46ab88d43b1bbd99d0aef0826f5a491113d2e11824dccd0dcc738d3",
+    "docs/development/notes/README.md": "8f48099d58621001e41a4448e12dc11979ba8da531b4d7f811019ecf342df81b",
+    "docs/development/safe-integration.md": "acc4c21af05c16e469c8363c116d5eb5e83fcc4a0a58f821ceab3ebbd2bcfb3c",
+    "docs/feature-parity.md": "ec7c5abc8ecf935db40b2a37832c02034f1fc760304da882fe15cbd37b4b311a",
+    "docs/gameplay-systems.md": "abfa09ec2a15cfe2473c78b008a75bd0f37ea439378167b9b05337658ace7da4",
+    "docs/implementation-status.md": "19b8579125140e11c3c70a3da5d810492ace21318ea9070e95b9a4ab62be6c99",
+    "docs/original-game-audit.md": "9b59e3e64c4bcfb288176e41b1bccf77c323d767317649ff3dd6c93b80f7fd42",
+    "docs/performance.md": "3408758af7b041ee458a28ca525d38052d8000dc25909aed57f01cf20630c771",
+    "docs/performance/INFINITE_WORLD_OPTIMIZATION_REPORT.md": "57cc428dc41adabe62cbc9c24de19d10c37358af9fc99601855821182151269c",
+    "docs/performance/INFINITE_WORLD_PERFORMANCE_REPORT.md": "084547e836378f602e803b1006f338cf28135d8feeb0c0df43ca808edb31a8c1",
+    "docs/performance/README.md": "3eff28c0bc6f4762442882241f9c3354b3cc65919767647982845c951e59980a",
+    "docs/rendering.md": "5b1f945eb39f73f1db25de23e4716632ddeb5ce667704fb94a65b5a25f60ec6d",
+    "docs/save-format.md": "65a303cd12ae808188a84e25e5b23b98659aa91ae9e4a1d800a8241c128ce48a",
+    "docs/testing.md": "920f785abd57bbc3142fd5e0202742ed77dd4655800abbb26ce3b452b6bce077",
+    "docs/world-generation.md": "0ed9c59df3223cc5e993fbc54a7c2d81aa25bfa7f8c989c07d2cc675ff9c1c1e",
+    "public/assets/images/environment/README.md": "1400235256315db380832093644dc4d309bed9d0a1832126716410e07a3ff005",
+    "public/assets/images/environment/lpc/README.md": "ae8298633a3245d8c1bd3d53a214cbb6f86a098014a3d309a5716291704f8684",
+    "tests/fixtures/landscape/README.md": "b1bb27ba27ee0752afe19e6fede6da72945c22ce8483843d86ffa998343ddf9e"
+  },
+  "repository": "golba98/Forest-RPG-v2",
+  "version": 1
+}
