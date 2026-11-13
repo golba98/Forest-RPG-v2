@@ -1,11 +1,7 @@
 {
   "owner": "golba98",
-  "private_git_blobs": [
-    "7d93bf12a8ff5a579e36b65f3825a98d797a2668"
-  ],
-  "private_hashes": [
-    "0e318b4ee9ea83d166993e242219127d11ae61ddb1daae7580683952b6f6026a"
-  ],
+  "private_git_blobs": ["7d93bf12a8ff5a579e36b65f3825a98d797a2668"],
+  "private_hashes": ["0e318b4ee9ea83d166993e242219127d11ae61ddb1daae7580683952b6f6026a"],
   "private_paths": [
     ".agents/scratch/",
     ".agents/teamwork/",
