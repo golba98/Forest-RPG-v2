@@ -24,7 +24,8 @@ export default defineConfig({
     baseURL: 'http://localhost:4311',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    // Preserve local failure videos, but avoid large video artifacts in CI.
+    video: process.env.CI ? 'off' : 'retain-on-failure',
     viewport: { width: 1280, height: 720 },
     launchOptions: {
       args: [
