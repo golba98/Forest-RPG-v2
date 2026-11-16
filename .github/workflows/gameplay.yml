@@ -105,14 +105,15 @@ jobs:
       - run: npx playwright install --with-deps chromium firefox
       - run: npm run build
       - run: xvfb-run -a npm run test:critical
+      # Keep failure evidence only; passing runs do not need downloadable reports.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
+        if: failure()
         with:
           name: gameplay-evidence
           path: |
             test-results/
             playwright-report/
-          retention-days: 14
+          retention-days: 3
 
   critical-regressions:
     if: always()
